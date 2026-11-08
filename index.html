@@ -140,17 +140,22 @@ section{padding:110px clamp(16px,6vw,90px)}
 
 /* WHY (3D cube) */
 .why{display:grid;grid-template-columns:1fr 1fr;gap:60px;align-items:center}
-.scene{height:360px;display:flex;align-items:center;justify-content:center;perspective:1000px}
-.cube{width:220px;height:220px;position:relative;transform-style:preserve-3d;animation:spin 16s linear infinite}
+.scene{position:relative;height:360px;display:flex;align-items:center;justify-content:center;perspective:1000px;
+  user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;cursor:grab}
+.scene.drag{cursor:grabbing}
+.cube{width:220px;height:220px;position:relative;transform-style:preserve-3d;transform:rotateX(-18deg);will-change:transform;touch-action:none}
+.scene .hint{position:absolute;bottom:-34px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:8px;white-space:nowrap;
+  font-size:12px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--mut);transition:opacity .5s;pointer-events:none}
+.scene .hint svg{width:18px;height:18px;stroke:var(--red-hi);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.scene.used .hint{opacity:0}
 .cube div{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;padding:16px;
   font-family:"Permanent Marker",cursive;font-size:30px;text-transform:uppercase;line-height:1.05;border:5px solid #fff;
-  background:rgba(18,18,18,.88);color:#fff}
+  background:#161616;color:#fff;backface-visibility:hidden;-webkit-backface-visibility:hidden}
 .cube div:nth-child(even){background:var(--red)}
 .cube .f1{transform:translateZ(110px)}.cube .f2{transform:rotateY(90deg) translateZ(110px)}
 .cube .f3{transform:rotateY(180deg) translateZ(110px)}.cube .f4{transform:rotateY(-90deg) translateZ(110px)}
 .cube .f5{transform:rotateX(90deg) translateZ(110px)}.cube .f6{transform:rotateX(-90deg) translateZ(110px)}
 .cube .f1 span{color:var(--red);font-size:120px}
-@keyframes spin{from{transform:rotateX(-18deg) rotateY(0)}to{transform:rotateX(-18deg) rotateY(360deg)}}
 .list{display:flex;flex-direction:column;gap:14px;margin-top:10px}
 .li{display:flex;gap:16px;align-items:flex-start;padding:20px 22px;border-radius:18px;background:var(--card);border:1px solid var(--line)}
 .li b{font-family:"Permanent Marker",cursive;font-weight:400;color:var(--red-hi);font-size:22px;min-width:38px}
@@ -263,11 +268,12 @@ footer img{width:36px;height:36px;border-radius:8px;vertical-align:middle;margin
 </section>
 
 <section id="perche" class="why">
-  <div class="scene rv" aria-hidden="true">
-    <div class="cube">
+  <div class="scene rv" id="cubeScene" aria-hidden="true">
+    <div class="cube" id="cube">
       <div class="f1"><span>?</span></div><div class="f2">Why<br>not</div><div class="f3">Forza</div>
       <div class="f4">Energia</div><div class="f5">Costanza</div><div class="f6">Biella</div>
     </div>
+    <div class="hint"><svg viewBox="0 0 24 24"><path d="M8 13V5a2 2 0 0 1 4 0v6M12 11V4a2 2 0 0 1 4 0v7M16 9a2 2 0 0 1 4 0v5a7 7 0 0 1-7 7h-1a7 7 0 0 1-6-3.5L3.5 14a2 2 0 0 1 3.4-2L8 13.5"/></svg>Trascina per ruotare</div>
   </div>
   <div>
     <div class="sec-head rv" style="margin-bottom:24px">
@@ -451,6 +457,46 @@ function countUp(el){
   (function f(t){const p=Math.min(1,(t-t0)/dur), e=1-Math.pow(1-p,3);
     el.textContent=(start+(end-start)*e).toFixed(dec); if(p<1) requestAnimationFrame(f);})(t0);
 }
+
+/* ===== CUBO: rotazione automatica + trascinamento (mouse tasto destro o sinistro, dito su touch) con inerzia ===== */
+(function(){
+  const scene=document.getElementById('cubeScene'), cube=document.getElementById('cube');
+  let rx=-18, ry=0, vx=0, vy=0, drag=null, idle=0, prev=performance.now(), visible=false;
+  const AUTO=reduce?0:.38;                       // gradi/frame a 60 fps quando nessuno lo tocca
+  const apply=()=>cube.style.transform=`rotateX(${rx.toFixed(2)}deg) rotateY(${ry.toFixed(2)}deg)`;
+  scene.addEventListener('contextmenu',e=>e.preventDefault());   // il tasto destro ruota invece di aprire il menu
+  scene.addEventListener('pointerdown',e=>{
+    if(e.pointerType==='mouse' && e.button!==0 && e.button!==2) return;
+    drag={id:e.pointerId,x:e.clientX,y:e.clientY,t:performance.now()};
+    vx=vy=0; try{scene.setPointerCapture(e.pointerId);}catch(_){} scene.classList.add('drag','used'); e.preventDefault();
+  });
+  scene.addEventListener('pointermove',e=>{
+    if(!drag||e.pointerId!==drag.id) return;
+    const now=performance.now(), dx=e.clientX-drag.x, dy=e.clientY-drag.y, dt=Math.max(1,now-drag.t)/16.667;
+    const flip=Math.cos(rx*Math.PI/180)<0?-1:1;  // a cubo capovolto il verso orizzontale resta naturale
+    ry+=dx*.45*flip; rx-=dy*.45;
+    vy=dx*.45*flip/dt; vx=-dy*.45/dt;            // velocità per l'inerzia al rilascio
+    drag.x=e.clientX; drag.y=e.clientY; drag.t=now; apply();
+  });
+  const end=e=>{ if(!drag||e.pointerId!==drag.id) return;
+    if(performance.now()-drag.t>80){vx=vy=0;}    // fermo prima di rilasciare: niente lancio
+    drag=null; idle=0; scene.classList.remove('drag'); };
+  scene.addEventListener('pointerup',end); scene.addEventListener('pointercancel',end);
+  new IntersectionObserver(([e])=>visible=e.isIntersecting).observe(scene);
+  apply();
+  (function loop(now){
+    const dt=Math.min(3,(now-prev)/16.667); prev=now;
+    if(visible && !drag){
+      const f=Math.pow(.95,dt); vx*=f; vy*=f;     // attrito
+      idle+=dt;
+      const auto=idle>90?AUTO*Math.min(1,(idle-90)/60):0;   // dopo ~1,5 s riprende a girare da solo, gradualmente
+      ry+=(vy+auto)*dt; rx+=vx*dt;
+      if(idle>90 && Math.abs(vx)<.05) rx+=(-18-((rx%360+540)%360-180))*.02*dt; // torna piano all'inclinazione di riposo
+      apply();
+    }
+    requestAnimationFrame(loop);
+  })(prev);
+})();
 
 if(!reduce && matchMedia('(hover:hover)').matches){
   document.querySelectorAll('.card').forEach(c=>{
