@@ -282,8 +282,49 @@ section{padding:110px clamp(16px,6vw,90px)}
 .final h2 span{color:var(--red-hi)}
 .final p{color:#d4d4d4;font-size:19px;margin:20px auto 36px;max-width:520px}
 
-footer{padding:30px clamp(16px,6vw,90px);border-top:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:14px;color:var(--mut);font-size:14px;background:rgba(18,18,18,.92)}
-footer img{width:36px;height:36px;border-radius:8px;vertical-align:middle;margin-right:10px}
+/* FOOTER */
+footer{position:relative;overflow:hidden;background:#0c0c0c;border-top:1px solid var(--line);padding:0 clamp(16px,6vw,90px);color:var(--mut);font-size:15px}
+footer::before{content:"";position:absolute;top:-1px;left:0;right:0;height:3px;background:linear-gradient(90deg,transparent,var(--red-hi) 30%,var(--red-hi) 70%,transparent)}
+footer::after{content:"";position:absolute;width:520px;height:520px;right:-220px;top:-260px;border-radius:50%;background:radial-gradient(circle,rgba(182,25,39,.28),transparent 65%);pointer-events:none}
+.f-grid{position:relative;z-index:1;display:grid;grid-template-columns:1.5fr .9fr 1.15fr 1.35fr;gap:44px;padding:72px 0 56px}
+.f-logo{display:flex;align-items:center;gap:14px}
+.f-logo img{width:58px;height:58px;border-radius:12px;box-shadow:0 10px 30px -10px rgba(182,25,39,.8)}
+.f-logo b{font-family:"Permanent Marker",cursive;font-weight:400;font-size:26px;color:#fff;line-height:1;letter-spacing:1px}
+.f-logo b small{display:block;font-size:11px;letter-spacing:3.5px;opacity:.7;margin-top:4px}
+.f-brand p{margin:20px 0 24px;max-width:330px;line-height:1.6}
+.f-brand p em{font-style:normal;font-family:"Permanent Marker",cursive;color:var(--red-hi)}
+.f-social{display:flex;gap:10px}
+.f-social a{width:46px;height:46px;border-radius:50%;border:1.5px solid rgba(255,255,255,.18);display:grid;place-items:center;transition:background .25s,border-color .25s,transform .25s}
+.f-social a:hover{background:var(--red);border-color:var(--red);transform:translateY(-3px)}
+.f-social svg{width:20px;height:20px;stroke:#fff;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+footer h4{font-size:12px;font-weight:800;letter-spacing:3px;text-transform:uppercase;color:#fff;margin-bottom:20px;display:flex;align-items:center;gap:10px}
+footer h4::before{content:"";width:18px;height:2px;background:var(--red-hi)}
+.f-links{list-style:none;display:flex;flex-direction:column;gap:11px}
+.f-links a{display:inline-block;transition:color .2s,transform .2s}
+.f-links a:hover{color:#fff;transform:translateX(5px)}
+.f-open{white-space:nowrap;display:inline-flex;align-items:center;gap:9px;font-size:12px;font-weight:700;letter-spacing:.5px;padding:7px 13px;border-radius:999px;background:rgba(255,255,255,.06);border:1px solid var(--line);color:#fff;margin-bottom:14px}
+.f-open i{width:8px;height:8px;border-radius:50%;background:#6fd35a;animation:fpulse 2s infinite}
+.f-open.closed i{background:var(--red-hi);animation:none}
+@keyframes fpulse{0%{box-shadow:0 0 0 0 rgba(111,211,90,.55)}70%{box-shadow:0 0 0 9px rgba(111,211,90,0)}100%{box-shadow:0 0 0 0 rgba(111,211,90,0)}}
+.f-hours{list-style:none}
+.f-hours li{display:flex;justify-content:space-between;gap:12px;padding:9px 0;border-bottom:1px dashed rgba(255,255,255,.1)}
+.f-hours li b{color:#fff;font-weight:600}
+.f-contact address{display:flex;flex-direction:column;gap:14px}
+.f-contact address a{display:flex;gap:12px;align-items:flex-start;line-height:1.45;transition:color .2s;word-break:break-word}
+.f-contact address a:hover{color:#fff}
+.f-contact address svg{flex:none;width:19px;height:19px;margin-top:1px;stroke:var(--red-hi);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.f-contact .btn{margin-top:22px;padding:12px 22px;font-size:14px}
+.f-bottom{position:relative;z-index:1;display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;padding:22px 0;border-top:1px solid var(--line);font-size:13px}
+.f-bottom b{color:#d6d6d6;font-weight:600}
+.totop{display:inline-flex;align-items:center;gap:10px;font-weight:700;color:#fff;font-size:13px}
+.totop span{width:42px;height:42px;border-radius:50%;background:var(--red);display:grid;place-items:center;transition:transform .25s,background .25s}
+.totop:hover span{transform:translateY(-4px);background:var(--red-hi)}
+.totop svg{width:18px;height:18px;stroke:#fff;fill:none;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+.f-word{position:relative;font-family:Anton,sans-serif;font-size:clamp(84px,21vw,330px);line-height:.78;text-transform:uppercase;text-align:center;white-space:nowrap;
+  color:transparent;-webkit-text-stroke:1.5px rgba(255,255,255,.09);margin:6px 0 -.1em;user-select:none;pointer-events:none}
+.f-word span{-webkit-text-stroke-color:rgba(224,34,51,.45)}
+@media(max-width:1000px){.f-grid{grid-template-columns:1fr 1fr}}
+@media(max-width:600px){.f-grid{grid-template-columns:1fr;gap:36px;padding:48px 0 40px}.f-bottom{flex-direction:column;align-items:flex-start}}
 
 /* PREZZI */
 .pricing{display:grid;grid-template-columns:1.25fr 1fr 1fr;gap:16px;align-items:stretch}
@@ -311,7 +352,6 @@ footer img{width:36px;height:36px;border-radius:8px;vertical-align:middle;margin
 /* SEO / accessibilità */
 .sr-only{position:absolute!important;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
 address{font-style:normal}
-footer address a:hover{color:var(--red-hi)}
 
 /* FAQ */
 .faq-list{display:flex;flex-direction:column;gap:12px;max-width:900px}
@@ -562,8 +602,48 @@ footer address a:hover{color:var(--red-hi)}
 </main>
 
 <footer>
-  <span><img data-logo alt="" width="36" height="36">© <span id="yr"></span> WHY NOT FITNESS CLUB SSDRL · Palestra a Biella · P.IVA 02680610025</span>
-  <address>Via Emma e Cerino Zegna 7, 13900 Biella (BI) · <a href="tel:+393337933400">+39 333 793 3400</a> · <a href="mailto:whynotfitnessclubbiella@gmail.com">whynotfitnessclubbiella@gmail.com</a></address>
+  <div class="f-grid">
+    <div class="f-brand">
+      <a href="#top" class="f-logo"><img data-logo alt="Logo WHY NOT Fitness Club" width="58" height="58"><b>WHY NOT<small>FITNESS CLUB</small></b></a>
+      <p>Palestra a Biella dal 2010: sala attrezzi e oltre 20 corsi fitness. Ogni allenamento inizia con una domanda: <em>perché no?</em></p>
+      <div class="f-social">
+        <a href="https://www.instagram.com/whynotfitnessclub/?hl=it" target="_blank" rel="noopener" aria-label="Instagram WHY NOT Fitness Club"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r=".6" fill="#fff"/></svg></a>
+        <a href="https://www.facebook.com/whynotbiella" target="_blank" rel="noopener" aria-label="Facebook WHY NOT Fitness Club"><svg viewBox="0 0 24 24"><path d="M14 8h3V4h-3a4 4 0 0 0-4 4v3H7v4h3v6h4v-6h3l1-4h-4V8z"/></svg></a>
+        <a href="https://wa.me/393337933400" target="_blank" rel="noopener" aria-label="Scrivici su WhatsApp"><svg viewBox="0 0 24 24"><path d="M4 20l1.3-3.9A8 8 0 1 1 8 19z"/><path d="M9 9.5c0 3 2.5 5.5 5.5 5.5l1-1.5-2-1-1 1a3.5 3.5 0 0 1-2-2l1-1-1-2z"/></svg></a>
+      </div>
+    </div>
+    <div role="navigation" aria-label="Link rapidi">
+      <h4>Esplora</h4>
+      <ul class="f-links">
+        <li><a href="#club">Il club</a></li><li><a href="#corsi">Corsi</a></li><li><a href="#prezzi">Prezzi</a></li>
+        <li><a href="#orari">Orari</a></li><li><a href="#faq">FAQ</a></li><li><a href="#contatti">Contatti</a></li>
+      </ul>
+    </div>
+    <div>
+      <h4>Orari</h4>
+      <!-- Stessi orari della sezione #orari e del JSON-LD: se cambiano, aggiornarli in tutti e tre i punti (e in FOOT_HOURS nello script). -->
+      <span class="f-open" id="fOpen" hidden><i></i><span></span></span>
+      <ul class="f-hours">
+        <li><span>Lun – Ven</span><b>06:00 – 21:30</b></li>
+        <li><span>Sabato</span><b>08:00 – 17:00</b></li>
+        <li><span>Domenica</span><b>08:00 – 13:00</b></li>
+      </ul>
+    </div>
+    <div class="f-contact">
+      <h4>Contatti</h4>
+      <address>
+        <a href="https://share.google/utPWoQFIcLNHIBe8V" target="_blank" rel="noopener"><svg viewBox="0 0 24 24"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg>Via Emma e Cerino Zegna 7<br>13900 Biella (BI)</a>
+        <a href="tel:+393337933400"><svg viewBox="0 0 24 24"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"/></svg>+39 333 793 3400</a>
+        <a href="mailto:whynotfitnessclubbiella@gmail.com"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>whynotfitnessclubbiella@gmail.com</a>
+      </address>
+      <a class="btn" href="https://wa.me/393337933400" target="_blank" rel="noopener">Prenota una prova</a>
+    </div>
+  </div>
+  <div class="f-bottom">
+    <span>© <span id="yr"></span> <b>WHY NOT FITNESS CLUB SSDRL</b> · P.IVA 02680610025 · Palestra a Biella</span>
+    <a href="#top" class="totop">Torna su<span><svg viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7"/></svg></span></a>
+  </div>
+  <div class="f-word" aria-hidden="true">Why not<span>?</span></div>
 </footer>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -600,6 +680,30 @@ filters.addEventListener('click',e=>{
 // Evidenzia il giorno corrente nella tabella orari
 const today = (new Date().getDay()+6)%7;
 const hrow = document.querySelectorAll('#hours tr')[today]; if(hrow) hrow.classList.add('today');
+
+// Footer: indicatore "Aperto ora / Chiuso" calcolato sull'ora italiana (Europe/Rome), qualunque sia il fuso del visitatore
+const FOOT_HOURS = [[480,780],[360,1290],[360,1290],[360,1290],[360,1290],[360,1290],[480,1020]]; // dom..sab, minuti dall'inizio del giorno
+(function(){
+  const el=document.getElementById('fOpen'); if(!el) return;
+  const DAYS=['domenica','lunedì','martedì','mercoledì','giovedì','venerdì','sabato'];
+  const fmt=m=>String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0');
+  function update(){
+    let d, m;
+    try{
+      const p=Object.fromEntries(new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/Rome',weekday:'short',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(new Date()).map(x=>[x.type,x.value]));
+      d=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].indexOf(p.weekday); m=(+p.hour)*60+(+p.minute);
+    }catch(_){ const n=new Date(); d=n.getDay(); m=n.getHours()*60+n.getMinutes(); }
+    const [o,c]=FOOT_HOURS[d], open=m>=o&&m<c, txt=el.querySelector('span');
+    if(open){ txt.textContent='Aperto ora · fino alle '+fmt(c); el.classList.remove('closed'); }
+    else{
+      let nd=d, k=0; if(m>=c){nd=(d+1)%7;k=1;}
+      txt.textContent='Chiuso · apre '+(k===0?'oggi':(k===1?'domani':DAYS[nd]))+' alle '+fmt(FOOT_HOURS[nd][0]);
+      el.classList.add('closed');
+    }
+    el.hidden=false;
+  }
+  update(); setInterval(update,60000);
+})();
 
 /* ===== UI ===== */
 const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
