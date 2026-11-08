@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://davide9999999.github.io/2026-11-07-WhyNot-Fitness-Landing/sitemap.xml
