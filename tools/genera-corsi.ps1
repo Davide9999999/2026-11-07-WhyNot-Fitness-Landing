@@ -106,6 +106,11 @@ function Footer([string]$pre) {
 "@
 }
 
+function IgNote() {
+  $a = $CFG.avvisoOrari
+  return "<aside class=""ig-note"" role=""note""><svg viewBox=""0 0 24 24"" aria-hidden=""true""><rect x=""3"" y=""3"" width=""18"" height=""18"" rx=""5""/><circle cx=""12"" cy=""12"" r=""4""/><circle cx=""17.5"" cy=""6.5"" r="".6""/></svg><p><strong>$(E $a.titolo)</strong> $(E $a.testo) <a href=""$($CFG.instagram)"" target=""_blank"" rel=""noopener"">Vai su Instagram $(E $a.handle) &rarr;</a></p></aside>"
+}
+
 function Card($c, [string]$href) {
   $k = @($c.cats)[0]; $cat = $CFG.cats.$k
   $feat = ''; if ($c.feat) { $feat = ' feat' }
@@ -163,7 +168,6 @@ foreach ($c in $corsi) {
   $notes = @()
   if (@($orari | Where-Object { $_[2] }).Count -gt 0) { $notes += "<p class=""note"">$(E $CFG.notaCondivise)</p>" }
   if ($c.noteOrari) { $notes += "<p class=""note"">$(E $c.noteOrari)</p>" }
-  if (-not $c.libero) { $notes += "<p class=""note"">Palinsesto della stagione 2026/2027: gli orari possono variare, chiedi conferma in reception o su WhatsApp.</p>" }
   $notesHtml = $notes -join ''
 
   # FAQ (specifiche + comuni)
@@ -237,6 +241,7 @@ $(Header $pre $false)
         </section>
         <section id="orari-corso">
           <h2>$schedTitle</h2>
+          $(IgNote)
           $sched
           $notesHtml
         </section>
@@ -316,6 +321,7 @@ $(Header '../' $true)
       <h1>$(E $H.h1)</h1>
       <p class="lead">$(E $H.lead)</p>
       <div class="ctas"><a class="btn" href="https://wa.me/$($CFG.wa)" target="_blank" rel="noopener">$ICO_WA Chiedi su WhatsApp</a><a class="btn ghost" href="../#prezzi">Vedi i prezzi</a></div>
+      $(IgNote)
     </section>
     <div class="hub">
 $($sections -join "`n")

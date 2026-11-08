@@ -145,3 +145,13 @@ address{font-style:normal}
 .foot-bottom{display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px;padding:20px 0;border-top:1px solid var(--line);font-size:13px}
 .foot-bottom b{color:#d6d6d6;font-weight:600}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}
+
+/* avviso variazioni orari (Instagram) */
+.ig-note{display:flex;gap:14px;align-items:flex-start;margin:4px 0 20px;padding:16px 18px;border-radius:16px;max-width:760px;
+  background:linear-gradient(135deg,rgba(220,39,67,.16),rgba(240,148,51,.08));border:1px solid rgba(220,39,67,.45)}
+.c-hero .ig-note{margin:28px 0 0}
+.ig-note svg{flex:none;width:22px;height:22px;padding:6px;box-sizing:content-box;border-radius:10px;stroke:#fff;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round;
+  background:linear-gradient(45deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888)}
+.ig-note p,.c-main .ig-note p{margin:0;font-size:15px;line-height:1.55;color:#e6e6e6;max-width:none}
+.ig-note strong{color:#fff}
+.ig-note a{color:#fff;font-weight:700;text-decoration:underline;text-underline-offset:3px}

@@ -22,6 +22,7 @@
     "orariApertura": [["Lun – Ven", "06:00 – 21:30"], ["Sabato", "08:00 – 17:00"], ["Domenica", "08:00 – 13:00"]],
     "notaCondivise": "Nelle fasce condivise tra due attività (per esempio «Hatha Yoga / Pilates») le discipline si alternano o si combinano: chiedi in reception il calendario aggiornato.",
     "faqAbbonamento": ["È compreso nell'abbonamento?", "Sì. L'abbonamento mensile da 40 € comprende sala attrezzi, accesso 7 giorni su 7, tutti i corsi (fitness, H.E.A.T. Program, posturale e funzionale) e il servizio docce."],
+    "avvisoOrari": {"titolo": "Orari soggetti a variazioni.", "testo": "Ogni settimana pubblichiamo sul nostro profilo Instagram il post con gli orari aggiornati dei corsi: controllalo prima di venire.", "handle": "@whynotfitnessclub"},
     "faqPortare": ["Cosa devo portare?", "Abbigliamento sportivo comodo, un asciugamano e una bottiglia d'acqua. In palestra è disponibile il servizio docce. Per scarpe e attrezzatura specifica del corso chiedi in reception."],
     "hub": {
       "title": "Corsi fitness a Biella: tutti i corsi | WHY NOT Fitness Club",
