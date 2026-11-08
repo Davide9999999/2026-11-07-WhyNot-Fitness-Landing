@@ -321,7 +321,6 @@ $(Header '../' $true)
       <h1>$(E $H.h1)</h1>
       <p class="lead">$(E $H.lead)</p>
       <div class="ctas"><a class="btn" href="https://wa.me/$($CFG.wa)" target="_blank" rel="noopener">$ICO_WA Chiedi su WhatsApp</a><a class="btn ghost" href="../#prezzi">Vedi i prezzi</a></div>
-      $(IgNote)
     </section>
     <div class="hub">
 $($sections -join "`n")
