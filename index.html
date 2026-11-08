@@ -4,14 +4,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>WHY NOT Fitness Club</title>
-<meta name="description" content="WHY NOT Fitness Club – palestra a Biella dal 2010. Sala pesi, Pilates, Yoga, Zumba, Step e Total Body.">
+<meta name="description" content="WHY NOT Fitness Club – palestra a Biella dal 2010. Sala attrezzi aperta 7 giorni su 7 e oltre 20 corsi: Body Pump, Cross Training, Zumba, Pilates, Hatha Yoga, Step e molto altro.">
 <link rel="icon" id="fav" type="image/png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;700;800&family=Permanent+Marker&display=swap" rel="stylesheet">
 <style>
 :root{
-  --bg:#121212; --bg2:#181818; --card:rgba(24,24,24,.78); --line:rgba(255,255,255,.1);
+  --bg:#121212; --bg2:#181818; --card:rgba(24,24,24,.92); --line:rgba(255,255,255,.1);
   --txt:#f5f5f5; --mut:#a3a3a3; --red:#b61927; --red-hi:#e02233; --radius:20px;
 }
 *{box-sizing:border-box;margin:0;padding:0}
@@ -19,7 +19,7 @@ html{scroll-behavior:smooth;overflow-x:clip}
 body{background:var(--bg);color:var(--txt);font-family:Inter,system-ui,sans-serif;line-height:1.55;overflow-x:hidden}
 a{color:inherit;text-decoration:none}
 #bg3d{position:fixed;inset:0;width:100vw;height:100vh;z-index:0;display:block}
-.blob{position:fixed;z-index:0;pointer-events:none;fill:var(--red);opacity:.9}
+.blob{position:fixed;z-index:0;pointer-events:none;fill:var(--red);opacity:.9;will-change:transform}
 .blob.b1{width:min(46vw,620px);right:-14vw;top:-8vh;animation:morph 18s ease-in-out infinite alternate}
 .blob.b2{width:min(60vw,760px);left:-22vw;bottom:-30vh;animation:morph 22s ease-in-out infinite alternate-reverse}
 @keyframes morph{0%{transform:rotate(0) scale(1)}50%{transform:rotate(18deg) scale(1.08)}100%{transform:rotate(-10deg) scale(.95)}}
@@ -32,8 +32,8 @@ main,header,footer{position:relative;z-index:2}
 
 /* NAV */
 nav{position:fixed;top:0;left:0;right:0;z-index:10;display:flex;align-items:center;justify-content:space-between;
-  padding:14px clamp(16px,4vw,48px);transition:background .3s,backdrop-filter .3s}
-nav.scrolled{background:rgba(18,18,18,.82);backdrop-filter:blur(14px);border-bottom:1px solid var(--line)}
+  padding:14px clamp(16px,4vw,48px);transition:background .3s}
+nav.scrolled{background:rgba(18,18,18,.94);border-bottom:1px solid var(--line)}
 .logo{display:flex;align-items:center;gap:12px}
 .logo img{width:48px;height:48px;border-radius:10px;object-fit:cover;box-shadow:0 6px 20px -6px rgba(182,25,39,.7)}
 .logo b{font-family:"Permanent Marker",cursive;font-weight:400;font-size:22px;letter-spacing:1px;line-height:1}
@@ -101,7 +101,7 @@ section{padding:110px clamp(16px,6vw,90px)}
 .about{display:grid;grid-template-columns:1.1fr .9fr;gap:60px;align-items:center}
 .about .txt p{color:#d0d0d0;font-size:18px;margin-top:16px}
 .stats{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-.stat{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:30px 26px;backdrop-filter:blur(12px)}
+.stat{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:30px 26px}
 .stat:nth-child(2),.stat:nth-child(3){background:var(--red);border-color:transparent}
 .stat:nth-child(2) .n,.stat:nth-child(3) .n{color:#fff}
 .stat:nth-child(2) .d,.stat:nth-child(3) .d{color:rgba(255,255,255,.85)}
@@ -110,21 +110,33 @@ section{padding:110px clamp(16px,6vw,90px)}
 @media(max-width:900px){.about{grid-template-columns:1fr}}
 
 /* COURSES */
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:22px;perspective:1200px}
-.card{position:relative;min-height:320px;border-radius:var(--radius);padding:30px;background:var(--card);border:1px solid var(--line);
-  backdrop-filter:blur(14px);transform-style:preserve-3d;transition:transform .15s ease-out,border-color .3s;overflow:hidden;
-  display:flex;flex-direction:column;justify-content:flex-end}
+.filters{display:flex;flex-wrap:wrap;gap:10px;margin:-24px 0 34px}
+.chip{display:inline-flex;align-items:center;gap:8px;padding:10px 18px;border-radius:999px;border:1.5px solid rgba(255,255,255,.22);background:rgba(18,18,18,.9);
+  color:var(--txt);font:600 14px/1 Inter,sans-serif;cursor:pointer;transition:background .25s,border-color .25s,color .25s}
+.chip small{font-size:12px;opacity:.6;font-weight:700}
+.chip:hover{border-color:#fff}
+.chip[aria-pressed="true"]{background:var(--red);border-color:var(--red)}
+.chip[aria-pressed="true"] small{opacity:.85}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px;perspective:1200px}
+.card{position:relative;min-height:210px;border-radius:var(--radius);padding:24px;background:var(--card);border:1px solid var(--line);
+  transition:transform .2s ease-out,border-color .3s;overflow:hidden;display:flex;flex-direction:column;justify-content:flex-end}
+.card.hide{display:none}
 .card:hover{border-color:rgba(224,34,51,.6)}
-.card::before{content:"";position:absolute;width:220px;height:220px;right:-90px;bottom:-90px;border-radius:50%;background:var(--red);opacity:.0;transition:opacity .4s,transform .6s;transform:scale(.6)}
+.card::before{content:"";position:absolute;width:200px;height:200px;right:-90px;bottom:-90px;border-radius:50%;background:var(--red);opacity:0;transition:opacity .4s,transform .6s;transform:scale(.6)}
 .card:hover::before{opacity:.9;transform:scale(1)}
 .card .glare{position:absolute;inset:0;pointer-events:none;opacity:0;transition:opacity .3s;
-  background:radial-gradient(circle at var(--gx,50%) var(--gy,50%),rgba(255,255,255,.14),transparent 55%)}
+  background:radial-gradient(circle at var(--gx,50%) var(--gy,50%),rgba(255,255,255,.12),transparent 55%)}
 .card:hover .glare{opacity:1}
-.card .ico{position:absolute;top:26px;left:30px;width:60px;height:60px;transform:translateZ(60px)}
-.card .ico svg{width:100%;height:100%;stroke:#fff;fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
-.card .num{position:absolute;top:20px;right:26px;font-family:"Permanent Marker",cursive;font-size:60px;line-height:1;color:var(--red);transform:translateZ(30px)}
-.card h3{position:relative;font-family:"Permanent Marker",cursive;font-weight:400;font-size:30px;text-transform:uppercase;transform:translateZ(50px)}
-.card p{position:relative;color:#bdbdbd;font-size:15px;margin-top:8px;transform:translateZ(35px)}
+.card .top{position:absolute;top:20px;left:24px;right:20px;display:flex;align-items:center;justify-content:space-between}
+.card .tag{display:inline-flex;align-items:center;gap:7px;font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--mut)}
+.card .tag svg{width:20px;height:20px;stroke:var(--red-hi);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.card .num{font-family:"Permanent Marker",cursive;font-size:38px;line-height:1;color:var(--red)}
+.card h3{position:relative;font-family:"Permanent Marker",cursive;font-weight:400;font-size:25px;line-height:1.1;text-transform:uppercase;margin-top:56px}
+.card p{position:relative;color:#bdbdbd;font-size:14.5px;margin-top:8px}
+.card.feat{background:var(--red);border-color:transparent}
+.card.feat .tag,.card.feat p{color:rgba(255,255,255,.85)}.card.feat .tag svg{stroke:#fff}.card.feat .num{color:#121212}
+.card.feat::before{background:#121212}
+@media(max-width:600px){.grid{gap:12px}.card{min-height:0;padding:18px 20px}.card .top{top:16px;left:20px;right:18px}.card .num{font-size:30px}.card h3{font-size:22px;margin-top:40px}.card p{font-size:14px;margin-top:4px}.filters{gap:8px}.chip{padding:9px 14px;font-size:13px}}
 
 /* WHY (3D cube) */
 .why{display:grid;grid-template-columns:1fr 1fr;gap:60px;align-items:center}
@@ -140,14 +152,14 @@ section{padding:110px clamp(16px,6vw,90px)}
 .cube .f1 span{color:var(--red);font-size:120px}
 @keyframes spin{from{transform:rotateX(-18deg) rotateY(0)}to{transform:rotateX(-18deg) rotateY(360deg)}}
 .list{display:flex;flex-direction:column;gap:14px;margin-top:10px}
-.li{display:flex;gap:16px;align-items:flex-start;padding:20px 22px;border-radius:18px;background:var(--card);border:1px solid var(--line);backdrop-filter:blur(12px)}
+.li{display:flex;gap:16px;align-items:flex-start;padding:20px 22px;border-radius:18px;background:var(--card);border:1px solid var(--line)}
 .li b{font-family:"Permanent Marker",cursive;font-weight:400;color:var(--red-hi);font-size:22px;min-width:38px}
 .li h4{font-size:17px}.li p{color:var(--mut);font-size:15px}
 @media(max-width:900px){.why{grid-template-columns:1fr}.scene{height:300px}}
 
 /* HOURS + CONTACT */
 .contact{display:grid;grid-template-columns:1fr 1fr;gap:26px}
-.panel{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:34px;backdrop-filter:blur(14px)}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:34px}
 .panel h3{font-family:"Permanent Marker",cursive;font-weight:400;font-size:30px;text-transform:uppercase;margin-bottom:18px}
 .hours{width:100%;border-collapse:collapse}
 .hours td{padding:13px 0;border-bottom:1px solid var(--line);font-size:16px}
@@ -178,6 +190,7 @@ footer img{width:36px;height:36px;border-radius:8px;vertical-align:middle;margin
 /* reveal */
 .rv{opacity:0;transform:perspective(900px) translateY(60px) rotateX(18deg);transition:opacity 1s,transform 1s cubic-bezier(.2,.8,.2,1)}
 .rv.in{opacity:1;transform:none}
+.card.rv.done{transition:transform .2s ease-out,border-color .3s}
 @media (prefers-reduced-motion:reduce){
   *{animation:none!important;transition:none!important}
   .rv{opacity:1;transform:none}
@@ -218,7 +231,10 @@ footer img{width:36px;height:36px;border-radius:8px;vertical-align:middle;margin
   <div class="scroll-hint">Scroll<i></i></div>
 </header>
 
-<div class="kinetic" id="kinetic" aria-hidden="true">  <div class="krow" data-dir="-1" data-words="Pesi|Pilates|Yoga|Zumba|Step|Total Body"><div class="ktrack"></div></div>  <div class="krow alt" data-dir="1" data-words="Forza|Energia|Costanza|Why not?|Biella|Dal 2010"><div class="ktrack"></div></div></div>
+<div class="kinetic" id="kinetic" aria-hidden="true">
+  <div class="krow" data-dir="-1" data-words="Body Pump|Zumba|Pilates|Cross Training|Hatha Yoga|Tabata|Step Coreo"><div class="ktrack"></div></div>
+  <div class="krow alt" data-dir="1" data-words="Forza|Energia|Costanza|Why not?|Biella|Dal 2010"><div class="ktrack"></div></div>
+</div>
 
 <main>
 <section id="club" class="about">
@@ -230,7 +246,7 @@ footer img{width:36px;height:36px;border-radius:8px;vertical-align:middle;margin
   </div>
   <div class="stats">
     <div class="stat rv"><div class="n" data-count="2010" data-plain>2010</div><div class="d">anno di fondazione</div></div>
-    <div class="stat rv"><div class="n" data-count="6">6</div><div class="d">discipline tra sala e corsi</div></div>
+    <div class="stat rv"><div class="n" data-count="22" id="nCourses">22</div><div class="d">attività tra sala e corsi</div></div>
     <div class="stat rv"><div class="n"><span data-count="4.6" data-dec="1">4.6</span>★</div><div class="d">valutazione media su Google</div></div>
     <div class="stat rv"><div class="n">AICS</div><div class="d">affiliazione sportiva</div></div>
   </div>
@@ -240,8 +256,9 @@ footer img{width:36px;height:36px;border-radius:8px;vertical-align:middle;margin
   <div class="sec-head rv">
     <span class="eyebrow">Corsi & attività</span>
     <h2>Scegli come<br><em>muoverti</em></h2>
-    <p>Dalla sala attrezzi ai corsi di gruppo: trova il ritmo giusto per te.</p>
+    <p>Dalla sala attrezzi ai corsi di gruppo: trova il ritmo giusto per te. Giorni e orari dei corsi in reception o sui social.</p>
   </div>
+  <div class="filters rv" id="filters" role="group" aria-label="Filtra i corsi per categoria"></div>
   <div class="grid" id="courseGrid"></div>
 </section>
 
@@ -258,7 +275,7 @@ footer img{width:36px;height:36px;border-radius:8px;vertical-align:middle;margin
       <h2>Più di una<br><em>palestra</em></h2>
     </div>
     <div class="list">
-      <div class="li rv"><b>01</b><div><h4>Tante discipline, un solo club</h4><p>Pesi, corsi fitness e discipline olistiche sotto lo stesso tetto.</p></div></div>
+      <div class="li rv"><b>01</b><div><h4>Oltre 20 attività, un solo club</h4><p>Sala attrezzi, allenamento funzionale, cardio dance e discipline mind &amp; body sotto lo stesso tetto.</p></div></div>
       <div class="li rv"><b>02</b><div><h4>Per tutti i livelli</h4><p>Corsi dolci e allenamenti intensi, per principianti ed esperti.</p></div></div>
       <div class="li rv"><b>03</b><div><h4>Abbonamenti flessibili</h4><p>Molteplici soluzioni di abbonamento costruite sulle tue esigenze.</p></div></div>
       <div class="li rv"><b>04</b><div><h4>In città</h4><p>A due passi dal centro di Biella, in Via Cerino Zegna.</p></div></div>
@@ -319,13 +336,36 @@ footer img{width:36px;height:36px;border-radius:8px;vertical-align:middle;margin
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
 /* ===== DATI (modificabili) ===== */
+// Corsi: elenco dal palinsesto settimanale fornito il 2026-11-08 (giorni e orari volutamente esclusi).
+// Le descrizioni sono testi di presentazione generici: quelle segnate con (*) vanno confermate dal club.
+const CATS = {
+  forza:  {n:"Forza & Funzionale", i:'<path d="M6 8v8M3 10v4M18 8v8M21 10v4M6 12h12"/>'},
+  cardio: {n:"Cardio & Dance",     i:'<path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>'},
+  mind:   {n:"Mind & Body",        i:'<circle cx="12" cy="5" r="2"/><path d="M4 20c3-1 5-3 8-3s5 2 8 3M12 7v6M7 11l5 2 5-2"/>'}
+};
 const COURSES = [
-  {t:"Sala pesi", d:"Attrezzi e pesi liberi per forza, tono e ricomposizione corporea.", i:'<path d="M6 8v8M3 10v4M18 8v8M21 10v4M6 12h12"/>'},
-  {t:"Total Body", d:"Allenamento completo a circuito: tutto il corpo, in un'ora.", i:'<circle cx="12" cy="5" r="2"/><path d="M12 7v6l-4 7M12 13l4 7M6 10l6-2 6 2"/>'},
-  {t:"Pilates", d:"Core, postura e controllo del movimento.", i:'<circle cx="12" cy="12" r="8"/><path d="M8 12h8M12 8v8"/>'},
-  {t:"Yoga", d:"Mobilità, respiro ed equilibrio tra corpo e mente.", i:'<circle cx="12" cy="5" r="2"/><path d="M4 20c3-1 5-3 8-3s5 2 8 3M12 7v6M7 11l5 2 5-2"/>'},
-  {t:"Zumba", d:"Musica, ritmo e tanta energia: il cardio che diverte.", i:'<path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>'},
-  {t:"Step", d:"Coordinazione e resistenza con le coreografie sullo step.", i:'<path d="M3 18h6v-4h6v-4h6"/>'}
+  {t:"Sala attrezzi", c:"forza", f:1, d:"Macchine, attrezzi e pesi liberi. Aperta tutti i giorni, domenica compresa."},
+  {t:"Body Pump", c:"forza", d:"Bilanciere e dischi a ritmo di musica: forza e resistenza muscolare."},
+  {t:"Cross Training", c:"forza", d:"Circuiti ad alta intensità con esercizi funzionali e attrezzi."},
+  {t:"Cross Training Double", c:"forza", d:"Il cross training in versione potenziata, per chi vuole alzare il livello."}, // (*)
+  {t:"Funzionale", c:"forza", d:"Movimenti naturali per forza, equilibrio e coordinazione nella vita di tutti i giorni."},
+  {t:"Tabata", c:"forza", d:"20 secondi di lavoro, 10 di recupero: breve, intenso, efficace."},
+  {t:"Bodyweight", c:"forza", d:"Solo corpo libero: forza e controllo, senza attrezzi."},
+  {t:"G.A.G.", c:"forza", d:"Gambe, addominali e glutei: tonificazione mirata."},
+  {t:"Primitive", c:"forza", d:"Movimenti primordiali a corpo libero per mobilità, forza e coordinazione."}, // (*)
+  {t:"Zumba", c:"cardio", f:1, d:"Musica, ritmo e tanta energia: il cardio che diverte."},
+  {t:"Strong Nation", c:"cardio", d:"Allenamento a intervalli sincronizzato con la musica: ogni beat, un esercizio."},
+  {t:"Balla e Suda anni '90", c:"cardio", d:"Cardio dance sulle hit degli anni '90: si balla, si suda, ci si diverte."},
+  {t:"Cardio Tone", c:"cardio", d:"Cardio e tonificazione nella stessa ora."},
+  {t:"Cross Cardio", c:"cardio", d:"Circuito cardio per resistenza e consumo calorico."},
+  {t:"Step Coreo", c:"cardio", d:"Coreografie sullo step per coordinazione e fiato."},
+  {t:"Double Step Coreo", c:"cardio", d:"Doppia coreografia sullo step, per chi ama le sfide."}, // (*)
+  {t:"Pilates", c:"mind", f:1, d:"Core, postura e controllo del movimento."},
+  {t:"Pilates Palla", c:"mind", d:"Pilates con la fitball: più instabilità, più lavoro sul core."},
+  {t:"Hatha Yoga", c:"mind", d:"Posizioni, respiro e rilassamento: lo yoga nella forma classica."},
+  {t:"Stretching", c:"mind", d:"Allungamento e mobilità per recuperare e sciogliere le tensioni."},
+  {t:"Harmony Natural Flow", c:"mind", d:"Sequenze fluide e dolci per armonizzare corpo e respiro."}, // (*)
+  {t:"Circl Mobility", c:"mind", d:"Mobilità articolare guidata per muoversi meglio, con meno rigidità."}
 ];
 // Orari: da screenshot fornito il 2026-11-07 (sabato 08-17, domenica 08-13, lun-ven 06-21:30).
 const HOURS = [["Lunedì","06:00 – 21:30"],["Martedì","06:00 – 21:30"],["Mercoledì","06:00 – 21:30"],["Giovedì","06:00 – 21:30"],["Venerdì","06:00 – 21:30"],["Sabato","08:00 – 17:00"],["Domenica","08:00 – 13:00"]];
@@ -336,12 +376,22 @@ const LOGO = document.getElementById("logoImg").src;
 document.querySelectorAll("[data-logo]").forEach(i=>i.src=LOGO);
 document.getElementById("fav").href = LOGO;
 const grid = document.getElementById('courseGrid');
-COURSES.forEach((c,k)=>{
-  const el = document.createElement('article');
-  el.className='card rv';
-  el.innerHTML = `<div class="glare"></div><div class="ico"><svg viewBox="0 0 24 24">${c.i}</svg></div>
-    <div class="num">${String(k+1).padStart(2,'0')}</div><h3>${c.t}</h3><p>${c.d}</p>`;
-  grid.appendChild(el);
+grid.innerHTML = COURSES.map((c,k)=>`<article class="card rv${c.f?' feat':''}" data-cat="${c.c}"><div class="glare"></div>
+  <div class="top"><span class="tag"><svg viewBox="0 0 24 24">${CATS[c.c].i}</svg>${CATS[c.c].n}</span><span class="num">${String(k+1).padStart(2,'0')}</span></div>
+  <h3>${c.t}</h3><p>${c.d}</p></article>`).join('');
+document.getElementById('nCourses').dataset.count = COURSES.length;
+document.getElementById('nCourses').textContent = COURSES.length;
+// Filtro per categoria
+const filters = document.getElementById('filters');
+filters.innerHTML = [['all','Tutti',COURSES.length], ...Object.entries(CATS).map(([k,v])=>[k,v.n,COURSES.filter(c=>c.c===k).length])]
+  .map(([k,n,q],i)=>`<button class="chip" data-f="${k}" aria-pressed="${i===0}">${n} <small>${q}</small></button>`).join('');
+filters.addEventListener('click',e=>{
+  const b=e.target.closest('.chip'); if(!b) return;
+  filters.querySelectorAll('.chip').forEach(x=>x.setAttribute('aria-pressed',x===b));
+  grid.querySelectorAll('.card').forEach(c=>{
+    const show=b.dataset.f==='all'||c.dataset.cat===b.dataset.f;
+    c.classList.toggle('hide',!show); if(show) c.classList.add('in','done');
+  });
 });
 const today = (new Date().getDay()+6)%7;
 document.getElementById('hours').innerHTML = HOURS.map((h,k)=>`<tr class="${k===today?'today':''}"><td>${h[0]}</td><td>${h[1]}</td></tr>`).join('');
@@ -365,28 +415,32 @@ addEventListener('scroll',()=>nav.classList.toggle('scrolled',scrollY>40),{passi
   });
   addEventListener('resize',()=>rows.forEach(r=>r.w=r.tr.scrollWidth/2));
   if(reduce) return;
-  let visible=true, lastY=scrollY, vel=0, sign=1;
+  let visible=true, lastY=scrollY, vel=0, sign=1, prev=performance.now();
   new IntersectionObserver(([e])=>visible=e.isIntersecting).observe(box);
-  (function loop(){
+  (function loop(now){
+    // dt normalizzato a 60 fps: stessa velocità su schermi a 60/120/144 Hz e anche se un frame salta
+    const dt=Math.min(3,(now-prev)/16.667); prev=now;
     const dy=scrollY-lastY; lastY=scrollY;
-    if(dy) sign=dy>0?1:-1;                       // verso dello scroll: le righe invertono la direzione
-    vel+=(Math.min(Math.abs(dy),80)-vel)*.12;     // velocità smussata
+    if(dy) sign=dy>0?1:-1;                                  // verso dello scroll: le righe invertono la direzione
+    vel+=(Math.min(Math.abs(dy)/Math.max(dt,.5),80)-vel)*(1-Math.pow(.88,dt)); // velocità smussata
     if(visible){
-      const skew=Math.max(-12,Math.min(12,vel*.35))*sign;
+      const skew=(Math.max(-12,Math.min(12,vel*.35))*sign).toFixed(2);
       rows.forEach(r=>{
-        r.x+=r.dir*sign*(.7+vel*.45);
+        r.x+=r.dir*sign*(.7+vel*.45)*dt;
         if(r.x<=-r.w) r.x+=r.w; if(r.x>0) r.x-=r.w;
-        r.tr.style.transform=`translate3d(${r.x}px,0,0) skewX(${-skew*r.dir}deg)`;
+        r.tr.style.transform=`translate3d(${r.x.toFixed(1)}px,0,0) skewX(${-skew*r.dir}deg)`;
       });
     }
     requestAnimationFrame(loop);
-  })();
+  })(prev);
 })();
 
 const io = new IntersectionObserver(es=>es.forEach(e=>{
   if(!e.isIntersecting) return;
-  e.target.classList.add('in'); io.unobserve(e.target);
-  e.target.querySelectorAll('[data-count]').forEach(countUp);
+  const el=e.target; el.classList.add('in'); io.unobserve(el);
+  el.querySelectorAll('[data-count]').forEach(countUp);
+  // a reveal finito toglie ritardo e transizione lunga (così il tilt delle card risponde subito)
+  setTimeout(()=>{el.style.transitionDelay='0s'; el.classList.add('done');},1400);
 }),{threshold:.15});
 document.querySelectorAll('.rv').forEach((el,i)=>{ el.style.transitionDelay = (i%4)*0.08+'s'; io.observe(el); });
 
@@ -400,12 +454,15 @@ function countUp(el){
 
 if(!reduce && matchMedia('(hover:hover)').matches){
   document.querySelectorAll('.card').forEach(c=>{
-    c.addEventListener('mousemove',e=>{
-      const r=c.getBoundingClientRect(), x=(e.clientX-r.left)/r.width, y=(e.clientY-r.top)/r.height;
-      c.style.transform=`rotateY(${(x-.5)*18}deg) rotateX(${(.5-y)*18}deg) translateZ(10px)`;
-      c.style.setProperty('--gx',x*100+'%'); c.style.setProperty('--gy',y*100+'%');
-    });
-    c.addEventListener('mouseleave',()=>c.style.transform='');
+    let r=null, raf=0, ev=null;
+    c.addEventListener('mouseenter',()=>{r=c.getBoundingClientRect();});
+    c.addEventListener('mousemove',e=>{ev=e; if(raf) return; raf=requestAnimationFrame(()=>{ // max 1 aggiornamento per frame
+      raf=0; if(!r) r=c.getBoundingClientRect();
+      const x=(ev.clientX-r.left)/r.width, y=(ev.clientY-r.top)/r.height;
+      c.style.transform=`rotateY(${((x-.5)*14).toFixed(2)}deg) rotateX(${((.5-y)*14).toFixed(2)}deg)`;
+      c.style.setProperty('--gx',(x*100).toFixed(1)+'%'); c.style.setProperty('--gy',(y*100).toFixed(1)+'%');
+    });});
+    c.addEventListener('mouseleave',()=>{r=null; c.style.transform='';});
   });
 }
 
@@ -413,8 +470,11 @@ if(!reduce && matchMedia('(hover:hover)').matches){
 (function(){
   if(typeof THREE==='undefined') return;
   const canvas=document.getElementById('bg3d');
-  const renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:true});
-  renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+  const lowEnd=innerWidth<820||(navigator.hardwareConcurrency||8)<=4;
+  const renderer=new THREE.WebGLRenderer({canvas,antialias:devicePixelRatio<1.5&&!lowEnd,alpha:true,powerPreference:'high-performance'});
+  // Risoluzione adattiva: parte da un massimo ragionevole e scende se i frame rallentano
+  const maxDpr=Math.min(devicePixelRatio,lowEnd?1.25:1.5);
+  let dpr=maxDpr; renderer.setPixelRatio(dpr);
   renderer.outputEncoding=THREE.sRGBEncoding;
   const scene=new THREE.Scene();
   scene.fog=new THREE.FogExp2(0x121212,0.04);
@@ -443,19 +503,19 @@ if(!reduce && matchMedia('(hover:hover)').matches){
 
   // --- Manubrio ---
   const dumbbell=new THREE.Group();
-  const bar=new THREE.Mesh(new THREE.CylinderGeometry(.11,.11,4.2,32),chrome); bar.rotation.z=Math.PI/2; dumbbell.add(bar);
+  const bar=new THREE.Mesh(new THREE.CylinderGeometry(.11,.11,4.2,20),chrome); bar.rotation.z=Math.PI/2; dumbbell.add(bar);
   [-1,1].forEach(s=>{
     [[.95,.22,metal,1.25],[.8,.18,redM,1.47],[.62,.14,metal,1.64],[.2,.12,chrome,1.8]].forEach(([r,h,m,x])=>{
-      const p=new THREE.Mesh(new THREE.CylinderGeometry(r,r,h,48),m); p.rotation.z=Math.PI/2; p.position.x=s*x; dumbbell.add(p);
-      if(m!==chrome){const ring=new THREE.Mesh(new THREE.TorusGeometry(r*.82,.025,8,48),chrome); ring.rotation.y=Math.PI/2; ring.position.x=s*(x+h/2*1.01); dumbbell.add(ring);}
+      const p=new THREE.Mesh(new THREE.CylinderGeometry(r,r,h,36),m); p.rotation.z=Math.PI/2; p.position.x=s*x; dumbbell.add(p);
+      if(m!==chrome){const ring=new THREE.Mesh(new THREE.TorusGeometry(r*.82,.025,6,36),chrome); ring.rotation.y=Math.PI/2; ring.position.x=s*(x+h/2*1.01); dumbbell.add(ring);}
     });
   });
   scene.add(dumbbell);
 
   // --- Kettlebell ---
   const kb=new THREE.Group();
-  const body=new THREE.Mesh(new THREE.SphereGeometry(.75,48,32),redM); body.scale.y=.92; kb.add(body);
-  const handle=new THREE.Mesh(new THREE.TorusGeometry(.45,.09,16,48,Math.PI),metal); handle.position.y=.55; kb.add(handle);
+  const body=new THREE.Mesh(new THREE.SphereGeometry(.75,32,24),redM); body.scale.y=.92; kb.add(body);
+  const handle=new THREE.Mesh(new THREE.TorusGeometry(.45,.09,12,32,Math.PI),metal); handle.position.y=.55; kb.add(handle);
   [-1,1].forEach(s=>{const leg=new THREE.Mesh(new THREE.CylinderGeometry(.09,.09,.25,16),metal); leg.position.set(s*.45,.5,0); kb.add(leg);});
   kb.scale.setScalar(.8); scene.add(kb);
 
@@ -463,8 +523,8 @@ if(!reduce && matchMedia('(hover:hover)').matches){
   const plates=[];
   for(let i=0;i<9;i++){
     const r=.3+Math.random()*.45, g=new THREE.Group();
-    const d=new THREE.Mesh(new THREE.CylinderGeometry(r,r,r*.25,40),i%3===0?redM:metal);
-    const hole=new THREE.Mesh(new THREE.TorusGeometry(r*.25,r*.06,8,24),chrome); hole.rotation.x=Math.PI/2; hole.position.y=r*.13;
+    const d=new THREE.Mesh(new THREE.CylinderGeometry(r,r,r*.25,28),i%3===0?redM:metal);
+    const hole=new THREE.Mesh(new THREE.TorusGeometry(r*.25,r*.06,6,20),chrome); hole.rotation.x=Math.PI/2; hole.position.y=r*.13;
     g.add(d,hole);
     g.position.set((Math.random()-.5)*16,(Math.random()-.5)*24-6,-4-Math.random()*6);
     g.rotation.set(Math.random()*6,Math.random()*6,0);
@@ -473,29 +533,39 @@ if(!reduce && matchMedia('(hover:hover)').matches){
   }
 
   // --- Particelle ---
-  const N=1200, pos=new Float32Array(N*3);
+  const N=lowEnd?450:800, pos=new Float32Array(N*3);
   for(let i=0;i<N;i++){pos[i*3]=(Math.random()-.5)*40;pos[i*3+1]=(Math.random()-.5)*60-10;pos[i*3+2]=(Math.random()-.5)*20-4;}
   const pg=new THREE.BufferGeometry(); pg.setAttribute('position',new THREE.BufferAttribute(pos,3));
   const stars=new THREE.Points(pg,new THREE.PointsMaterial({color:0xffffff,size:.04,transparent:true,opacity:.55}));
   scene.add(stars);
 
-  let W=0,H=0,mobile=false;
-  function resize(){W=innerWidth;H=innerHeight;mobile=W<820;renderer.setSize(W,H,false);camera.aspect=W/H;camera.updateProjectionMatrix();}
-  addEventListener('resize',resize); resize();
+  let W=0,H=0,mobile=false,maxScroll=1,rzq=0;
+  function measure(){maxScroll=Math.max(1,document.documentElement.scrollHeight-innerHeight);}
+  function resize(){
+    rzq=0;
+    // Su mobile la barra dell'indirizzo che appare/scompare cambia solo l'altezza: non ridimensionare il canvas (evita scatti)
+    if(W===innerWidth && Math.abs(H-innerHeight)<160 && H){measure();return;}
+    W=innerWidth;H=innerHeight;mobile=W<820;renderer.setSize(W,H,false);camera.aspect=W/H;camera.updateProjectionMatrix();measure();
+  }
+  addEventListener('resize',()=>{if(!rzq) rzq=requestAnimationFrame(resize);}); resize();
+  new ResizeObserver(measure).observe(document.body); // altezza pagina in cache: niente lettura del layout a ogni frame
 
   const mouse={x:0,y:0,tx:0,ty:0};
   addEventListener('pointermove',e=>{mouse.tx=e.clientX/W-.5;mouse.ty=e.clientY/H-.5;},{passive:true});
 
   const lerp=(a,b,t)=>a+(b-a)*t, clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
   const ease=x=>x<.5?2*x*x:1-Math.pow(-2*x+2,2)/2;
-  let sp=0, hp=0;
+  let sp=0, hp=0, ema=16.7, slow=0, warm=0;
   const clock=new THREE.Clock();
   function frame(){
-    const t=clock.getElapsedTime(), m=reduce?0:1;
-    const max=Math.max(1,document.documentElement.scrollHeight-H);
-    sp=lerp(sp,scrollY/max,.08);           // progresso pagina
-    hp=lerp(hp,clamp(scrollY/H,0,2),.08);  // progresso hero
-    mouse.x=lerp(mouse.x,mouse.tx,.05); mouse.y=lerp(mouse.y,mouse.ty,.05);
+    const raw=clock.getDelta()*1000, dt=Math.min(3,raw/16.667), t=clock.elapsedTime, m=reduce?0:1;
+    // Qualità adattiva: se la media dei frame supera ~20 ms (sotto 50 fps) per mezzo secondo, abbassa la risoluzione
+    if(raw<250){ ema+=(raw-ema)*.1; if(++warm>60){ slow=ema>20?slow+1:0;
+      if(slow>30 && dpr>.75){dpr=Math.max(.75,dpr-.25);renderer.setPixelRatio(dpr);renderer.setSize(W,H,false);slow=0;} } }
+    const k8=1-Math.pow(.92,dt), k5=1-Math.pow(.95,dt); // smussature indipendenti dal refresh rate
+    sp=lerp(sp,scrollY/maxScroll,k8);              // progresso pagina
+    hp=lerp(hp,clamp(scrollY/H,0,2),k8);           // progresso hero
+    mouse.x=lerp(mouse.x,mouse.tx,k5); mouse.y=lerp(mouse.y,mouse.ty,k5);
 
     // Logo: protagonista nell'hero, poi vola via ruotando
     const out=ease(clamp(hp/1.1,0,1));
@@ -520,7 +590,7 @@ if(!reduce && matchMedia('(hover:hover)').matches){
     kb.position.set(lerp(mobile?2.4:-4.4, mobile?-1.6:4, sp), lerp(-3.4,1.6,sp)+Math.sin(t*1.2)*.15*m, mobile?-4:-1.8);
     kb.rotation.y=t*.4*m+sp*6;
 
-    plates.forEach(p=>{const u=p.userData; p.rotation.x+=.003*u.s*m; p.rotation.y+=.005*u.s*m; p.position.y=u.y+Math.sin(t*u.s+u.o)*.4+sp*18;});
+    plates.forEach(p=>{const u=p.userData; p.rotation.x+=.003*u.s*m*dt; p.rotation.y+=.005*u.s*m*dt; p.position.y=u.y+Math.sin(t*u.s+u.o)*.4+sp*18;});
     stars.position.y=sp*14; stars.rotation.y=t*.01*m;
 
     camera.position.x=mouse.x*.8; camera.position.y=-mouse.y*.6; camera.lookAt(0,0,0);
