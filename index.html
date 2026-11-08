@@ -209,11 +209,11 @@ section{padding:110px clamp(16px,6vw,90px)}
 .chip[aria-pressed="true"]{background:var(--red);border-color:var(--red)}
 .chip[aria-pressed="true"] small{opacity:.85}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px;perspective:1200px}
-.card{position:relative;min-height:210px;border-radius:var(--radius);padding:24px;background:var(--card);border:1px solid var(--line);
+.card{position:relative;isolation:isolate;min-height:210px;border-radius:var(--radius);padding:24px;background:var(--card);border:1px solid var(--line);
   transition:transform .2s ease-out,border-color .3s;overflow:hidden;display:flex;flex-direction:column;justify-content:flex-end}
 .card.hide{display:none}
 .card:hover{border-color:rgba(224,34,51,.6)}
-.card::before{content:"";position:absolute;width:200px;height:200px;right:-90px;bottom:-90px;border-radius:50%;background:var(--red);opacity:0;transition:opacity .4s,transform .6s;transform:scale(.6)}
+.card::before{content:"";position:absolute;z-index:-1;width:200px;height:200px;right:-90px;bottom:-90px;border-radius:50%;background:var(--red);opacity:0;transition:opacity .4s,transform .6s;transform:scale(.6)}
 .card:hover::before{opacity:.9;transform:scale(1)}
 .card .glare{position:absolute;inset:0;pointer-events:none;opacity:0;transition:opacity .3s;
   background:radial-gradient(circle at var(--gx,50%) var(--gy,50%),rgba(255,255,255,.12),transparent 55%)}
@@ -222,7 +222,7 @@ section{padding:110px clamp(16px,6vw,90px)}
 .card .tag{display:inline-flex;align-items:center;gap:7px;font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--mut)}
 .card .tag svg{width:20px;height:20px;stroke:var(--red-hi);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .card .num{font-family:"Permanent Marker",cursive;font-size:38px;line-height:1;color:var(--red)}
-.card h3{position:relative;font-family:"Permanent Marker",cursive;font-weight:400;font-size:25px;line-height:1.1;text-transform:uppercase;margin-top:56px}
+.card h3{position:static;font-family:"Permanent Marker",cursive;font-weight:400;font-size:25px;line-height:1.1;text-transform:uppercase;margin-top:56px}
 .card p{position:relative;color:#bdbdbd;font-size:14.5px;margin-top:8px}
 .card.feat{background:var(--red);border-color:transparent}
 .card.feat .tag,.card.feat p{color:rgba(255,255,255,.85)}.card.feat .tag svg{stroke:#fff}.card.feat .num{color:#121212}
