@@ -241,7 +241,7 @@ $(Header $pre $false)
         </section>
         <section id="orari-corso">
           <h2>$schedTitle</h2>
-          $(IgNote)
+          $(if (-not $c.libero) { IgNote })
           $sched
           $notesHtml
         </section>
