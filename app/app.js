@@ -124,7 +124,7 @@ async function entra() {
   await ricarica();
 }
 
-// settimana mostrata: 0 = questa, fino a MAX_SETT settimane avanti (le prenotazioni si aprono la settimana stessa)
+// settimana mostrata: 0 = questa, fino a MAX_SETT settimane avanti (prenotabili dalla domenica prima della loro settimana)
 const MAX_SETT = 5;
 let settOff = 0, palinsesto = null, previsto = false;
 
@@ -219,9 +219,11 @@ function disegnaCat() {
 }
 function disegnaLezioni() {
   const lista = lezioni.filter((l) => dayKey(l.d) === giornoSel && (!catSel || l.categoria === catSel));
-  const apertura = fmt.dayMonth.format(settimana(settOff)[0]);
-  const nota = previsto ? `<p class="notice info">Orario previsto dal palinsesto: le lezioni di questa settimana non sono ancora pubblicate e potrebbero cambiare. Le prenotazioni si aprono lunedì ${esc(apertura)}.</p>`
-    : settOff > 0 ? `<p class="notice info">Le prenotazioni per questa settimana si aprono lunedì ${esc(apertura)}.</p>` : "";
+  // le prenotazioni di una settimana si aprono la domenica precedente alle 00:00 (regola nel database)
+  const apertura = fmt.dayMonth.format(new Date(settimana(settOff)[0].getTime() - 86400000));
+  const aperta = lezioni.some((l) => l.prenotabile);
+  const nota = previsto ? `<p class="notice info">Orario previsto dal palinsesto: le lezioni di questa settimana non sono ancora pubblicate e potrebbero cambiare. Le prenotazioni si aprono domenica ${esc(apertura)}.</p>`
+    : settOff > 0 && !aperta ? `<p class="notice info">Le prenotazioni per questa settimana si aprono domenica ${esc(apertura)} alle 00:00.</p>` : "";
   if (!lista.length) {
     $("slots").innerHTML = nota + (settOff > 0 && !lezioni.length
       ? '<div class="empty"><b>Orario non ancora disponibile</b>Le lezioni di questa settimana non sono ancora state pubblicate.</div>'

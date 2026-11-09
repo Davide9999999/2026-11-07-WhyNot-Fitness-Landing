@@ -146,7 +146,7 @@ async function caricaHome() {
 
   let alert = "";
   if (!sett.length) alert = avviso(`Questa settimana non ha ancora lezioni.`, lun);
-  else if (!(nw.data || []).length) alert = avviso(`La settimana dal ${fDay.format(noon(next))} non ha ancora lezioni: generale per aprire le prenotazioni in tempo.`, next);
+  else if (!(nw.data || []).length) alert = avviso(`La settimana dal ${fDay.format(noon(next))} non ha ancora lezioni: generale entro sabato: le prenotazioni si aprono domenica alle 00:00.`, next);
   $("homeAlert").innerHTML = alert;
 
   const prossima = oggiAttive.find((l) => new Date(l.inizio).getTime() > now);
