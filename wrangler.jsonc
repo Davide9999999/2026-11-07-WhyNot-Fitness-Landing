@@ -21,5 +21,7 @@
     "VAPID_SUBJECT": "mailto:whynotfitnessclubbiella@gmail.com"
   },
   "triggers": { "crons": ["* * * * *"] },
+  // non cancellare le variabili aggiunte dalla dashboard Cloudflare a ogni deploy
+  "keep_vars": true,
   "observability": { "enabled": true }
 }
