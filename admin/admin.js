@@ -53,7 +53,7 @@ const sb = createClient(cfg.url, cfg.anonKey);
 if (!cfg.aiEnabled) document.body.classList.add("ai-off");
 
 let session = null, corsi = [], lunedi = lunediDi(ymdRome(new Date())), lezioni = [], schFiltro = "", tab = "home", giornoMob = null;
-let iscritti = null, lezAperta = null;
+let iscritti = null, lezAperta = null, mioRuolo = "staff";
 
 // ------------------------------------------------------------------ auth
 async function avvia() {
@@ -68,7 +68,7 @@ async function avvia() {
     return;
   }
   $("vLogin").hidden = true; $("vApp").hidden = false;
-  $("whoEmail").textContent = st.nome || session.user.email; $("whoRole").textContent = st.ruolo; $("whoEmail").title = session.user.email;
+  $("whoEmail").textContent = st.nome || session.user.email; $("whoRole").textContent = st.ruolo; mioRuolo = st.ruolo; document.body.classList.toggle("is-admin", st.ruolo === "admin"); $("whoEmail").title = session.user.email;
   $("meAv").textContent = initials(st.nome || session.user.email);
   const { data: c } = await sb.from("corsi").select("id,nome,categoria,sala,capienza_default,attivo").order("nome");
   corsi = c || [];
@@ -361,7 +361,7 @@ function disegnaIscritti() {
     && (!q || [i.nome, i.email, i.telefono].some((v) => String(v || "").toLowerCase().includes(q))));
   $("iscCount").textContent = `${lista.length} ${lista.length === 1 ? "iscritto" : "iscritti"}`;
   $("iscritti").innerHTML = lista.length ? `<div class="wrap-tbl"><table class="tbl"><thead><tr><th>Iscritto</th><th>Stato</th><th class="hm">Telefono</th><th class="hm">Dal</th><th class="num">Frequent.</th><th class="num hm">Prossime</th></tr></thead><tbody>${
-    lista.map((i) => { const s = STATI[i.stato] || [i.stato, ""]; return `<tr data-iid="${i.id}"><td><div class="p"><span class="av sm2${i.user_id ? " member" : ""}">${esc(initials(i.nome))}</span><div><b>${esc(i.nome)}</b><small>${esc(i.email)}</small></div></div></td>
+    lista.map((i) => { const s = STATI[i.stato] || [i.stato, ""]; return `<tr data-iid="${i.id}"><td><div class="p"><span class="av sm2${i.user_id ? " member" : ""}">${esc(initials(i.nome))}</span><div><b>${esc(i.nome)}</b>${i.ruolo_staff ? ` <span class="pill">${i.ruolo_staff}</span>` : ""}<small>${esc(i.email)}</small></div></div></td>
       <td><span class="pill ${s[1]}">${s[0]}</span></td><td class="hm">${esc(i.telefono || "—")}</td><td class="hm">${fDate.format(new Date(i.iscritto_dal))}</td><td class="num">${i.frequentate}</td><td class="num hm">${i.prossime}</td></tr>`; }).join("")}</tbody></table></div>`
     : `<p class="empty">${q || iscFiltro ? "Nessun iscritto corrisponde alla ricerca." : "Ancora nessun iscritto. Crea il primo con «Nuovo iscritto»: riceverai il codice da dargli per attivare l'app."}</p>`;
 }
@@ -406,6 +406,12 @@ async function apriIscritto(id, codice) {
       ${i.user_id ? `<div class="kpis" style="grid-template-columns:repeat(3,1fr);margin:0"><div class="kpi"><span>Frequentate</span><b>${i.frequentate}</b></div><div class="kpi"><span>Prossime</span><b>${i.prossime}</b></div><div class="kpi"><span>Totale</span><b>${i.prenotazioni}</b></div></div>
       <div class="sec"><h3>Prossime lezioni</h3>${fut.length ? `<div class="tl">${fut.map(riga).join("")}</div>` : '<p class="empty">Nessuna lezione in programma.</p>'}</div>
       <div class="sec"><h3>Storico</h3>${pas.length ? `<div class="tl">${pas.map(riga).join("")}</div>` : '<p class="empty">Nessuna lezione nello storico.</p>'}</div>` : ""}
+      ${i.user_id ? `<div class="box"><h3 class="mut" style="font-size:12px;letter-spacing:1.2px;text-transform:uppercase;margin-bottom:6px">Password dimenticata?</h3>
+        <p class="mut" style="margin-bottom:10px">Reimposta l'accesso: l'account dell'app viene rimosso e generi un nuovo codice. Con il codice sceglie una nuova password; lo storico delle prenotazioni resta.</p>
+        <button class="ghost sm" type="button" id="iscReset">Reimposta accesso</button></div>` : ""}
+      ${mioRuolo === "admin" ? `<div class="box"><h3 class="mut" style="font-size:12px;letter-spacing:1.2px;text-transform:uppercase;margin-bottom:6px">Collaboratore</h3>
+        <p class="mut" style="margin-bottom:10px">${i.user_id ? "Dà accesso all'area staff (questa dashboard) con il suo account." : "Il ruolo diventa attivo quando attiva l'app."}</p>
+        <div class="acts-row"><select id="iscRuolo" style="width:auto"><option value="">Nessuno (solo iscritto)</option><option value="staff" ${i.ruolo_staff === "staff" ? "selected" : ""}>Staff</option><option value="admin" ${i.ruolo_staff === "admin" ? "selected" : ""}>Admin</option></select><button class="ghost sm" type="button" id="iscRuoloOk">Applica</button></div></div>` : ""}
       <form class="sec box" id="iscEdit"><h3>Dati iscritto</h3>
         <div class="form2"><label class="full">Nome e cognome<input name="nome" value="${esc(i.nome)}" required minlength="2"></label><label>Telefono<input name="telefono" value="${esc(i.telefono || "")}"></label><label>Email<input value="${esc(i.email)}" readonly title="L'email è quella di accesso all'app"></label>
         <label class="full">Note interne<input name="note" value="${esc(i.note || "")}" placeholder="es. abbonamento annuale"></label>
@@ -413,6 +419,18 @@ async function apriIscritto(id, codice) {
         <div class="acts-row" style="margin-top:10px"><button class="btn sm" type="submit">Salva</button></div></form>
     </div>`;
   $("lezBody").querySelector("[data-x]").onclick = () => $("dLez").close();
+  $("iscReset")?.addEventListener("click", async () => {
+    if (!(await ask("Reimpostare l'accesso?", `L'account dell'app di ${i.nome} viene rimosso e generi un nuovo codice da consegnargli. Lo storico delle prenotazioni resta.`, "Reimposta"))) return;
+    const { data, error } = await sb.rpc("admin_reimposta_accesso", { p_id: i.id });
+    if (error) return toast(error.message, false);
+    await caricaIscritti(); apriIscritto(i.id, data);
+  });
+  $("iscRuoloOk")?.addEventListener("click", async () => {
+    const r = $("iscRuolo").value || null;
+    const { error } = await sb.rpc("admin_imposta_staff", { p_id: i.id, p_ruolo: r });
+    if (error) return toast(error.message, false);
+    toast(r ? `Ruolo ${r} impostato.` : "Ruolo collaboratore rimosso."); await caricaIscritti(); apriIscritto(i.id);
+  });
   $("iscCod")?.addEventListener("click", async () => {
     if (!(await ask("Nuovo codice di attivazione", `Il codice precedente di ${i.nome} smetterà di funzionare.`, "Genera"))) return;
     const { data, error } = await sb.rpc("admin_nuovo_codice", { p_id: i.id });
@@ -434,7 +452,7 @@ $("iscForm").addEventListener("submit", async (e) => {
   e.preventDefault(); const f = e.target;
   if (f.nome.value.trim().length < 2) return msg($("iscMsg"), "Inserisci nome e cognome.");
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(f.email.value.trim())) return msg($("iscMsg"), "Serve un'email valida: sarà quella di accesso all'app.");
-  const { data, error } = await sb.rpc("admin_crea_iscritto", { p_nome: f.nome.value.trim(), p_telefono: f.telefono.value.trim() || null, p_email: f.email.value.trim() });
+  const { data, error } = await sb.rpc("admin_crea_iscritto", { p_nome: f.nome.value.trim(), p_telefono: f.telefono.value.trim() || null, p_email: f.email.value.trim(), p_ruolo_staff: (f.ruolo && f.ruolo.value) || null });
   if (error) return msg($("iscMsg"), error.message);
   f.hidden = true;
   $("iscDone").innerHTML = `<p>Iscritto creato: <b>${esc(f.nome.value.trim())}</b>. Consegnagli il codice per attivare l'app.</p>` + boxCodice(f.nome.value.trim(), f.email.value.trim().toLowerCase(), f.telefono.value.trim(), data.codice, data.scade) +

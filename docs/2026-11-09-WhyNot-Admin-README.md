@@ -83,3 +83,9 @@ Pagine: `/prenota/` (ora pubblica, in sitemap e nel menu) e `/area-personale/` (
 2. Authentication → Sign In / Providers → **Allow new users to sign up: ON** (serve all'attivazione; senza codice valido il database rifiuta comunque).
 3. Email → **Confirm email: OFF** finché non c'è un SMTP personalizzato.
 4. Authentication → URL Configuration → aggiungi `…/app/` dei due domini nei Redirect URLs.
+
+## 8. Collaboratori, password perse ed email (2026-11-09)
+- Eseguiti su Supabase: `2026-11-09-WhyNot-app-iscritti.sql` e `2026-11-09-WhyNot-app-staff.sql`; registrazione attiva solo con codice, conferma email disattivata, password minima 8, Redirect URLs su `/app/`.
+- **Nuovo collaboratore**: Admin → Iscritti → «Nuovo iscritto» → campo «Collaboratore» (Staff/Admin, solo per gli admin). Diventa staff appena attiva l'app. Per un iscritto già attivo: scheda iscritto → «Collaboratore» → Applica. «Add user» dalla dashboard Supabase non serve più.
+- **Password persa**: scheda iscritto → «Reimposta accesso» → nuovo codice; l'iscritto riattiva l'app con la stessa email e una nuova password, le prenotazioni vengono ricollegate.
+- **Email (SMTP)**: da configurare in Supabase → Authentication → Emails → SMTP Settings. Dopo, applicare i modelli in italiano di `supabase/2026-11-09-WhyNot-email-templates.json` (PATCH `/v1/projects/{ref}/config/auth`): sul piano gratuito Supabase li accetta solo con SMTP personalizzato.

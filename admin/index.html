@@ -161,6 +161,7 @@
     <form id="iscForm" novalidate style="display:flex;flex-direction:column;gap:12px">
       <label>Nome e cognome<input name="nome" required minlength="2" maxlength="80" autocomplete="off"></label>
       <div class="row"><label>Email (accesso all'app)<input name="email" type="email" required autocomplete="off"></label><label>Telefono<input name="telefono" type="tel" autocomplete="off"></label></div>
+      <label class="admin-only">Collaboratore<select name="ruolo"><option value="">No, solo iscritto</option><option value="staff">Staff (accesso all'area staff)</option><option value="admin">Admin</option></select></label>
       <p class="mut">Dopo il salvataggio ricevi un codice di attivazione valido 30 giorni: l'iscritto lo usa con questa email per attivare l'app.</p>
       <div class="acts end"><button class="ghost" type="button" data-close>Annulla</button><button class="btn" type="submit">Crea e genera codice</button></div>
       <p class="msg" id="iscMsg" role="status"></p>

@@ -88,7 +88,7 @@ $("fReset").addEventListener("submit", async (e) => {
   const { error } = await sb.auth.resetPasswordForEmail(f.email.value.trim(), { redirectTo: location.origin + location.pathname });
   busy(b, false);
   if (error) return msg($("mReset"), erroreAuth(error));
-  msg($("mReset"), "Se l'email è registrata riceverai il link a breve. Non arriva? Chiedi in reception.", true);
+  msg($("mReset"), "Se l'email è registrata riceverai il link a breve (controlla anche lo spam). Non arriva? Chiedi in reception di reimpostare l'accesso.", true);
 });
 
 $("fNewPw").addEventListener("submit", async (e) => {

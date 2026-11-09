@@ -280,3 +280,4 @@ dialog.ask p{color:#d4d4d4}
 label.chk{flex-direction:row;align-items:center;gap:10px;font-size:13.5px}
 label.chk input{width:18px;height:18px;flex:none;accent-color:var(--red-hi)}
 #iscDone p{color:#d4d4d4;margin-bottom:10px}
+body:not(.is-admin) .admin-only{display:none!important}

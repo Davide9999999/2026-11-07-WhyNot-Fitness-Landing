@@ -1,6 +1,6 @@
 // Service worker dell'app iscritti: rende l'app installabile e apribile anche con rete debole.
 // Solo i file dell'interfaccia vanno in cache; i dati (Supabase) arrivano sempre dalla rete.
-const VER = "whynot-app-v1";
+const VER = "whynot-app-v2";
 const SHELL = ["./", "app.css", "app.js", "manifest.webmanifest", "icons/icon-192.png", "icons/icon-512.png",
   "../assets/whynot-app.js", "../assets/supabase-config.js", "../assets/fonts/fonts.css",
   "../assets/fonts/anton-latin.woff2", "../assets/fonts/inter-latin.woff2", "../assets/fonts/permanent-marker-latin.woff2"];
