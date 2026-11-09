@@ -81,3 +81,6 @@ revoke all on function public._apertura_prenotazioni(timestamptz) from public, a
 grant execute on function public._apertura_prenotazioni(timestamptz) to authenticated;
 revoke all on function public.prenota_iscritto(bigint,text) from public, anon;
 grant execute on function public.prenota_iscritto(bigint,text) to authenticated;
+
+-- 2026-11-09: l'app non mostra più l'orario previsto delle settimane non pubblicate
+revoke execute on function public.palinsesto_pubblico() from authenticated;

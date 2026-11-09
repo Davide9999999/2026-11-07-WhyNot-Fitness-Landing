@@ -126,33 +126,14 @@ async function entra() {
 
 // settimana mostrata: 0 = questa, fino a MAX_SETT settimane avanti (prenotabili dalla domenica prima della loro settimana)
 const MAX_SETT = 5;
-let settOff = 0, palinsesto = null, previsto = false;
+let settOff = 0;
 
-function romaToDate(ymd, hhmm) {
-  const [y, m, d] = ymd.split("-").map(Number), [hh, mm] = hhmm.split(":").map(Number);
-  const guess = Date.UTC(y, m - 1, d, hh, mm);
-  const p = Object.fromEntries(new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Rome", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" })
-    .formatToParts(new Date(guess)).map((x) => [x.type, x.value]));
-  return new Date(guess - (Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour, +p.minute) - guess));
-}
-
+// solo le lezioni inserite dall'admin: una settimana non ancora pubblicata resta vuota
 async function caricaLezioni() {
   const g = settimana(settOff);
-  let { data, error } = await sb.rpc("lezioni_periodo", { p_da: dayKey(g[0]), p_a: dayKey(g[6]) });
-  if (error && settOff === 0) ({ data, error } = await sb.rpc("lezioni_settimana"));   // database non ancora aggiornato
+  const { data, error } = await sb.rpc("lezioni_periodo", { p_da: dayKey(g[0]), p_a: dayKey(g[6]) });
   if (error) return error;
-  lezioni = (data || []).map(mappa); previsto = false;
-  if (!lezioni.length && settOff > 0) {
-    // settimana non ancora pubblicata: orario previsto dal palinsesto (non prenotabile)
-    if (!palinsesto) palinsesto = (await sb.rpc("palinsesto_pubblico")).data || [];
-    lezioni = palinsesto.map((p, k) => {
-      const giorno = dayKey(g[p.giorno - 1]);
-      return mappa({ id: `prev-${k}`, corso: p.corso, slug: p.slug, categoria: p.categoria, sala: p.sala,
-        inizio: romaToDate(giorno, p.ora_inizio.slice(0, 5)).toISOString(), fine: romaToDate(giorno, p.ora_fine.slice(0, 5)).toISOString(),
-        capienza: 0, posti_liberi: 0, in_attesa: 0, stato: "programmata", prenotabile: false, previsto: true });
-    });
-    previsto = lezioni.length > 0;
-  }
+  lezioni = (data || []).map(mappa);
   return null;
 }
 
@@ -222,34 +203,34 @@ function disegnaLezioni() {
   // le prenotazioni di una settimana si aprono la domenica precedente alle 00:00 (regola nel database)
   const apertura = fmt.dayMonth.format(new Date(settimana(settOff)[0].getTime() - 86400000));
   const aperta = lezioni.some((l) => l.prenotabile);
-  const nota = previsto ? `<p class="notice info">Orario previsto dal palinsesto: le lezioni di questa settimana non sono ancora pubblicate e potrebbero cambiare. Le prenotazioni si aprono domenica ${esc(apertura)}.</p>`
-    : settOff > 0 && !aperta ? `<p class="notice info">Le prenotazioni per questa settimana si aprono domenica ${esc(apertura)} alle 00:00.</p>` : "";
+  if (!lezioni.length) {
+    $("slots").innerHTML = `<div class="empty"><b>Corsi non ancora pubblicati</b>${settOff > 0 ? "Le lezioni di questa settimana compariranno qui appena la palestra le inserisce." : "Le lezioni di questa settimana non sono ancora disponibili."}</div>`;
+    return;
+  }
+  const nota = settOff > 0 && !aperta ? `<p class="notice info">Le prenotazioni per questa settimana si aprono domenica ${esc(apertura)} alle 00:00.</p>` : "";
   if (!lista.length) {
-    $("slots").innerHTML = nota + (settOff > 0 && !lezioni.length
-      ? '<div class="empty"><b>Orario non ancora disponibile</b>Le lezioni di questa settimana non sono ancora state pubblicate.</div>'
-      : `<div class="empty"><b>Nessuna lezione${catSel ? ` di ${esc(catSel)}` : ""}</b>Prova un altro giorno${catSel ? " o togli il filtro" : ""}.</div>`);
+    $("slots").innerHTML = nota + `<div class="empty"><b>Nessuna lezione${catSel ? ` di ${esc(catSel)}` : ""}</b>Prova un altro giorno${catSel ? " o togli il filtro" : ""}.</div>`;
     return;
   }
   const parti = [["Mattina", (h) => h < 13], ["Pomeriggio", (h) => h >= 13 && h < 18], ["Sera", (h) => h >= 18]];
   $("slots").innerHTML = nota + parti.map(([n, fn]) => { const gr = lista.filter((l) => fn(hourRome(l.d))); return gr.length ? `<p class="part">${n}</p>` + gr.map(riga).join("") : ""; }).join("");
 }
 function riga(l) {
-  const passata = l.d <= new Date(), ann = l.stato === "annullata", mia = l.previsto ? null : miaPer(l.id);
+  const passata = l.d <= new Date(), ann = l.stato === "annullata", mia = miaPer(l.id);
   const perc = l.capienza ? Math.min(100, Math.round(((l.capienza - l.posti_liberi) / l.capienza) * 100)) : 0;
-  const chiusa = !l.previsto && !ann && !passata && !mia && l.prenotabile === false;
+  const chiusa = !ann && !passata && !mia && l.prenotabile === false;
   let tag;
-  if (l.previsto) tag = '<span class="tag soon">Previsto</span>';
-  else if (ann) tag = '<span class="tag x">Annullata</span>';
+  if (ann) tag = '<span class="tag x">Annullata</span>';
   else if (mia) tag = mia.stato === "attesa" ? `<span class="tag wait">In attesa${mia.posizione_attesa ? ` ${mia.posizione_attesa}°` : ""}</span>` : '<span class="tag ok">✓ Prenotato</span>';
   else if (passata) tag = '<span class="tag x">Conclusa</span>';
   else if (chiusa) tag = '<span class="tag soon">Presto</span>';
   else tag = l.posti_liberi === 0 ? '<span class="tag go w">Lista d\'attesa</span>' : '<span class="tag go">Prenota</span>';
-  const posti = ann || l.previsto ? "" : l.posti_liberi === 0 ? `Completa${l.in_attesa ? ` · ${l.in_attesa} in attesa` : ""}` : `${l.posti_liberi} ${l.posti_liberi === 1 ? "posto" : "posti"} su ${l.capienza}`;
-  const off = ann || (passata && !mia) || l.previsto || chiusa;
+  const posti = ann ? "" : l.posti_liberi === 0 ? `Completa${l.in_attesa ? ` · ${l.in_attesa} in attesa` : ""}` : `${l.posti_liberi} ${l.posti_liberi === 1 ? "posto" : "posti"} su ${l.capienza}`;
+  const off = ann || (passata && !mia) || chiusa;
   return `<button class="les${ann || (passata && !mia) ? " off" : ""}" data-id="${l.id}" style="--c:${l.col}" ${off ? "disabled" : ""}>
     <span class="t">${fmt.time.format(l.d)}<small>${Math.round((l.f - l.d) / 60000)} min</small></span>
     <span><b>${esc(l.corso)}</b><span class="s"><span class="ct">${esc(l.categoria)}</span> · ${esc(l.sala)}${posti ? ` · ${posti}` : ""}</span>
-      ${ann || l.previsto ? "" : `<span class="pb"><i class="${perc >= 100 ? "full" : perc >= 75 ? "mid" : ""}" style="width:${perc}%"></i></span>`}</span>
+      ${ann ? "" : `<span class="pb"><i class="${perc >= 100 ? "full" : perc >= 75 ? "mid" : ""}" style="width:${perc}%"></i></span>`}</span>
     ${tag}</button>`;
 }
 $("days").addEventListener("click", (e) => { const b = e.target.closest(".day"); if (!b) return; giornoSel = b.dataset.k; $("days").querySelectorAll(".day").forEach((x) => x.setAttribute("aria-pressed", x === b)); disegnaLezioni(); });
