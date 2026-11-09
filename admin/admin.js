@@ -48,7 +48,8 @@ if (!cfg.url || !cfg.anonKey) {
   document.body.innerHTML = '<p style="padding:40px;font-family:Inter,sans-serif;color:#fff">Configurazione Supabase mancante: compila <code>assets/supabase-config.js</code>.</p>';
   throw new Error("config mancante");
 }
-const sb = createClient(cfg.url, cfg.anonKey);
+// lock semplice: vedi assets/whynot-app.js (evita blocchi di getSession con navigator.locks)
+const sb = createClient(cfg.url, cfg.anonKey, { auth: { lock: (_nome, _attesa, fn) => fn() } });
 // Assistente AI in stand-by finché aiEnabled non è true in assets/supabase-config.js
 if (!cfg.aiEnabled) document.body.classList.add("ai-off");
 

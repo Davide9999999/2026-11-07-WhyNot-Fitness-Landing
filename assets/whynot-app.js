@@ -2,7 +2,10 @@
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/+esm";
 
 export const cfg = window.WHYNOT_SUPABASE || {};
-export const sb = cfg.url && cfg.anonKey ? createClient(cfg.url, cfg.anonKey) : null;
+// lock semplice (lo stesso che Supabase usa quando navigator.locks non c'è): con navigator.locks getSession()
+// a volte restava in attesa e l'app non partiva (verificato il 2026-11-09).
+const AUTH = { auth: { lock: (_nome, _attesa, fn) => fn() } };
+export const sb = cfg.url && cfg.anonKey ? createClient(cfg.url, cfg.anonKey, AUTH) : null;
 
 export const $ = (id) => document.getElementById(id);
 export const TZ = "Europe/Rome";
