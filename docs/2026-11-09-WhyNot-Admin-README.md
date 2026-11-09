@@ -70,3 +70,16 @@ Pagine: `/prenota/` (ora pubblica, in sitemap e nel menu) e `/area-personale/` (
 - Il sito usa solo strumenti tecnici; Google Maps si carica solo dopo il consenso. I caratteri sono ospitati in `assets/fonts/` (niente Google Fonts).
 - I tempi di conservazione scritti nell'informativa (24 mesi) diventano automatici eseguendo `supabase/2026-11-09-WhyNot-conservazione.sql` (pg_cron, ogni notte): da eseguire **dopo** la conferma dei tempi.
 - Da validare con il consulente: tempi di conservazione, età minima 14 anni, regione dei server Supabase, elenco fornitori e basi giuridiche.
+
+## 7. App iscritti (dal 2026-11-09) — sostituisce /prenota/ e /area-personale/
+- **Sito pubblico**: home, corsi, privacy, cookie. `/prenota/` e `/area-personale/` rimandano a `/app/`.
+- **App** `/app/` (PWA installabile, noindex): accesso, attivazione con codice, prenotazione dei corsi della settimana, le mie lezioni, profilo.
+- **Niente registrazione libera**: lo staff crea l'iscritto in Admin → Iscritti → «Nuovo iscritto» e consegna il **codice di attivazione** (8 caratteri, valido 30 giorni). Il database rifiuta qualsiasi account senza email + codice validi (trigger su `auth.users`).
+- Anche un **nuovo account staff** si crea così: prima come iscritto (attivazione con codice), poi lo si aggiunge alla tabella `staff`. «Add user» dalla dashboard Supabase non funziona più (il trigger lo blocca).
+- Iscritto **sospeso** (casella «Iscrizione attiva» tolta): può entrare nell'app ma non prenotare.
+
+**Setup una volta sola:**
+1. SQL Editor → esegui `supabase/2026-11-09-WhyNot-app-iscritti.sql`.
+2. Authentication → Sign In / Providers → **Allow new users to sign up: ON** (serve all'attivazione; senza codice valido il database rifiuta comunque).
+3. Email → **Confirm email: OFF** finché non c'è un SMTP personalizzato.
+4. Authentication → URL Configuration → aggiungi `…/app/` dei due domini nei Redirect URLs.

@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>App iscritti | WHY NOT Fitness Club</title>
+<meta name="description" content="App riservata agli iscritti di WHY NOT Fitness Club: prenota i corsi della settimana.">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#121212">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="WHY NOT">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="stylesheet" href="../assets/fonts/fonts.css">
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<div class="shell">
+
+  <!-- caricamento -->
+  <section id="vLoad" class="splash"><img src="icons/icon-192.png" alt="" width="84" height="84"><span class="spin" aria-label="Caricamento"></span></section>
+
+  <!-- ===================== ACCESSO / ATTIVAZIONE ===================== -->
+  <section id="vAuth" class="auth" hidden>
+    <div class="auth-top">
+      <img src="icons/icon-192.png" alt="WHY NOT Fitness Club" width="76" height="76">
+      <h1>App <em>iscritti</em></h1>
+      <p>Prenota i corsi della settimana, gestisci le tue prenotazioni e il tuo profilo.</p>
+    </div>
+    <div class="card">
+      <div class="seg" role="tablist"><button role="tab" id="tLogin" aria-selected="true">Accedi</button><button role="tab" id="tAtt" aria-selected="false">Attiva account</button></div>
+
+      <form id="fLogin" novalidate>
+        <label>Email<input name="email" type="email" required autocomplete="username" inputmode="email"></label>
+        <label>Password<span class="pw"><input name="password" type="password" required autocomplete="current-password"><button type="button" data-show>Mostra</button></span></label>
+        <button class="btn" type="submit">Accedi</button>
+        <p class="msg" id="mLogin" role="status"></p>
+        <button class="link" type="button" id="goReset">Password dimenticata?</button>
+      </form>
+
+      <form id="fAtt" novalidate hidden>
+        <p class="hint">Primo accesso? Inserisci l'email che hai lasciato in palestra e il <b>codice di attivazione</b> che ti ha dato la reception, poi scegli la tua password.</p>
+        <label>Email<input name="email" type="email" required autocomplete="username" inputmode="email"></label>
+        <label>Codice di attivazione<input name="codice" required autocomplete="one-time-code" autocapitalize="characters" spellcheck="false" maxlength="12" placeholder="es. K7PM2QXA" class="code"></label>
+        <label>Scegli una password <small>(almeno 8 caratteri)</small><span class="pw"><input name="password" type="password" required minlength="8" autocomplete="new-password"><button type="button" data-show>Mostra</button></span></label>
+        <label class="check"><input type="checkbox" name="consenso"><span>Ho almeno 14 anni e ho letto l'<a href="../privacy/" target="_blank" rel="noopener">informativa privacy</a>.</span></label>
+        <button class="btn" type="submit">Attiva account</button>
+        <p class="msg" id="mAtt" role="status"></p>
+      </form>
+
+      <form id="fReset" novalidate hidden>
+        <p class="hint">Ti inviamo un link per scegliere una nuova password. Se non arriva, chiedi in reception.</p>
+        <label>Email<input name="email" type="email" required autocomplete="username" inputmode="email"></label>
+        <button class="btn" type="submit">Invia il link</button>
+        <p class="msg" id="mReset" role="status"></p>
+        <button class="link" type="button" id="backLogin">&larr; Torna all'accesso</button>
+      </form>
+
+      <form id="fNewPw" novalidate hidden>
+        <p class="hint">Scegli la nuova password del tuo account.</p>
+        <label>Nuova password<span class="pw"><input name="password" type="password" required minlength="8" autocomplete="new-password"><button type="button" data-show>Mostra</button></span></label>
+        <button class="btn" type="submit">Salva password</button>
+        <p class="msg" id="mNewPw" role="status"></p>
+      </form>
+    </div>
+    <p class="foot-note">Non sei ancora iscritto? <a href="../#contatti">Vieni a trovarci</a> o scrivici su <a href="https://wa.me/393337933400" target="_blank" rel="noopener">WhatsApp</a>.<br><a href="../">Torna al sito</a> · <a href="../privacy/">Privacy</a></p>
+  </section>
+
+  <!-- ===================== APP ===================== -->
+  <section id="vApp" class="app" hidden>
+    <header class="bar">
+      <div><small id="hDate"></small><h1 id="hTitle">Prenota</h1></div>
+      <button class="av" id="hAv" type="button" aria-label="Profilo">?</button>
+    </header>
+
+    <div id="banner"></div>
+
+    <!-- PRENOTA -->
+    <main id="pPrenota" class="page">
+      <div class="days" id="days" role="group" aria-label="Giorni della settimana"></div>
+      <div class="chips" id="cats" role="group" aria-label="Filtra per tipo di corso"></div>
+      <div id="slots" class="list" aria-live="polite"><div class="skel"></div><div class="skel"></div><div class="skel"></div></div>
+    </main>
+
+    <!-- LE MIE PRENOTAZIONI -->
+    <main id="pMie" class="page" hidden>
+      <div class="stats" id="stats"></div>
+      <div class="seg sm" role="tablist" id="mieSeg"><button role="tab" data-v="prossime" aria-selected="true">In programma</button><button role="tab" data-v="storico" aria-selected="false">Storico</button></div>
+      <div id="mieList" class="list"></div>
+    </main>
+
+    <!-- PROFILO -->
+    <main id="pProfilo" class="page" hidden>
+      <div class="me">
+        <span class="av big" id="pAv">?</span>
+        <div><b id="pNome"></b><small id="pMail"></small><small id="pDal"></small></div>
+      </div>
+      <div class="card" id="installBox" hidden>
+        <h2>Installa l'app</h2>
+        <p id="installTxt">Aggiungi WHY NOT alla schermata Home: si apre come un'app, a schermo intero.</p>
+        <button class="btn" type="button" id="installBtn" hidden>Installa</button>
+      </div>
+      <form class="card" id="fProf" novalidate>
+        <h2>I miei dati</h2>
+        <label>Nome e cognome<input name="nome" required minlength="2" maxlength="80" autocomplete="name"></label>
+        <label>Telefono<input name="telefono" type="tel" maxlength="30" autocomplete="tel"></label>
+        <button class="btn ghost" type="submit">Salva</button>
+      </form>
+      <form class="card" id="fPw" novalidate>
+        <h2>Cambia password</h2>
+        <label>Nuova password<span class="pw"><input name="password" type="password" required minlength="8" autocomplete="new-password"><button type="button" data-show>Mostra</button></span></label>
+        <button class="btn ghost" type="submit">Aggiorna password</button>
+      </form>
+      <div class="card">
+        <h2>Orari palestra</h2>
+        <!-- stessi orari della home (sezione #orari) -->
+        <table class="hrs" id="hrs">
+          <tr><td>Lunedì</td><td>06:00 – 21:30</td></tr><tr><td>Martedì</td><td>06:00 – 21:30</td></tr><tr><td>Mercoledì</td><td>06:00 – 21:30</td></tr>
+          <tr><td>Giovedì</td><td>06:00 – 21:30</td></tr><tr><td>Venerdì</td><td>06:00 – 21:30</td></tr><tr><td>Sabato</td><td>08:00 – 17:00</td></tr><tr><td>Domenica</td><td>08:00 – 13:00</td></tr>
+        </table>
+      </div>
+      <div class="card links">
+        <h2>Contatti</h2>
+        <a href="tel:+393337933400">Chiama +39 333 793 3400</a>
+        <a href="https://wa.me/393337933400" target="_blank" rel="noopener">Scrivici su WhatsApp</a>
+        <a href="mailto:whynotfitnessclubbiella@gmail.com">whynotfitnessclubbiella@gmail.com</a>
+        <a href="https://share.google/utPWoQFIcLNHIBe8V" target="_blank" rel="noopener">Via Emma e Cerino Zegna 7, Biella</a>
+      </div>
+      <div class="card links">
+        <h2>Altro</h2>
+        <a href="../corsi/" target="_blank" rel="noopener">Tutti i corsi</a>
+        <a href="../privacy/" target="_blank" rel="noopener">Informativa privacy</a>
+        <a href="mailto:whynotfitnessclubbiella@gmail.com?subject=Cancellazione%20account%20app">Richiedi la cancellazione dell'account</a>
+        <a href="../admin/" id="staffLink" hidden>Area staff</a>
+      </div>
+      <button class="btn ghost danger" type="button" id="logout">Esci</button>
+    </main>
+
+    <nav class="tabbar" aria-label="Sezioni">
+      <button data-p="pPrenota" aria-current="page"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18M9 15l2 2 4-4"/></svg>Prenota</button>
+      <button data-p="pMie"><svg viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>Le mie<i id="nMie"></i></button>
+      <button data-p="pProfilo"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>Profilo</button>
+    </nav>
+  </section>
+</div>
+
+<!-- scheda prenotazione -->
+<dialog id="sheet" class="sheet" aria-labelledby="shTitle">
+  <div class="sh">
+    <span class="grip" aria-hidden="true"></span>
+    <div id="shBody"></div>
+  </div>
+</dialog>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script src="../assets/supabase-config.js"></script>
+<script type="module" src="app.js"></script>
+</body>
+</html>

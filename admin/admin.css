@@ -273,3 +273,10 @@ dialog.ask p{color:#d4d4d4}
 .typing{color:var(--mut);font-size:13px}
 @media(max-width:900px){#logoutM{display:inline!important}.topbar [data-act="genera"] span{display:none}.topbar .acts{gap:6px}}
 .ai-off .ai-only{display:none!important}
+.pill{display:inline-block;font-size:11px;font-weight:800;letter-spacing:.4px;padding:3px 9px;border-radius:999px;background:#333;color:#ccc;white-space:nowrap}
+.pill.ok{background:#1f4d1a;color:#c5f2b8}.pill.w{background:#4d3d14;color:#ffe2a6}.pill.x{background:#4d1a1f;color:#ffb3b8}
+.codebox{display:flex;flex-direction:column;gap:8px;padding:16px;border-radius:14px;background:rgba(111,211,90,.07);border:1px solid rgba(111,211,90,.4)}
+.codebox b{font:800 32px/1.1 ui-monospace,Consolas,monospace;letter-spacing:6px;color:#fff;user-select:all}
+label.chk{flex-direction:row;align-items:center;gap:10px;font-size:13.5px}
+label.chk input{width:18px;height:18px;flex:none;accent-color:var(--red-hi)}
+#iscDone p{color:#d4d4d4;margin-bottom:10px}

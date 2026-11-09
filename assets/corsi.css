@@ -59,7 +59,7 @@ address{font-style:normal}
 
 /* layout */
 .c-layout{display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:48px;align-items:start;padding-bottom:80px}
-@media(max-width:1000px){.c-layout{grid-template-columns:1fr}}
+@media(max-width:1000px){.c-layout{grid-template-columns:minmax(0,1fr)}}
 .c-main section{padding:34px 0;border-top:1px solid var(--line)}
 .c-main section:first-child{border-top:0;padding-top:0}
 .c-main h2{font-family:Anton,sans-serif;font-weight:400;font-size:clamp(28px,3.4vw,42px);line-height:1.05;text-transform:uppercase;margin-bottom:16px}
@@ -155,3 +155,5 @@ address{font-style:normal}
 .ig-note p,.c-main .ig-note p{margin:0;font-size:15px;line-height:1.55;color:#e6e6e6;max-width:none}
 .ig-note strong{color:#fff}
 .ig-note a{color:#fff;font-weight:700;text-decoration:underline;text-underline-offset:3px}
+@media(max-width:420px){.sched th,.sched td{padding:11px 9px;font-size:14px}.sched td small{display:block}}
+.top-app{display:none}@media(max-width:860px){.top-app{display:grid;place-items:center;width:42px;height:42px;margin-left:auto;margin-right:-6px;border-radius:50%;border:1.5px solid rgba(255,255,255,.3)}.top-app svg{width:19px;height:19px;stroke:#fff;fill:none;stroke-width:2;stroke-linecap:round}}

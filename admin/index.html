@@ -35,7 +35,7 @@
       <button data-tab="ai" class="ai-only"><svg viewBox="0 0 24 24"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/></svg>Assistente</button>
     </nav>
     <div class="side-foot">
-      <a href="../prenota/" target="_blank" rel="noopener"><svg viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>Pagina prenotazioni</a>
+      <a href="../app/" target="_blank" rel="noopener"><svg viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>App iscritti</a>
       <a href="../" target="_blank" rel="noopener"><svg viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>Sito</a>
       <div class="me"><span class="av" id="meAv">?</span><div><b id="whoEmail"></b><small id="whoRole"></small></div><button class="link" id="logout">Esci</button></div>
     </div>
@@ -48,6 +48,7 @@
       <div class="acts">
         <span data-for="home cal" class="acts"><button class="ghost sm" data-act="genera"><svg viewBox="0 0 24 24"><path d="M4 4v6h6M20 20v-6h-6"/><path d="M20 10A8 8 0 0 0 6 6L4 10M4 14a8 8 0 0 0 14 4l2-4"/></svg><span>Genera dal palinsesto</span></button><button class="btn sm" data-act="nuova"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Nuova lezione</button></span>
         <span data-for="schede" class="acts"><button class="btn sm" id="newScheda"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Nuova scheda</button></span>
+        <span data-for="iscritti" class="acts"><button class="btn sm" id="newIsc"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Nuovo iscritto</button></span>
         <span data-for="ai" class="acts"><button class="ghost sm" id="aiReset">Nuova chat</button></span>
         <button class="link" id="logoutM" style="display:none">Esci</button>
       </div>
@@ -80,6 +81,7 @@
     <!-- ISCRITTI -->
     <section id="tab-iscritti" class="page" hidden>
       <div class="calbar"><label class="search" aria-label="Cerca iscritto" style="flex-basis:340px"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg><input id="iscSearch" type="search" placeholder="Cerca per nome, email o telefono"></label><span class="mut" id="iscCount"></span></div>
+      <div class="chips" id="iscChips" style="margin-bottom:14px"></div>
       <div id="iscritti"></div>
     </section>
 
@@ -149,6 +151,22 @@
       <button class="btn" type="submit" data-stato="pubblicata">Pubblica</button></div>
     <p class="msg" id="schMsg" role="status"></p>
   </form>
+</dialog>
+
+<!-- NUOVO ISCRITTO -->
+<dialog id="dIsc" class="sheet">
+  <div class="sheet-body">
+    <button class="close" type="button" data-close aria-label="Chiudi">&times;</button>
+    <h2>Nuovo iscritto</h2>
+    <form id="iscForm" novalidate style="display:flex;flex-direction:column;gap:12px">
+      <label>Nome e cognome<input name="nome" required minlength="2" maxlength="80" autocomplete="off"></label>
+      <div class="row"><label>Email (accesso all'app)<input name="email" type="email" required autocomplete="off"></label><label>Telefono<input name="telefono" type="tel" autocomplete="off"></label></div>
+      <p class="mut">Dopo il salvataggio ricevi un codice di attivazione valido 30 giorni: l'iscritto lo usa con questa email per attivare l'app.</p>
+      <div class="acts end"><button class="ghost" type="button" data-close>Annulla</button><button class="btn" type="submit">Crea e genera codice</button></div>
+      <p class="msg" id="iscMsg" role="status"></p>
+    </form>
+    <div id="iscDone"></div>
+  </div>
 </dialog>
 
 <!-- CONFERMA -->

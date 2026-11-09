@@ -62,7 +62,7 @@ async function avvia() {
   if (!session) { $("vLogin").hidden = false; $("vApp").hidden = true; return; }
   const { data: st } = await sb.from("staff").select("ruolo,nome").eq("user_id", session.user.id).maybeSingle();
   if (!st) {
-    // account non staff (es. un iscritto): non lo disconnettiamo dall'area personale, mostriamo solo l'avviso
+    // account non staff (es. un iscritto): non lo disconnettiamo dall'app, mostriamo solo l'avviso
     $("vLogin").hidden = false; $("vApp").hidden = true;
     msg($("loginMsg"), `L'account ${session.user.email} non è abilitato come staff. Accedi con un account staff.`);
     return;
@@ -93,7 +93,7 @@ $("logout").onclick = esci; $("logoutM").onclick = esci;
 const TITOLI = {
   home: ["Panoramica", () => cap1(fFull.format(new Date()))],
   cal: ["Calendario", () => "Lezioni, posti e prenotazioni della settimana"],
-  iscritti: ["Iscritti", () => "Persone registrate nell'area personale"],
+  iscritti: ["Iscritti", () => "Anagrafica, attivazione app e storico"],
   schede: ["Schede", () => "Schede di allenamento"],
   ai: ["Assistente", () => "Le modifiche vengono eseguite solo dopo la tua conferma"],
 };
@@ -163,7 +163,7 @@ async function caricaHome() {
   $("feed").innerHTML = (feed.data || []).map((p) => {
     const l = p.lezioni, d = l ? new Date(l.inizio) : null;
     return `<div class="fi"><span class="av sm2${p.member_id ? " member" : ""}">${esc(initials(p.nome))}</span><div><b>${esc(p.nome)}</b> <span class="mut">${p.stato === "attesa" ? "in attesa" : p.stato === "annullata" ? "ha annullato" : "prenotato"}</span>
-      <small>${esc(l?.corsi?.nome || "")}${d ? ` · ${esc(fWd.format(d))} ${fTime.format(d)}` : ""} · ${p.origine === "sito" ? (p.member_id ? "area personale" : "sito") : esc(p.origine)}</small></div><span class="mut">${fa(p.created_at)}</span></div>`;
+      <small>${esc(l?.corsi?.nome || "")}${d ? ` · ${esc(fWd.format(d))} ${fTime.format(d)}` : ""} · ${esc(p.origine)}</small></div><span class="mut">${fa(p.created_at)}</span></div>`;
   }).join("") || '<p class="empty">Ancora nessuna prenotazione.</p>';
 
   const per = {};
@@ -245,7 +245,7 @@ async function apriLezione(id) {
   const persona = (p, k) => `<div class="pp">${p.stato === "attesa" ? `<span class="pos">${k + 1}°</span>` : ""}<span class="av sm2${p.member_id ? " member" : ""}">${esc(initials(p.nome))}</span>
     <div><b>${esc(p.nome)}</b>${p.member_id ? '<span class="tag">iscritto</span>' : ""}
       <small>${[p.telefono ? `<a href="tel:${esc(p.telefono)}">${esc(p.telefono)}</a>` : "", p.email ? `<a href="mailto:${esc(p.email)}">${esc(p.email)}</a>` : ""].filter(Boolean).join(" · ")}</small>
-      <small>${p.origine === "sito" ? (p.member_id ? "area personale" : "sito") : esc(p.origine)} · ${fDT.format(new Date(p.created_at))}${p.note ? ` · «${esc(p.note)}»` : ""}</small></div>
+      <small>${esc(p.origine)} · ${fDT.format(new Date(p.created_at))}${p.note ? ` · «${esc(p.note)}»` : ""}</small></div>
     <div class="acts">${p.stato === "annullata" ? `<button class="ghost sm" data-pst="ripristina" data-pid="${p.id}">Ripristina</button>` : `<button class="ghost sm danger" data-pst="annullata" data-pid="${p.id}">Annulla</button>`}</div></div>`;
   $("lezBody").innerHTML = `
     <div class="dw-head" style="--c:${col}"><button class="close" data-x aria-label="Chiudi">&times;</button>
@@ -337,11 +337,15 @@ $("newForm").addEventListener("submit", async (e) => {
 });
 
 // ------------------------------------------------------------------ iscritti
+// L'anagrafica la crea lo staff; l'iscritto attiva l'app con email + codice (il codice si vede solo quando viene generato).
+const APP_URL = new URL("../app/", location.href).href;
+const STATI = { attivo: ["App attiva", "ok"], "da attivare": ["Da attivare", "w"], "codice scaduto": ["Codice scaduto", "w"], sospeso: ["Sospeso", "x"] };
+let iscFiltro = "";
 async function caricaIscritti(silenzioso) {
   const { data, error } = await sb.rpc("admin_iscritti");
   if (error) {
     iscritti = [];
-    if (!silenzioso) $("iscritti").innerHTML = `<p class="empty">Elenco iscritti non disponibile: esegui <code>supabase/2026-11-09-WhyNot-iscritti.sql</code> nel SQL Editor.<br><span class="mut">${esc(error.message)}</span></p>`;
+    if (!silenzioso) $("iscritti").innerHTML = `<p class="empty">Elenco iscritti non disponibile: esegui <code>supabase/2026-11-09-WhyNot-app-iscritti.sql</code> nel SQL Editor.<br><span class="mut">${esc(error.message)}</span></p>`;
     return;
   }
   iscritti = data || [];
@@ -350,37 +354,94 @@ async function caricaIscritti(silenzioso) {
 }
 function disegnaIscritti() {
   const q = $("iscSearch").value.trim().toLowerCase();
-  const lista = (iscritti || []).filter((i) => !q || [i.nome, i.email, i.telefono].some((v) => String(v || "").toLowerCase().includes(q)));
+  const conta = (s) => iscritti.filter((i) => i.stato === s).length;
+  $("iscChips").innerHTML = [["", "Tutti", iscritti.length], ["attivo", "App attiva", conta("attivo")], ["da attivare", "Da attivare", conta("da attivare") + conta("codice scaduto")], ["sospeso", "Sospesi", conta("sospeso")]]
+    .map(([k, t, n]) => `<button class="chip" data-f="${k}" aria-pressed="${iscFiltro === k}">${t} ${n}</button>`).join("");
+  const lista = iscritti.filter((i) => (!iscFiltro || i.stato === iscFiltro || (iscFiltro === "da attivare" && i.stato === "codice scaduto"))
+    && (!q || [i.nome, i.email, i.telefono].some((v) => String(v || "").toLowerCase().includes(q))));
   $("iscCount").textContent = `${lista.length} ${lista.length === 1 ? "iscritto" : "iscritti"}`;
-  $("iscritti").innerHTML = lista.length ? `<div class="wrap-tbl"><table class="tbl"><thead><tr><th>Iscritto</th><th class="hm">Telefono</th><th class="hm">Registrato</th><th class="num">Prenot.</th><th class="num">Frequent.</th><th class="num">Prossime</th><th class="hm">Ultima lezione</th></tr></thead><tbody>${
-    lista.map((i) => `<tr data-uid="${i.user_id}"><td><div class="p"><span class="av sm2 member">${esc(initials(i.nome))}</span><div><b>${esc(i.nome)}</b><small>${esc(i.email || "")}</small></div></div></td>
-      <td class="hm">${esc(i.telefono || "—")}</td><td class="hm">${fDate.format(new Date(i.iscritto_dal))}</td><td class="num">${i.prenotazioni}</td><td class="num">${i.frequentate}</td><td class="num">${i.prossime}</td>
-      <td class="hm">${i.ultima ? fDate.format(new Date(i.ultima)) : "—"}</td></tr>`).join("")}</tbody></table></div>`
-    : `<p class="empty">${q ? "Nessun iscritto corrisponde alla ricerca." : "Ancora nessun iscritto: le persone si registrano dall'area personale del sito."}</p>`;
+  $("iscritti").innerHTML = lista.length ? `<div class="wrap-tbl"><table class="tbl"><thead><tr><th>Iscritto</th><th>Stato</th><th class="hm">Telefono</th><th class="hm">Dal</th><th class="num">Frequent.</th><th class="num hm">Prossime</th></tr></thead><tbody>${
+    lista.map((i) => { const s = STATI[i.stato] || [i.stato, ""]; return `<tr data-iid="${i.id}"><td><div class="p"><span class="av sm2${i.user_id ? " member" : ""}">${esc(initials(i.nome))}</span><div><b>${esc(i.nome)}</b><small>${esc(i.email)}</small></div></div></td>
+      <td><span class="pill ${s[1]}">${s[0]}</span></td><td class="hm">${esc(i.telefono || "—")}</td><td class="hm">${fDate.format(new Date(i.iscritto_dal))}</td><td class="num">${i.frequentate}</td><td class="num hm">${i.prossime}</td></tr>`; }).join("")}</tbody></table></div>`
+    : `<p class="empty">${q || iscFiltro ? "Nessun iscritto corrisponde alla ricerca." : "Ancora nessun iscritto. Crea il primo con «Nuovo iscritto»: riceverai il codice da dargli per attivare l'app."}</p>`;
 }
 $("iscSearch").addEventListener("input", disegnaIscritti);
-$("iscritti").addEventListener("click", (e) => { const r = e.target.closest("[data-uid]"); if (r) apriIscritto(r.dataset.uid); });
-async function apriIscritto(uid) {
-  const i = iscritti.find((x) => x.user_id === uid); if (!i) return;
-  const { data } = await sb.from("prenotazioni").select("id,stato,origine,created_at,lezione_id,lezioni(inizio,fine,sala,stato,corsi(nome,categoria))").eq("member_id", uid);
+$("iscChips").addEventListener("click", (e) => { const b = e.target.closest("[data-f]"); if (!b) return; iscFiltro = b.dataset.f; disegnaIscritti(); });
+$("iscritti").addEventListener("click", (e) => { const r = e.target.closest("[data-iid]"); if (r) apriIscritto(r.dataset.iid); });
+
+function boxCodice(nome, email, tel, codice, scade) {
+  const testo = `Ciao ${String(nome).split(" ")[0]}! Ecco il tuo codice per attivare l'app di WHY NOT Fitness Club: ${codice}\n\n1) Apri ${APP_URL}?attiva\n2) Inserisci la tua email (${email}) e il codice\n3) Scegli una password\n\nIl codice scade il ${fDate.format(new Date(scade))}.`;
+  const t = String(tel || "").replace(/[^0-9]/g, "");
+  return `<div class="codebox"><span class="mut">Codice di attivazione · scade il ${fDate.format(new Date(scade))}</span><b>${esc(codice)}</b>
+    <p class="mut">Il codice si vede solo adesso: copialo o invialo subito. Se si perde, generane uno nuovo.</p>
+    <div class="acts-row"><button class="btn sm" type="button" data-copy="${esc(testo)}">Copia messaggio</button>${t ? `<a class="ghost sm" target="_blank" rel="noopener" href="https://wa.me/${t.length <= 10 ? "39" + t : t}?text=${encodeURIComponent(testo)}">Invia su WhatsApp</a>` : ""}
+      <a class="ghost sm" href="mailto:${esc(email)}?subject=${encodeURIComponent("Attiva l'app WHY NOT")}&body=${encodeURIComponent(testo)}">Invia per email</a></div></div>`;
+}
+document.addEventListener("click", (e) => {
+  const b = e.target.closest("[data-copy]"); if (!b) return;
+  navigator.clipboard.writeText(b.dataset.copy).then(() => toast("Messaggio copiato."), () => toast("Copia non riuscita.", false));
+});
+
+async function apriIscritto(id, codice) {
+  const i = iscritti.find((x) => x.id === id); if (!i) return;
   const now = Date.now();
-  const P = (data || []).filter((p) => p.lezioni).sort((a, b) => new Date(b.lezioni.inizio) - new Date(a.lezioni.inizio));
+  let P = [];
+  if (i.user_id) {
+    const { data } = await sb.from("prenotazioni").select("id,stato,origine,created_at,lezione_id,lezioni(inizio,fine,sala,stato,corsi(nome,categoria))").eq("member_id", i.user_id);
+    P = (data || []).filter((p) => p.lezioni).sort((a, b) => new Date(b.lezioni.inizio) - new Date(a.lezioni.inizio));
+  }
   const riga = (p) => { const d = new Date(p.lezioni.inizio);
     return `<button class="tli${p.stato === "annullata" ? " x done" : d.getTime() < now ? " done" : ""}" data-lez="${p.lezione_id}" style="--c:${catColor(p.lezioni.corsi.categoria)}"><span class="t">${esc(fDn.format(d))}<small>${esc(F({ month: "short" }).format(d))}</small></span><span class="s"></span>
       <span><b>${esc(p.lezioni.corsi.nome)}</b><span class="sub">${esc(fWd.format(d))} ${fTime.format(d)} · ${esc(p.lezioni.sala)}</span></span><span class="fill">${p.stato === "confermata" ? (d.getTime() < now ? "frequentata" : "confermata") : esc(p.stato)}</span></button>`; };
   const fut = P.filter((p) => new Date(p.lezioni.inizio).getTime() >= now && p.stato !== "annullata").reverse(), pas = P.filter((p) => !fut.includes(p));
-  const tel = String(i.telefono || "").replace(/[^0-9]/g, "");
+  const tel = String(i.telefono || "").replace(/[^0-9]/g, ""), s = STATI[i.stato] || [i.stato, ""];
   $("lezBody").innerHTML = `
     <div class="dw-head"><button class="close" data-x aria-label="Chiudi">&times;</button><span class="k">Iscritto dal ${fDate.format(new Date(i.iscritto_dal))}</span><h2>${esc(i.nome)}</h2>
-      <div class="kv">${i.telefono ? `<span><a href="tel:${esc(i.telefono)}">${esc(i.telefono)}</a></span>` : ""}${tel ? `<span><a href="https://wa.me/${tel.length <= 10 ? "39" + tel : tel}" target="_blank" rel="noopener">WhatsApp</a></span>` : ""}${i.email ? `<span><a href="mailto:${esc(i.email)}">${esc(i.email)}</a></span>` : ""}</div></div>
+      <div class="kv"><span class="pill ${s[1]}">${s[0]}</span>${i.telefono ? `<span><a href="tel:${esc(i.telefono)}">${esc(i.telefono)}</a></span>` : ""}${tel ? `<span><a href="https://wa.me/${tel.length <= 10 ? "39" + tel : tel}" target="_blank" rel="noopener">WhatsApp</a></span>` : ""}<span><a href="mailto:${esc(i.email)}">${esc(i.email)}</a></span></div></div>
     <div class="dw-body">
-      <div class="kpis" style="grid-template-columns:repeat(3,1fr);margin:0"><div class="kpi"><span>Frequentate</span><b>${i.frequentate}</b></div><div class="kpi"><span>Prossime</span><b>${i.prossime}</b></div><div class="kpi"><span>Totale</span><b>${i.prenotazioni}</b></div></div>
+      ${codice ? boxCodice(i.nome, i.email, i.telefono, codice.codice, codice.scade) : ""}
+      ${!i.user_id && !codice ? `<div class="box"><h3 class="mut" style="font-size:12px;letter-spacing:1.2px;text-transform:uppercase;margin-bottom:6px">Attivazione app</h3>
+        <p class="mut" style="margin-bottom:10px">${i.stato === "codice scaduto" ? "Il codice è scaduto." : `Non ha ancora attivato l'app. Il codice scade il ${i.codice_scade ? fDate.format(new Date(i.codice_scade)) : "—"}.`} Se l'ha perso, generane uno nuovo (quello vecchio smette di funzionare).</p>
+        <button class="btn sm" type="button" id="iscCod">Genera nuovo codice</button></div>` : ""}
+      ${i.user_id ? `<div class="kpis" style="grid-template-columns:repeat(3,1fr);margin:0"><div class="kpi"><span>Frequentate</span><b>${i.frequentate}</b></div><div class="kpi"><span>Prossime</span><b>${i.prossime}</b></div><div class="kpi"><span>Totale</span><b>${i.prenotazioni}</b></div></div>
       <div class="sec"><h3>Prossime lezioni</h3>${fut.length ? `<div class="tl">${fut.map(riga).join("")}</div>` : '<p class="empty">Nessuna lezione in programma.</p>'}</div>
-      <div class="sec"><h3>Storico</h3>${pas.length ? `<div class="tl">${pas.map(riga).join("")}</div>` : '<p class="empty">Nessuna lezione nello storico.</p>'}</div>
+      <div class="sec"><h3>Storico</h3>${pas.length ? `<div class="tl">${pas.map(riga).join("")}</div>` : '<p class="empty">Nessuna lezione nello storico.</p>'}</div>` : ""}
+      <form class="sec box" id="iscEdit"><h3>Dati iscritto</h3>
+        <div class="form2"><label class="full">Nome e cognome<input name="nome" value="${esc(i.nome)}" required minlength="2"></label><label>Telefono<input name="telefono" value="${esc(i.telefono || "")}"></label><label>Email<input value="${esc(i.email)}" readonly title="L'email è quella di accesso all'app"></label>
+        <label class="full">Note interne<input name="note" value="${esc(i.note || "")}" placeholder="es. abbonamento annuale"></label>
+        <label class="full chk"><input type="checkbox" name="attivo" ${i.attivo ? "checked" : ""}> Iscrizione attiva (può usare l'app e prenotare)</label></div>
+        <div class="acts-row" style="margin-top:10px"><button class="btn sm" type="submit">Salva</button></div></form>
     </div>`;
   $("lezBody").querySelector("[data-x]").onclick = () => $("dLez").close();
+  $("iscCod")?.addEventListener("click", async () => {
+    if (!(await ask("Nuovo codice di attivazione", `Il codice precedente di ${i.nome} smetterà di funzionare.`, "Genera"))) return;
+    const { data, error } = await sb.rpc("admin_nuovo_codice", { p_id: i.id });
+    if (error) return toast(error.message, false);
+    await caricaIscritti(); apriIscritto(i.id, data);
+  });
+  $("iscEdit").onsubmit = async (e) => {
+    e.preventDefault(); const f = e.target;
+    if (i.attivo && !f.attivo.checked && !(await ask("Sospendere l'iscritto?", `${i.nome} potrà ancora accedere all'app ma non potrà prenotare. Le prenotazioni già fatte restano: annullale dal calendario se serve.`, "Sospendi"))) return;
+    const { error } = await sb.rpc("admin_modifica_iscritto", { p_id: i.id, p_nome: f.nome.value.trim(), p_telefono: f.telefono.value.trim() || null, p_attivo: f.attivo.checked, p_note: f.note.value.trim() || null });
+    if (error) return toast(error.message, false);
+    toast("Iscritto aggiornato."); await caricaIscritti(); apriIscritto(i.id);
+  };
   if (!$("dLez").open) $("dLez").showModal();
 }
+
+$("newIsc").onclick = () => { const f = $("iscForm"); f.reset(); msg($("iscMsg"), ""); f.hidden = false; $("iscDone").innerHTML = ""; $("dIsc").showModal(); };
+$("iscForm").addEventListener("submit", async (e) => {
+  e.preventDefault(); const f = e.target;
+  if (f.nome.value.trim().length < 2) return msg($("iscMsg"), "Inserisci nome e cognome.");
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(f.email.value.trim())) return msg($("iscMsg"), "Serve un'email valida: sarà quella di accesso all'app.");
+  const { data, error } = await sb.rpc("admin_crea_iscritto", { p_nome: f.nome.value.trim(), p_telefono: f.telefono.value.trim() || null, p_email: f.email.value.trim() });
+  if (error) return msg($("iscMsg"), error.message);
+  f.hidden = true;
+  $("iscDone").innerHTML = `<p>Iscritto creato: <b>${esc(f.nome.value.trim())}</b>. Consegnagli il codice per attivare l'app.</p>` + boxCodice(f.nome.value.trim(), f.email.value.trim().toLowerCase(), f.telefono.value.trim(), data.codice, data.scade) +
+    '<div class="acts end"><button class="btn" type="button" id="iscFine">Fatto</button></div>';
+  $("iscFine").onclick = () => $("dIsc").close();
+  caricaIscritti(tab !== "iscritti");
+});
 
 // ------------------------------------------------------------------ schede
 async function caricaSchede() {
