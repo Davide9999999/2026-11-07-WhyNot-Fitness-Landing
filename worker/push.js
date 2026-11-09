@@ -40,11 +40,13 @@ export async function cifra(payload, p256dhB64u, authB64u, opz = {}) {
 }
 
 let chiaveVapid = null;
+// pulisce il valore incollato su Cloudflare (spazi, virgolette, eventuale "NOME=" davanti)
+export const pulisci = (v) => String(v || "").trim().replace(/^[A-Z_]+\s*=\s*/, "").replace(/^["']|["']$/g, "").trim();
 async function firmaVapid(env, aud) {
   if (!chiaveVapid) {
     const pub = b64uDecode(env.VAPID_PUBLIC_KEY);
     chiaveVapid = await crypto.subtle.importKey("jwk", {
-      kty: "EC", crv: "P-256", d: env.VAPID_PRIVATE_KEY, x: b64uEncode(pub.slice(1, 33)), y: b64uEncode(pub.slice(33, 65)), ext: true,
+      kty: "EC", crv: "P-256", d: pulisci(env.VAPID_PRIVATE_KEY, "VAPID_PRIVATE_KEY"), x: b64uEncode(pub.slice(1, 33)), y: b64uEncode(pub.slice(33, 65)), ext: true,
     }, { name: "ECDSA", namedCurve: "P-256" }, false, ["sign"]);
   }
   const h = b64uEncode(enc.encode(JSON.stringify({ typ: "JWT", alg: "ES256" })));
