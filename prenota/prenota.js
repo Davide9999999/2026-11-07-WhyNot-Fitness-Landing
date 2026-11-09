@@ -181,7 +181,7 @@ $("bookForm").addEventListener("submit", async (e) => {
   const nome = f.nome.value.trim(), tel = f.telefono.value.trim(), mail = f.email.value.trim();
   if (nome.length < 2) { $("fields").hidden = false; return ko("Inserisci nome e cognome."); }
   if (!tel && !mail) { $("fields").hidden = false; return ko("Inserisci almeno telefono o email."); }
-  if (!f.consenso.checked) return ko("Serve il consenso al trattamento dei dati.");
+  if (!f.consenso.checked) return ko("Spunta la casella dell'informativa privacy.");
   $("bookBtn").disabled = true; $("bookBtn").textContent = "Invio in corso...";
   const { data, error } = await sb.rpc("prenota_lezione", {
     p_lezione_id: lezioneSel.id, p_nome: nome, p_telefono: tel || null, p_email: mail || null,

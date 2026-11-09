@@ -8,9 +8,7 @@
 <meta name="robots" content="noindex, follow">
 <meta name="theme-color" content="#121212">
 <link rel="icon" type="image/png" href="../2026-11-07-Logo-WhyNot.png">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700;800&family=Permanent+Marker&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/fonts/fonts.css">
 <link rel="stylesheet" href="../assets/corsi.css">
 <link rel="stylesheet" href="../assets/app.css">
 </head>
@@ -59,7 +57,7 @@
             <div class="field"><label for="r-mail">Email *</label><input id="r-mail" name="email" type="email" required maxlength="120" autocomplete="email"></div>
           </div>
           <div class="field"><label for="r-pw">Password * <span style="text-transform:none;letter-spacing:0;color:var(--mut);font-weight:500">(almeno 8 caratteri)</span></label><div class="pw"><input id="r-pw" name="password" type="password" required minlength="8" autocomplete="new-password"><button type="button" data-show>Mostra</button></div></div>
-          <label class="check"><input type="checkbox" name="consenso"> <span>Acconsento al trattamento dei miei dati da parte di WHY NOT FITNESS CLUB SSDRL per gestire il mio account e le mie prenotazioni. *</span></label>
+          <label class="check"><input type="checkbox" name="consenso"> <span>Ho almeno 14 anni, ho letto l'<a href="../privacy/" target="_blank" style="text-decoration:underline">informativa privacy</a> e accetto che WHY NOT FITNESS CLUB SSDRL tratti i miei dati per gestire account e prenotazioni. *</span></label>
           <button class="btn" type="submit" style="width:100%;margin-top:12px">Crea account</button>
           <div class="msg" id="mReg" role="status"></div>
         </form>
@@ -119,7 +117,7 @@
                 <div class="field"><label for="pf-tel">Telefono</label><input id="pf-tel" name="telefono" type="tel" maxlength="30" autocomplete="tel"></div>
                 <div class="field"><label for="pf-mail">Email (accesso)</label><input id="pf-mail" type="email" readonly></div>
               </div>
-              <label class="check" id="pfConsBox"><input type="checkbox" name="consenso"> <span>Acconsento al trattamento dei miei dati da parte di WHY NOT FITNESS CLUB SSDRL per gestire il mio account e le mie prenotazioni. *</span></label>
+              <label class="check" id="pfConsBox"><input type="checkbox" name="consenso"> <span>Ho almeno 14 anni, ho letto l'<a href="../privacy/" target="_blank" style="text-decoration:underline">informativa privacy</a> e accetto che WHY NOT FITNESS CLUB SSDRL tratti i miei dati per gestire account e prenotazioni. *</span></label>
               <button class="btn" type="submit">Salva</button>
               <div class="msg" id="mProf" role="status"></div>
             </form>
@@ -164,8 +162,9 @@
 
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-<footer class="foot"><div class="wrap"><div class="foot-bottom"><span>&copy; <span id="yr"></span> <b>WHY NOT FITNESS CLUB SSDRL</b> &middot; P.IVA 02680610025 &middot; Via Emma e Cerino Zegna 7, Biella</span><a href="../corsi/">Tutti i corsi &rarr;</a></div></div></footer>
+<footer class="foot"><div class="wrap"><div class="foot-bottom"><span>&copy; <span id="yr"></span> <b>WHY NOT FITNESS CLUB SSDRL</b> &middot; P.IVA 02680610025 &middot; Via Emma e Cerino Zegna 7, Biella &middot; <a href="../privacy/">Privacy</a> &middot; <a href="../cookie/">Cookie</a> &middot; <a href="#" data-cookie-prefs>Preferenze cookie</a></span><a href="../corsi/">Tutti i corsi &rarr;</a></div></div></footer>
 
+<script src="../assets/consenso.js" defer></script>
 <script src="../assets/supabase-config.js"></script>
 <script type="module" src="area.js"></script>
 </body>

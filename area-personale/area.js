@@ -62,7 +62,7 @@ $("fReg").addEventListener("submit", async (e) => {
   if (nome.length < 2) return msg($("mReg"), "Inserisci nome e cognome.");
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return msg($("mReg"), "Inserisci un'email valida.");
   if (f.password.value.length < 8) return msg($("mReg"), "La password deve avere almeno 8 caratteri.");
-  if (!f.consenso.checked) return msg($("mReg"), "Serve il consenso al trattamento dei dati.");
+  if (!f.consenso.checked) return msg($("mReg"), "Spunta la casella: età minima e presa visione dell'informativa privacy.");
   busy(b, true, "Creazione account...");
   const { data, error } = await sb.auth.signUp({
     email, password: f.password.value,
@@ -203,7 +203,7 @@ $("vDash").addEventListener("click", async (e) => {
 $("fProf").addEventListener("submit", async (e) => {
   e.preventDefault(); const f = e.target, b = f.querySelector("[type=submit]");
   if (f.nome.value.trim().length < 2) return msg($("mProf"), "Inserisci nome e cognome.");
-  if (!$("pfConsBox").hidden && !f.consenso.checked) return msg($("mProf"), "Serve il consenso al trattamento dei dati.");
+  if (!$("pfConsBox").hidden && !f.consenso.checked) return msg($("mProf"), "Spunta la casella: età minima e presa visione dell'informativa privacy.");
   busy(b, true, "Salvataggio...");
   const { data, error } = await sb.rpc("salva_profilo", { p_nome: f.nome.value.trim(), p_telefono: f.telefono.value.trim() || null, p_consenso: $("pfConsBox").hidden ? true : f.consenso.checked });
   busy(b, false);

@@ -95,9 +95,7 @@
   }
 }
 </script>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;700;800&family=Permanent+Marker&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/fonts/fonts.css">
 <style>
 :root{
   --bg:#121212; --bg2:#181818; --card:rgba(24,24,24,.92); --line:rgba(255,255,255,.1);
@@ -570,8 +568,8 @@ address{font-style:normal}
       </div>
     </div>
     <div class="map rv">
-      <iframe title="Mappa: WHY NOT Fitness Club, palestra in Via Emma e Cerino Zegna 7 a Biella" loading="lazy" referrerpolicy="no-referrer-when-downgrade"
-        src="https://maps.google.com/maps?q=Via%20Emma%20e%20Cerino%20Zegna%207%2C%2013900%20Biella&z=16&output=embed"></iframe>
+      <!-- caricata da assets/consenso.js solo dopo il consenso -->
+      <div data-consenso="mappe" data-title="Mappa: WHY NOT Fitness Club, palestra in Via Emma e Cerino Zegna 7 a Biella" data-link="https://share.google/utPWoQFIcLNHIBe8V" data-src="https://maps.google.com/maps?q=Via%20Emma%20e%20Cerino%20Zegna%207%2C%2013900%20Biella&z=16&output=embed" style="height:100%"></div>
     </div>
   </div>
 </section>
@@ -645,10 +643,11 @@ address{font-style:normal}
     </div>
   </div>
   <div class="f-bottom">
-    <span>© <span id="yr"></span> <b>WHY NOT FITNESS CLUB SSDRL</b> · P.IVA 02680610025 · Palestra a Biella</span>
+    <span>© <span id="yr"></span> <b>WHY NOT FITNESS CLUB SSDRL</b> · P.IVA 02680610025 · <a href="privacy/">Privacy</a> · <a href="cookie/">Cookie</a> · <a href="#" data-cookie-prefs>Preferenze cookie</a></span>
     <a href="#top" class="totop">Torna su<span><svg viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7"/></svg></span></a>
   </div>
 </footer>
+<script src="assets/consenso.js" defer></script>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>

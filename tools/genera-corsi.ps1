@@ -60,9 +60,7 @@ function Head([string]$title, [string]$desc, [string]$url, [string]$pre, [string
 <meta name="twitter:card" content="summary">
 <link rel="icon" type="image/png" href="$pre$($CFG.logo)">
 <link rel="apple-touch-icon" href="$pre$($CFG.logo)">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700;800&family=Permanent+Marker&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="$($pre)assets/fonts/fonts.css">
 <link rel="stylesheet" href="$($pre)assets/corsi.css">
 <script type="application/ld+json">
 $ld
@@ -97,10 +95,11 @@ function Footer([string]$pre) {
         <li><a href="https://wa.me/$($CFG.wa)" target="_blank" rel="noopener">WhatsApp</a> &middot; <a href="$($CFG.instagram)" target="_blank" rel="noopener">Instagram</a> &middot; <a href="$($CFG.facebook)" target="_blank" rel="noopener">Facebook</a></li>
       </ul></address></div>
     </div>
-    <div class="foot-bottom"><span>&copy; <span id="yr"></span> <b>$(E $CFG.legal)</b> &middot; P.IVA $($CFG.piva) &middot; Palestra a Biella</span><a href="$($pre)corsi/">Tutti i corsi &rarr;</a></div>
+    <div class="foot-bottom"><span>&copy; <span id="yr"></span> <b>$(E $CFG.legal)</b> &middot; P.IVA $($CFG.piva) &middot; <a href="$($pre)privacy/">Privacy</a> &middot; <a href="$($pre)cookie/">Cookie</a> &middot; <a href="#" data-cookie-prefs>Preferenze cookie</a></span><a href="$($pre)corsi/">Tutti i corsi &rarr;</a></div>
   </div>
 </footer>
 <script src="$($pre)assets/corsi.js" defer></script>
+<script src="$($pre)assets/consenso.js" defer></script>
 </body>
 </html>
 "@
@@ -264,7 +263,7 @@ $(Header $pre $false)
             <button class="btn" type="submit">$ICO_WA Invia su WhatsApp</button>
           </form>
           <div class="alt"><a class="btn ghost" id="infoMail" href="mailto:$($CFG.email)?subject=$(U ('Informazioni corso ' + $c.nome))">Email</a><a class="btn ghost" href="tel:$($CFG.telHref)">Chiama</a></div>
-          <p class="privacy">Il messaggio viene preparato sul tuo dispositivo e inviato con WhatsApp o con la tua app email: questo sito non salva i dati inseriti.</p>
+          <p class="privacy">Il messaggio viene preparato sul tuo dispositivo e inviato con WhatsApp o con la tua app email: questo sito non salva i dati inseriti. <a href="$($pre)privacy/" style="text-decoration:underline">Informativa privacy</a>.</p>
         </div>
         $priceBox
       </aside>

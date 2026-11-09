@@ -64,3 +64,9 @@ Pagine: `/prenota/` (ora pubblica, in sitemap e nel menu) e `/area-personale/` (
 **Sicurezza:** l'iscritto vede e modifica solo il proprio profilo e le prenotazioni fatte col proprio account. Le vecchie prenotazioni anonime con la stessa email non vengono collegate (senza conferma email chiunque potrebbe registrarsi con l'email di un altro). Tutte le tabelle staff restano protette da `is_staff()`.
 
 **Da decidere prima della produzione:** informativa privacy per account e prenotazioni (testo del consenso da validare con il consulente), cancellazione account (ora su richiesta via email), protezione anti-bot della registrazione (CAPTCHA di Supabase), eventuale limite di annullo (ora: fino all'inizio della lezione).
+
+## 6. Privacy e cookie (aggiunta il 2026-11-09)
+- `/privacy/` informativa (artt. 13-14 GDPR), `/cookie/` cookie policy, banner `assets/consenso.js` su tutte le pagine pubbliche (link "Preferenze cookie" nel footer).
+- Il sito usa solo strumenti tecnici; Google Maps si carica solo dopo il consenso. I caratteri sono ospitati in `assets/fonts/` (niente Google Fonts).
+- I tempi di conservazione scritti nell'informativa (24 mesi) diventano automatici eseguendo `supabase/2026-11-09-WhyNot-conservazione.sql` (pg_cron, ogni notte): da eseguire **dopo** la conferma dei tempi.
+- Da validare con il consulente: tempi di conservazione, età minima 14 anni, regione dei server Supabase, elenco fornitori e basi giuridiche.
