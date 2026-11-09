@@ -1,6 +1,6 @@
 // Service worker dell'app iscritti: rende l'app installabile e apribile anche con rete debole.
 // Solo i file dell'interfaccia vanno in cache; i dati (Supabase) arrivano sempre dalla rete.
-const VER = "whynot-app-v3";
+const VER = "whynot-app-v4";
 const SHELL = ["./", "app.css", "app.js", "manifest.webmanifest", "icons/icon-192.png", "icons/icon-512.png",
   "../assets/whynot-app.js", "../assets/supabase-config.js", "../assets/fonts/fonts.css",
   "../assets/fonts/anton-latin.woff2", "../assets/fonts/inter-latin.woff2", "../assets/fonts/permanent-marker-latin.woff2"];
@@ -24,4 +24,21 @@ self.addEventListener("fetch", (e) => {
       return r;
     }).catch(() => caches.match(e.request).then((m) => m || caches.match("./")))
   );
+});
+
+// ---------- notifiche push ----------
+self.addEventListener("push", (e) => {
+  let d = {};
+  try { d = e.data ? e.data.json() : {}; } catch { d = { body: e.data ? e.data.text() : "" }; }
+  e.waitUntil(self.registration.showNotification(d.title || "WHY NOT Fitness Club", {
+    body: d.body || "", icon: "icons/icon-192.png", badge: "icons/icon-192.png", tag: d.tag, lang: "it", data: { url: d.url || "./" },
+  }));
+});
+self.addEventListener("notificationclick", (e) => {
+  e.notification.close();
+  const url = new URL((e.notification.data && e.notification.data.url) || "./", self.registration.scope).href;
+  e.waitUntil(clients.matchAll({ type: "window", includeUncontrolled: true }).then((cs) => {
+    for (const c of cs) if (c.url.startsWith(self.registration.scope)) return c.focus();
+    return clients.openWindow(url);
+  }));
 });

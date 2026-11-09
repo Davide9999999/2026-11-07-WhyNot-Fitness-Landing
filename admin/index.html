@@ -46,6 +46,7 @@
       <a class="m-brand" href="../"><img src="../2026-11-07-Logo-WhyNot.png" alt="WHY NOT" width="34" height="34"></a>
       <div><h1 id="pgTitle">Panoramica</h1><p id="pgSub"></p></div>
       <div class="acts">
+        <span data-for="home iscritti" class="acts"><button class="ghost sm" data-act="avviso"><svg viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg><span>Invia avviso</span></button></span>
         <span data-for="home cal" class="acts"><button class="ghost sm" data-act="genera"><svg viewBox="0 0 24 24"><path d="M4 4v6h6M20 20v-6h-6"/><path d="M20 10A8 8 0 0 0 6 6L4 10M4 14a8 8 0 0 0 14 4l2-4"/></svg><span>Genera dal palinsesto</span></button><button class="btn sm" data-act="nuova"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Nuova lezione</button></span>
         <span data-for="schede" class="acts"><button class="btn sm" id="newScheda"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Nuova scheda</button></span>
         <span data-for="iscritti" class="acts"><button class="btn sm" id="newIsc"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Nuovo iscritto</button></span>
@@ -168,6 +169,19 @@
     </form>
     <div id="iscDone"></div>
   </div>
+</dialog>
+
+<!-- AVVISO AGLI ISCRITTI -->
+<dialog id="dAvv" class="sheet">
+  <form id="avvForm" class="sheet-body" novalidate>
+    <button class="close" type="button" data-close aria-label="Chiudi">&times;</button>
+    <h2>Invia un avviso</h2>
+    <p class="mut" id="avvInfo">Notifica sul telefono a tutti gli iscritti attivi che hanno attivato le notifiche nell'app.</p>
+    <label>Titolo<input name="titolo" required maxlength="120" placeholder="es. Palestra chiusa lunedì"></label>
+    <label>Testo<textarea name="testo" rows="4" required maxlength="400" placeholder="es. Lunedì 8 dicembre la palestra resta chiusa per la festività. Buone feste!"></textarea></label>
+    <div class="acts end"><button class="ghost" type="button" data-close>Annulla</button><button class="btn" type="submit">Invia</button></div>
+    <p class="msg" id="avvMsg" role="status"></p>
+  </form>
 </dialog>
 
 <!-- CONFERMA -->

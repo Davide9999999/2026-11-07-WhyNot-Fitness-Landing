@@ -15,7 +15,11 @@
     // Valori PUBBLICI del progetto Supabase (Settings > API). La chiave segreta Anthropic va come secret, mai qui.
     "SUPABASE_URL": "https://fnyvsawkdiloyujoiumx.supabase.co",
     "SUPABASE_ANON_KEY": "sb_publishable_AoAkme4i4S0AAG1q4jW-SQ_roh-_ke_",
-    "AI_MODEL": "claude-opus-5-5"
+    "AI_MODEL": "claude-opus-5-5",
+    // Notifiche push: chiave PUBBLICA VAPID (la privata VAPID_PRIVATE_KEY e PUSH_SECRET vanno come secret su Cloudflare)
+    "VAPID_PUBLIC_KEY": "BMzRtukuI9ep3kJIEaUhRzPDPwtC4BT2r2sVGmxWVJ8mg8VdLSxwJsBNoo5Gk9mKYq6wNOauJNPvTPIdk7qRkF8",
+    "VAPID_SUBJECT": "mailto:whynotfitnessclubbiella@gmail.com"
   },
+  "triggers": { "crons": ["* * * * *"] },
   "observability": { "enabled": true }
 }

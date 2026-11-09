@@ -80,6 +80,7 @@
 
     <!-- PRENOTA -->
     <main id="pPrenota" class="page">
+      <div class="wknav"><button type="button" id="wPrev" aria-label="Settimana precedente">&lsaquo;</button><div><b id="wLbl">Questa settimana</b><small id="wSub"></small></div><button type="button" id="wNext" aria-label="Settimana successiva">&rsaquo;</button></div>
       <div class="days" id="days" role="group" aria-label="Giorni della settimana"></div>
       <div class="chips" id="cats" role="group" aria-label="Filtra per tipo di corso"></div>
       <div id="slots" class="list" aria-live="polite"><div class="skel"></div><div class="skel"></div><div class="skel"></div></div>
@@ -97,6 +98,19 @@
       <div class="me">
         <span class="av big" id="pAv">?</span>
         <div><b id="pNome"></b><small id="pMail"></small><small id="pDal"></small></div>
+      </div>
+      <div class="card" id="notifBox">
+        <h2>Notifiche</h2>
+        <p id="notifStato">Promemoria prima delle lezioni, posto confermato dalla lista d'attesa, lezioni annullate e avvisi della palestra.</p>
+        <button class="btn" type="button" id="notifBtn" hidden>Attiva notifiche</button>
+        <form id="fNotif" novalidate hidden>
+          <label>Promemoria prima della lezione<select name="promemoria_min"><option value="0">Nessun promemoria</option><option value="30">30 minuti prima</option><option value="60">1 ora prima</option><option value="120">2 ore prima</option><option value="240">4 ore prima</option><option value="1440">Il giorno prima</option></select></label>
+          <label class="check"><input type="checkbox" name="lista"><span>Posto confermato dalla lista d'attesa</span></label>
+          <label class="check"><input type="checkbox" name="annullate"><span>Lezione annullata dalla palestra</span></label>
+          <label class="check"><input type="checkbox" name="avvisi"><span>Avvisi della palestra</span></label>
+          <button class="btn ghost" type="submit">Salva preferenze</button>
+          <div class="row2"><button class="link" type="button" id="notifProva">Invia una notifica di prova</button><button class="link" type="button" id="notifOff">Disattiva su questo dispositivo</button></div>
+        </form>
       </div>
       <div class="card" id="installBox" hidden>
         <h2>Installa l'app</h2>

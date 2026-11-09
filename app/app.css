@@ -177,3 +177,11 @@ dialog.sheet[open]{animation:up .25s ease-out}
 .toast.ok{border-color:rgba(111,211,90,.5)}.toast.ko{border-color:rgba(224,34,51,.6)}
 @media(max-width:360px){.les{grid-template-columns:50px minmax(0,1fr)}.les>:last-child{grid-column:1/-1;justify-self:end}.day .dn{font-size:19px}}
 .les .s,.les .pb{display:block}.les>span:nth-child(2){min-width:0}
+.wknav{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}
+.wknav>div{text-align:center}.wknav b{display:block;font-size:15px}.wknav small{display:block;font-size:12px;color:var(--mut)}
+.wknav button{width:40px;height:40px;border-radius:12px;border:1px solid var(--line2);background:var(--card);font-size:22px;line-height:1}
+.wknav button:disabled{opacity:.3}
+.notice.info{background:rgba(91,155,240,.1);border-color:rgba(91,155,240,.35);color:#cfe0ff;margin:0 0 10px}
+.tag.soon{background:rgba(91,155,240,.15);color:#cfe0ff}
+select{font:inherit;font-size:16px;color:var(--txt);background:#0d0d0d;border:1px solid var(--line2);border-radius:12px;padding:12px 14px;width:100%}
+.row2{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}.row2 .link{margin:12px 0 0}

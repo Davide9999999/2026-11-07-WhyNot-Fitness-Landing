@@ -89,3 +89,10 @@ Pagine: `/prenota/` (ora pubblica, in sitemap e nel menu) e `/area-personale/` (
 - **Nuovo collaboratore**: Admin → Iscritti → «Nuovo iscritto» → campo «Collaboratore» (Staff/Admin, solo per gli admin). Diventa staff appena attiva l'app. Per un iscritto già attivo: scheda iscritto → «Collaboratore» → Applica. «Add user» dalla dashboard Supabase non serve più.
 - **Password persa**: scheda iscritto → «Reimposta accesso» → nuovo codice; l'iscritto riattiva l'app con la stessa email e una nuova password, le prenotazioni vengono ricollegate.
 - **Email (SMTP)**: da configurare in Supabase → Authentication → Emails → SMTP Settings. Dopo, applicare i modelli in italiano di `supabase/2026-11-09-WhyNot-email-templates.json` (PATCH `/v1/projects/{ref}/config/auth`): sul piano gratuito Supabase li accetta solo con SMTP personalizzato.
+
+## 9. Notifiche push e settimane future (2026-11-09)
+- **App**: in Prenota si scorrono fino a 5 settimane avanti (le lezioni già generate; se una settimana non è ancora generata si vede l'orario previsto dal palinsesto, non prenotabile). Si prenota solo la settimana in corso.
+- **Notifiche** (Profilo → Notifiche): promemoria prima della lezione (30 min – 1 giorno), posto confermato dalla lista d'attesa, lezione annullata, avvisi della palestra. Su iPhone servono iOS 16.4+ e l'app installata sulla schermata Home.
+- **Admin**: «Invia avviso» (Panoramica/Iscritti). Annullando una lezione i prenotati con notifiche attive vengono avvisati.
+- **Come funziona**: il database mette in coda le notifiche; il Worker Cloudflare (cron ogni minuto, `worker/push.js`) le invia con Web Push (VAPID + aes128gcm, verificato con il vettore di prova dell'RFC 8291).
+- **Setup**: 1) SQL Editor → `supabase/2026-11-09-WhyNot-notifiche.sql`; 2) Cloudflare → Worker → Settings → Variables and Secrets → due **Secret**: `VAPID_PRIVATE_KEY` e `PUSH_SECRET` (valori consegnati a parte, mai nel repo). La chiave pubblica è già in `wrangler.jsonc` e `assets/supabase-config.js`.

@@ -11,6 +11,7 @@
 //   AI_MODEL                          (facoltativa, default claude-opus-5-5)
 
 import Anthropic from "@anthropic-ai/sdk";
+import { giroNotifiche } from "./push.js";
 
 const DEFAULT_MODEL = "claude-opus-5-5";
 const MAX_ITERAZIONI = 8;
@@ -362,5 +363,9 @@ export default {
       return json({ error: "Endpoint inesistente" }, 404);
     }
     return env.ASSETS.fetch(request);
+  },
+  // cron (wrangler.jsonc > triggers): invio delle notifiche push in coda
+  async scheduled(_evento, env, ctx) {
+    ctx.waitUntil(giroNotifiche(env).then((r) => console.log("push", JSON.stringify(r))).catch((e) => console.error("push", String(e.message || e))));
   },
 };

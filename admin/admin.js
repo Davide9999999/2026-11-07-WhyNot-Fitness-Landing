@@ -114,6 +114,7 @@ document.addEventListener("click", (e) => {
   if (a?.dataset.act === "genera") genera(tab === "cal" ? lunedi : null);
   if (a?.dataset.act === "nuova") nuovaLezione();
   if (a?.dataset.act === "genera-w") genera(a.dataset.w);
+  if (a?.dataset.act === "avviso") apriAvviso();
 });
 document.querySelectorAll("dialog [data-close]").forEach((b) => b.addEventListener("click", () => b.closest("dialog").close()));
 document.addEventListener("click", (e) => { if (e.target.matches("dialog.drawer, dialog.sheet")) e.target.close(); });
@@ -277,7 +278,7 @@ async function apriLezione(id) {
   $("lzPub").onclick = () => upd({ pubblicata: !l.pubblicata }, l.pubblicata ? "Lezione nascosta dalla pagina prenotazioni." : "Lezione visibile online.");
   $("lzAnn").onclick = async () => {
     if (l.stato === "annullata") return upd({ stato: "programmata" }, "Lezione ripristinata.");
-    if (await ask("Annullare la lezione?", `${l.corsi.nome}, ${fFull.format(new Date(l.inizio))} alle ${fTime.format(new Date(l.inizio))}. ${conf.length + att.length ? `Ci sono ${conf.length + att.length} prenotati: avvisali (non ricevono notifiche automatiche).` : ""}`, "Annulla lezione"))
+    if (await ask("Annullare la lezione?", `${l.corsi.nome}, ${fFull.format(new Date(l.inizio))} alle ${fTime.format(new Date(l.inizio))}. ${conf.length + att.length ? `Ci sono ${conf.length + att.length} prenotati: chi ha attivato le notifiche dell'app riceverà un avviso, gli altri contattali tu.` : ""}`, "Annulla lezione"))
       upd({ stato: "annullata" }, "Lezione annullata.");
   };
   $("copyList")?.addEventListener("click", () => {
@@ -554,3 +555,21 @@ function proposta(p) {
 }
 
 avvia();
+
+// ------------------------------------------------------------------ avvisi push agli iscritti
+async function apriAvviso() {
+  const f = $("avvForm"); f.reset(); msg($("avvMsg"), "");
+  const { data } = await sb.rpc("admin_stato_notifiche");
+  $("avvInfo").textContent = data
+    ? `Notifica sul telefono agli iscritti attivi con le notifiche attive nell'app: oggi sono ${data.iscritti_con_notifiche}.`
+    : "Notifica sul telefono agli iscritti attivi che hanno attivato le notifiche nell'app.";
+  $("dAvv").showModal();
+}
+$("avvForm").addEventListener("submit", async (e) => {
+  e.preventDefault(); const f = e.target;
+  if (f.titolo.value.trim().length < 3 || f.testo.value.trim().length < 3) return msg($("avvMsg"), "Scrivi titolo e testo.");
+  if (!(await ask("Inviare l'avviso?", `«${f.titolo.value.trim()}» arriverà a tutti gli iscritti con le notifiche attive.`, "Invia"))) return;
+  const { data, error } = await sb.rpc("admin_invia_avviso", { p_titolo: f.titolo.value.trim(), p_testo: f.testo.value.trim() });
+  if (error) return msg($("avvMsg"), error.message);
+  $("dAvv").close(); toast(data ? `Avviso in invio a ${data} ${data === 1 ? "iscritto" : "iscritti"}.` : "Nessun iscritto ha ancora attivato le notifiche.");
+});

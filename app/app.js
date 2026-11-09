@@ -1,6 +1,6 @@
 // App iscritti WHY NOT: accesso, attivazione con codice, prenotazione corsi, prenotazioni e profilo.
 // Le regole (chi può prenotare, capienza, lista d'attesa) sono nel database: qui c'è solo l'interfaccia.
-import { sb, $, esc, fmt, dayKey, hourRome, cap, catColor, initials, relTime, scaricaIcs, erroreAuth } from "../assets/whynot-app.js";
+import { cfg, sb, $, esc, fmt, dayKey, hourRome, cap, catColor, initials, relTime, scaricaIcs, erroreAuth } from "../assets/whynot-app.js";
 
 const ICO_OK = '<svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
 const ICO_WAIT = '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>';
@@ -101,7 +101,7 @@ $("fNewPw").addEventListener("submit", async (e) => {
   recovery = false; history.replaceState(null, "", location.pathname); toast("Password aggiornata."); entra();
 });
 
-$("logout").onclick = async () => { await sb.auth.signOut(); session = null; prof = null; form("fLogin"); show("vAuth"); window.scrollTo(0, 0); };
+$("logout").onclick = async () => { await spegniPush(); await sb.auth.signOut(); session = null; prof = null; form("fLogin"); show("vAuth"); window.scrollTo(0, 0); };
 
 // ------------------------------------------------------------------ app
 async function entra() {
@@ -120,20 +120,69 @@ async function entra() {
   $("hrs").querySelectorAll("tr").forEach((r, k) => r.classList.toggle("today", k === iso));
   $("hDate").textContent = cap(fmt.day.format(new Date()));
   show("vApp"); vai(pagina);
-  installa();
+  installa(); statoNotifiche();
   await ricarica();
 }
 
+// settimana mostrata: 0 = questa, fino a MAX_SETT settimane avanti (le prenotazioni si aprono la settimana stessa)
+const MAX_SETT = 5;
+let settOff = 0, palinsesto = null, previsto = false;
+
+function romaToDate(ymd, hhmm) {
+  const [y, m, d] = ymd.split("-").map(Number), [hh, mm] = hhmm.split(":").map(Number);
+  const guess = Date.UTC(y, m - 1, d, hh, mm);
+  const p = Object.fromEntries(new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Rome", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" })
+    .formatToParts(new Date(guess)).map((x) => [x.type, x.value]));
+  return new Date(guess - (Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour, +p.minute) - guess));
+}
+
+async function caricaLezioni() {
+  const g = settimana(settOff);
+  let { data, error } = await sb.rpc("lezioni_periodo", { p_da: dayKey(g[0]), p_a: dayKey(g[6]) });
+  if (error && settOff === 0) ({ data, error } = await sb.rpc("lezioni_settimana"));   // database non ancora aggiornato
+  if (error) return error;
+  lezioni = (data || []).map(mappa); previsto = false;
+  if (!lezioni.length && settOff > 0) {
+    // settimana non ancora pubblicata: orario previsto dal palinsesto (non prenotabile)
+    if (!palinsesto) palinsesto = (await sb.rpc("palinsesto_pubblico")).data || [];
+    lezioni = palinsesto.map((p, k) => {
+      const giorno = dayKey(g[p.giorno - 1]);
+      return mappa({ id: `prev-${k}`, corso: p.corso, slug: p.slug, categoria: p.categoria, sala: p.sala,
+        inizio: romaToDate(giorno, p.ora_inizio.slice(0, 5)).toISOString(), fine: romaToDate(giorno, p.ora_fine.slice(0, 5)).toISOString(),
+        capienza: 0, posti_liberi: 0, in_attesa: 0, stato: "programmata", prenotabile: false, previsto: true });
+    });
+    previsto = lezioni.length > 0;
+  }
+  return null;
+}
+
+function disegnaSettimana() {
+  const g = settimana(settOff);
+  $("wLbl").textContent = settOff === 0 ? "Questa settimana" : settOff === 1 ? "Prossima settimana" : `Tra ${settOff} settimane`;
+  $("wSub").textContent = `${fmt.dayMonth.format(g[0])} – ${fmt.dayMonth.format(g[6])}`;
+  $("wPrev").disabled = settOff === 0; $("wNext").disabled = settOff >= MAX_SETT;
+}
+
 async function ricarica() {
-  const [l, m] = await Promise.all([sb.rpc("lezioni_settimana"), sb.rpc("mie_prenotazioni")]);
-  if (l.error) { $("slots").innerHTML = `<p class="empty"><b>Impossibile caricare le lezioni</b>${esc(l.error.message)}</p>`; }
-  else lezioni = (l.data || []).map(mappa);
+  const [err, m] = await Promise.all([caricaLezioni(), sb.rpc("mie_prenotazioni")]);
+  if (err) { $("slots").innerHTML = `<p class="empty"><b>Impossibile caricare le lezioni</b>${esc(err.message)}</p>`; }
   mie = m.error ? [] : (m.data || []).map(mappa);
   const prossime = mie.filter((x) => x.stato !== "annullata" && x.lezione_stato !== "annullata" && x.d > new Date());
   $("nMie").textContent = prossime.length || "";
-  if (!l.error) { disegnaGiorni(); disegnaCat(); disegnaLezioni(); }
+  disegnaSettimana();
+  if (!err) { disegnaGiorni(); disegnaCat(); disegnaLezioni(); }
   disegnaMie();
 }
+async function cambiaSettimana(delta) {
+  settOff = Math.min(MAX_SETT, Math.max(0, settOff + delta)); giornoSel = null; catSel = "";
+  disegnaSettimana();
+  $("slots").innerHTML = '<div class="skel"></div><div class="skel"></div>';
+  const err = await caricaLezioni();
+  if (err) { $("slots").innerHTML = `<p class="empty"><b>Impossibile caricare le lezioni</b>${esc(err.message)}</p>`; return; }
+  disegnaGiorni(); disegnaCat(); disegnaLezioni();
+}
+$("wPrev").onclick = () => cambiaSettimana(-1);
+$("wNext").onclick = () => cambiaSettimana(1);
 document.addEventListener("visibilitychange", () => { if (!document.hidden && session && !$("vApp").hidden) ricarica(); });
 
 function vai(p) {
@@ -147,15 +196,15 @@ document.querySelector(".tabbar").addEventListener("click", (e) => { const b = e
 $("hAv").onclick = () => vai("pProfilo");
 
 // ------------------------------------------------------------------ prenota
-function settimana() {
+function settimana(off = 0) {
   const now = new Date(), iso = (new Date(now.toLocaleString("en-US", { timeZone: "Europe/Rome" })).getDay() + 6) % 7;
-  return [...Array(7)].map((_, k) => new Date(now.getTime() + (k - iso) * 86400000));
+  return [...Array(7)].map((_, k) => new Date(now.getTime() + (k - iso + off * 7) * 86400000));
 }
 const miaPer = (id) => mie.find((p) => p.lezione_id === id && p.stato !== "annullata");
 
 function disegnaGiorni() {
-  const oggi = dayKey(new Date()), g = settimana();
-  if (!giornoSel) giornoSel = g.map(dayKey).find((k) => k >= oggi && lezioni.some((l) => dayKey(l.d) === k && l.d > new Date() && l.stato !== "annullata")) || oggi;
+  const oggi = dayKey(new Date()), g = settimana(settOff);
+  if (!giornoSel) giornoSel = g.map(dayKey).find((k) => k >= oggi && lezioni.some((l) => dayKey(l.d) === k && l.d > new Date() && l.stato !== "annullata")) || (settOff ? dayKey(g[0]) : oggi);
   $("days").innerHTML = g.map((d) => {
     const k = dayKey(d), n = lezioni.filter((l) => dayKey(l.d) === k).length;
     const mio = mie.some((p) => p.stato !== "annullata" && dayKey(p.d) === k);
@@ -170,24 +219,35 @@ function disegnaCat() {
 }
 function disegnaLezioni() {
   const lista = lezioni.filter((l) => dayKey(l.d) === giornoSel && (!catSel || l.categoria === catSel));
-  if (!lista.length) { $("slots").innerHTML = `<div class="empty"><b>Nessuna lezione${catSel ? ` di ${esc(catSel)}` : ""}</b>Prova un altro giorno${catSel ? " o togli il filtro" : ""}.</div>`; return; }
+  const apertura = fmt.dayMonth.format(settimana(settOff)[0]);
+  const nota = previsto ? `<p class="notice info">Orario previsto dal palinsesto: le lezioni di questa settimana non sono ancora pubblicate e potrebbero cambiare. Le prenotazioni si aprono lunedì ${esc(apertura)}.</p>`
+    : settOff > 0 ? `<p class="notice info">Le prenotazioni per questa settimana si aprono lunedì ${esc(apertura)}.</p>` : "";
+  if (!lista.length) {
+    $("slots").innerHTML = nota + (settOff > 0 && !lezioni.length
+      ? '<div class="empty"><b>Orario non ancora disponibile</b>Le lezioni di questa settimana non sono ancora state pubblicate.</div>'
+      : `<div class="empty"><b>Nessuna lezione${catSel ? ` di ${esc(catSel)}` : ""}</b>Prova un altro giorno${catSel ? " o togli il filtro" : ""}.</div>`);
+    return;
+  }
   const parti = [["Mattina", (h) => h < 13], ["Pomeriggio", (h) => h >= 13 && h < 18], ["Sera", (h) => h >= 18]];
-  $("slots").innerHTML = parti.map(([n, fn]) => { const gr = lista.filter((l) => fn(hourRome(l.d))); return gr.length ? `<p class="part">${n}</p>` + gr.map(riga).join("") : ""; }).join("");
+  $("slots").innerHTML = nota + parti.map(([n, fn]) => { const gr = lista.filter((l) => fn(hourRome(l.d))); return gr.length ? `<p class="part">${n}</p>` + gr.map(riga).join("") : ""; }).join("");
 }
 function riga(l) {
-  const passata = l.d <= new Date(), ann = l.stato === "annullata", mia = miaPer(l.id);
-  const perc = Math.min(100, Math.round(((l.capienza - l.posti_liberi) / l.capienza) * 100));
+  const passata = l.d <= new Date(), ann = l.stato === "annullata", mia = l.previsto ? null : miaPer(l.id);
+  const perc = l.capienza ? Math.min(100, Math.round(((l.capienza - l.posti_liberi) / l.capienza) * 100)) : 0;
+  const chiusa = !l.previsto && !ann && !passata && !mia && l.prenotabile === false;
   let tag;
-  if (ann) tag = '<span class="tag x">Annullata</span>';
+  if (l.previsto) tag = '<span class="tag soon">Previsto</span>';
+  else if (ann) tag = '<span class="tag x">Annullata</span>';
   else if (mia) tag = mia.stato === "attesa" ? `<span class="tag wait">In attesa${mia.posizione_attesa ? ` ${mia.posizione_attesa}°` : ""}</span>` : '<span class="tag ok">✓ Prenotato</span>';
   else if (passata) tag = '<span class="tag x">Conclusa</span>';
+  else if (chiusa) tag = '<span class="tag soon">Presto</span>';
   else tag = l.posti_liberi === 0 ? '<span class="tag go w">Lista d\'attesa</span>' : '<span class="tag go">Prenota</span>';
-  const posti = ann ? "" : l.posti_liberi === 0 ? `Completa${l.in_attesa ? ` · ${l.in_attesa} in attesa` : ""}` : `${l.posti_liberi} ${l.posti_liberi === 1 ? "posto" : "posti"} su ${l.capienza}`;
-  const off = ann || (passata && !mia);
-  return `<button class="les${off ? " off" : ""}" data-id="${l.id}" style="--c:${l.col}" ${off ? "disabled" : ""}>
+  const posti = ann || l.previsto ? "" : l.posti_liberi === 0 ? `Completa${l.in_attesa ? ` · ${l.in_attesa} in attesa` : ""}` : `${l.posti_liberi} ${l.posti_liberi === 1 ? "posto" : "posti"} su ${l.capienza}`;
+  const off = ann || (passata && !mia) || l.previsto || chiusa;
+  return `<button class="les${ann || (passata && !mia) ? " off" : ""}" data-id="${l.id}" style="--c:${l.col}" ${off ? "disabled" : ""}>
     <span class="t">${fmt.time.format(l.d)}<small>${Math.round((l.f - l.d) / 60000)} min</small></span>
     <span><b>${esc(l.corso)}</b><span class="s"><span class="ct">${esc(l.categoria)}</span> · ${esc(l.sala)}${posti ? ` · ${posti}` : ""}</span>
-      ${ann ? "" : `<span class="pb"><i class="${perc >= 100 ? "full" : perc >= 75 ? "mid" : ""}" style="width:${perc}%"></i></span>`}</span>
+      ${ann || l.previsto ? "" : `<span class="pb"><i class="${perc >= 100 ? "full" : perc >= 75 ? "mid" : ""}" style="width:${perc}%"></i></span>`}</span>
     ${tag}</button>`;
 }
 $("days").addEventListener("click", (e) => { const b = e.target.closest(".day"); if (!b) return; giornoSel = b.dataset.k; $("days").querySelectorAll(".day").forEach((x) => x.setAttribute("aria-pressed", x === b)); disegnaLezioni(); });
@@ -319,3 +379,68 @@ function installa() {
     $("installBtn").onclick = async () => { promptInst.prompt(); await promptInst.userChoice; promptInst = null; $("installBox").hidden = true; };
   } else $("installTxt").innerHTML = "Su iPhone: apri questa pagina con <b>Safari</b>, tocca <b>Condividi</b> e poi <b>Aggiungi alla schermata Home</b>.";
 }
+
+// ------------------------------------------------------------------ notifiche push
+const pushOk = "serviceWorker" in navigator && "PushManager" in window && "Notification" in window && !!cfg.vapidPublicKey;
+const b64uBytes = (s) => Uint8Array.from(atob(s.replace(/-/g, "+").replace(/_/g, "/") + "===".slice((s.length + 3) % 4)), (c) => c.charCodeAt(0));
+const iscrizione = async () => { try { return await (await navigator.serviceWorker.ready).pushManager.getSubscription(); } catch { return null; } };
+
+async function statoNotifiche() {
+  const standalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone;
+  const ios = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  $("notifBtn").hidden = true; $("fNotif").hidden = true;
+  if (!pushOk) {
+    $("notifStato").innerHTML = ios && !standalone
+      ? "Su iPhone le notifiche funzionano solo con l'app installata: apri questa pagina con <b>Safari</b>, tocca <b>Condividi</b> → <b>Aggiungi alla schermata Home</b>, poi aprila dall'icona."
+      : "Questo browser non supporta le notifiche. Prova con Chrome, Edge o Safari aggiornati.";
+    return;
+  }
+  if (Notification.permission === "denied") {
+    $("notifStato").textContent = "Le notifiche sono bloccate per questo sito: riattivale dalle impostazioni del browser o del telefono, poi riapri l'app.";
+    return;
+  }
+  const sub = await iscrizione();
+  if (!sub) {
+    $("notifStato").textContent = "Ricevi un promemoria prima delle lezioni, l'avviso quando passi dalla lista d'attesa ai confermati, le lezioni annullate e gli avvisi della palestra.";
+    $("notifBtn").hidden = false; return;
+  }
+  $("notifStato").textContent = "Notifiche attive su questo dispositivo.";
+  const { data } = await sb.rpc("mie_notifiche");
+  const f = $("fNotif"), p = data || {};
+  f.promemoria_min.value = String(p.promemoria_min ?? 120); f.lista.checked = p.lista !== false; f.annullate.checked = p.annullate !== false; f.avvisi.checked = p.avvisi !== false;
+  f.hidden = false;
+}
+
+$("notifBtn").onclick = async (ev) => {
+  const b = ev.currentTarget; busy(b, true, "Attivazione...");
+  try {
+    const perm = await Notification.requestPermission();
+    if (perm !== "granted") { toast("Permesso non concesso: puoi riattivarlo dalle impostazioni del browser.", false); return; }
+    const reg = await navigator.serviceWorker.ready;
+    const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64uBytes(cfg.vapidPublicKey) });
+    const j = sub.toJSON();
+    const { error } = await sb.rpc("salva_push", { p_endpoint: j.endpoint, p_p256dh: j.keys.p256dh, p_auth: j.keys.auth, p_dispositivo: navigator.userAgent.slice(0, 200) });
+    if (error) { await sub.unsubscribe(); throw error; }
+    toast("Notifiche attivate.");
+  } catch (e) { toast("Impossibile attivare le notifiche: " + (e.message || e), false); }
+  finally { busy(b, false); statoNotifiche(); }
+};
+
+$("fNotif").addEventListener("submit", async (e) => {
+  e.preventDefault(); const f = e.target, b = f.querySelector("[type=submit]");
+  busy(b, true, "Salvataggio...");
+  const { error } = await sb.rpc("salva_notifiche", { p_promemoria_min: Number(f.promemoria_min.value), p_lista: f.lista.checked, p_annullate: f.annullate.checked, p_avvisi: f.avvisi.checked });
+  busy(b, false);
+  toast(error ? error.message : "Preferenze salvate.", !error);
+});
+$("notifProva").onclick = async () => {
+  const { error } = await sb.rpc("push_prova");
+  toast(error ? error.message : "Notifica di prova in arrivo entro un minuto.", !error);
+};
+async function spegniPush() {
+  const sub = pushOk ? await iscrizione() : null;
+  if (!sub) return;
+  try { await sb.rpc("rimuovi_push", { p_endpoint: sub.endpoint }); } catch {}
+  try { await sub.unsubscribe(); } catch {}
+}
+$("notifOff").onclick = async () => { await spegniPush(); toast("Notifiche disattivate su questo dispositivo."); statoNotifiche(); };
