@@ -12,7 +12,7 @@ Ambiente: `https://2026-11-07-whynot-fitness-landing.davide-tettamanti.workers.d
 
 ## 1. Supabase (una volta sola)
 1. Crea il progetto (consigliata regione **EU – Frankfurt**) e salva la password del database.
-2. **SQL Editor** → incolla ed esegui `2026-11-09-WhyNot-schema.sql`, poi `2026-11-09-WhyNot-seed.sql`.
+2. **SQL Editor** → incolla ed esegui `2026-11-09-WhyNot-schema.sql`, poi `2026-11-09-WhyNot-seed.sql` (controlla che compaia "Success" senza errori). Se avevi già eseguito lo schema prima del 2026-11-09 sera, esegui anche `2026-11-09-WhyNot-hardening.sql`.
 3. **Authentication → Sign In / Providers → Email**: disattiva "Allow new users to sign up" (gli account staff li crei tu).
 4. **Authentication → Users → Add user**: email e password dell'admin, spunta "Auto Confirm User".
 5. **SQL Editor**: abilita l'utente come admin
