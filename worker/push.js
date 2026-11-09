@@ -83,7 +83,7 @@ export async function giroNotifiche(env) {
       const st = await inviaUna(env, n);
       esiti[st] = (esiti[st] || 0) + 1;
       if (st === 404 || st === 410) scadute.push(n.endpoint);
-    } catch (e) { esiti.errore = (esiti.errore || 0) + 1; }
+    } catch (e) { esiti.errore = (esiti.errore || 0) + 1; esiti.ultimoErrore = String(e && e.message || e).slice(0, 200); }
   }));
   if (scadute.length) await rpc(env, "push_scadute", { p_segreto: env.PUSH_SECRET, p_endpoint: scadute });
   return { inviate: lista.length, esiti, scadute: scadute.length };
