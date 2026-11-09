@@ -1,0 +1,15 @@
+{
+  "name": "whynot-fitness-landing",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "dev": "wrangler dev"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.136.0"
+  },
+  "devDependencies": {
+    "wrangler": "^4.0.0"
+  }
+}

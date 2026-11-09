@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prenota i corsi della settimana | WHY NOT Fitness Club</title>
+<meta name="description" content="Prenota le lezioni della settimana di WHY NOT Fitness Club a Biella.">
+<!-- PAGINA NASCOSTA (dev): non indicizzare, non linkare, non inserire in sitemap finché non viene pubblicata -->
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#121212">
+<link rel="icon" type="image/png" href="../2026-11-07-Logo-WhyNot.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700;800&family=Permanent+Marker&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/corsi.css">
+<style>
+  .week{color:var(--mut);font-weight:600;margin-top:10px}
+  .days{display:flex;gap:8px;flex-wrap:wrap;margin:30px 0 22px}
+  .day{padding:10px 16px;border-radius:999px;border:1.5px solid rgba(255,255,255,.2);background:transparent;color:var(--txt);font:600 14px Inter,sans-serif;cursor:pointer}
+  .day small{display:block;font-size:11px;opacity:.65;font-weight:600}
+  .day[aria-pressed="true"]{background:var(--red);border-color:var(--red)}
+  .day.past{opacity:.45}
+  .slots{display:flex;flex-direction:column;gap:12px;padding-bottom:80px}
+  .slot{display:grid;grid-template-columns:110px 1fr auto;gap:18px;align-items:center;padding:18px 20px;border-radius:18px;background:var(--card);border:1px solid var(--line)}
+  .slot .time{font-family:Anton,sans-serif;font-size:26px;line-height:1}
+  .slot .time small{display:block;font-family:Inter,sans-serif;font-size:12px;color:var(--mut);margin-top:4px}
+  .slot h3{font-family:"Permanent Marker",cursive;font-weight:400;font-size:22px;text-transform:uppercase;line-height:1.1}
+  .slot h3 a:hover{color:var(--red-hi)}
+  .slot .meta{font-size:13.5px;color:var(--mut);margin-top:4px}
+  .slot .bar{height:6px;border-radius:9px;background:rgba(255,255,255,.1);margin-top:10px;max-width:260px;overflow:hidden}
+  .slot .bar i{display:block;height:100%;background:var(--red-hi)}
+  .slot .btn{white-space:nowrap}
+  .slot.off{opacity:.5}
+  .badge{display:inline-block;font-size:11px;font-weight:800;letter-spacing:1px;text-transform:uppercase;padding:4px 9px;border-radius:999px;background:rgba(255,255,255,.08);margin-left:6px}
+  .badge.full{background:#5a1a1f;color:#ffb4b9}.badge.x{background:#333;color:#bbb}
+  @media(max-width:640px){.slot{grid-template-columns:1fr auto}.slot .time{grid-column:1/-1;display:flex;gap:10px;align-items:baseline}.slot .time small{margin:0}}
+  .empty,.err{padding:30px;border-radius:18px;background:var(--card);border:1px dashed var(--line);color:var(--mut)}
+  .err{border-color:rgba(224,34,51,.5);color:#ffb4b9}
+  dialog{border:0;padding:0;background:transparent;max-width:min(520px,92vw);width:100%}
+  dialog::backdrop{background:rgba(0,0,0,.7)}
+  dialog .info{max-height:90vh;overflow:auto}
+  .check{display:flex;gap:10px;align-items:flex-start;font-size:13.5px;color:#ccc;margin:6px 0 4px}
+  .check input{margin-top:3px;accent-color:var(--red-hi)}
+  .msg{margin-top:12px;font-size:14.5px;padding:12px 14px;border-radius:12px}
+  .msg.ok{background:rgba(111,211,90,.12);color:#c5f2b8}.msg.ko{background:rgba(224,34,51,.14);color:#ffc2c6}
+  .close{position:absolute;right:16px;top:14px;background:none;border:0;color:#fff;font-size:26px;cursor:pointer}
+</style>
+</head>
+<body>
+<header class="top"><div class="wrap">
+  <a class="logo" href="../"><img src="../2026-11-07-Logo-WhyNot.png" alt="Logo WHY NOT Fitness Club" width="44" height="44"><b>WHY NOT<small>FITNESS CLUB</small></b></a>
+  <nav class="toplinks" aria-label="Menu principale"><a href="../corsi/">Corsi</a><a href="../#prezzi">Prezzi</a><a href="../#orari">Orari</a><a href="../#contatti">Contatti</a></nav>
+  <a class="btn" href="tel:+393337933400">Chiama</a>
+</div></header>
+<main>
+  <div class="wrap">
+    <section class="c-hero">
+      <h1>Prenota i corsi <em>della settimana</em></h1>
+      <p class="lead">Scegli la lezione, inserisci i tuoi dati e ricevi subito la conferma del posto. Se la lezione è piena entri in lista d'attesa.</p>
+      <p class="week" id="weekLabel"></p>
+      <aside class="ig-note" role="note"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r=".6"/></svg><p><strong>Orari soggetti a variazioni.</strong> Ogni settimana pubblichiamo sul nostro profilo Instagram il post con gli orari aggiornati dei corsi. <a href="https://www.instagram.com/whynotfitnessclub/?hl=it" target="_blank" rel="noopener">Vai su Instagram @whynotfitnessclub &rarr;</a></p></aside>
+    </section>
+    <div class="days" id="days" role="group" aria-label="Giorni della settimana"></div>
+    <div class="slots" id="slots"><p class="empty">Caricamento delle lezioni...</p></div>
+  </div>
+</main>
+
+<dialog id="dlg">
+  <div class="info" style="position:relative">
+    <button class="close" type="button" id="dlgClose" aria-label="Chiudi">&times;</button>
+    <h2>Prenota <span id="dlgCorso"></span></h2>
+    <p id="dlgWhen"></p>
+    <form id="bookForm">
+      <div class="field"><label for="b-nome">Nome e cognome *</label><input id="b-nome" name="nome" required minlength="2" maxlength="80" autocomplete="name"></div>
+      <div class="field"><label for="b-tel">Telefono</label><input id="b-tel" name="telefono" type="tel" maxlength="30" autocomplete="tel"></div>
+      <div class="field"><label for="b-mail">Email</label><input id="b-mail" name="email" type="email" maxlength="120" autocomplete="email"></div>
+      <div class="field"><label for="b-note">Note (facoltative)</label><textarea id="b-note" name="note" maxlength="500"></textarea></div>
+      <label class="check"><input type="checkbox" name="consenso" required> <span>Acconsento al trattamento dei miei dati da parte di WHY NOT FITNESS CLUB SSDRL al solo fine di gestire la prenotazione. *</span></label>
+      <p class="privacy">Serve almeno un recapito tra telefono ed email. * campo obbligatorio.</p>
+      <button class="btn" type="submit" id="bookBtn">Conferma prenotazione</button>
+      <div id="bookMsg" role="status" aria-live="polite"></div>
+    </form>
+  </div>
+</dialog>
+
+<footer class="foot"><div class="wrap"><div class="foot-bottom"><span>&copy; <span id="yr"></span> <b>WHY NOT FITNESS CLUB SSDRL</b> &middot; P.IVA 02680610025 &middot; Via Emma e Cerino Zegna 7, Biella</span><a href="../corsi/">Tutti i corsi &rarr;</a></div></div></footer>
+
+<script src="../assets/supabase-config.js"></script>
+<script type="module" src="prenota.js"></script>
+</body>
+</html>

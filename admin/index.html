@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Admin | WHY NOT Fitness Club</title>
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#121212">
+<link rel="icon" type="image/png" href="../2026-11-07-Logo-WhyNot.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700;800&family=Permanent+Marker&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="admin.css">
+</head>
+<body>
+<!-- LOGIN -->
+<section id="vLogin" class="login" hidden>
+  <form id="loginForm" class="card">
+    <img src="../2026-11-07-Logo-WhyNot.png" alt="" width="64" height="64">
+    <h1>Area staff</h1>
+    <p class="mut">Accedi con l'account creato in Supabase.</p>
+    <label>Email<input name="email" type="email" required autocomplete="username"></label>
+    <label>Password<input name="password" type="password" required autocomplete="current-password"></label>
+    <button class="btn" type="submit">Accedi</button>
+    <p id="loginMsg" class="msg" role="status"></p>
+  </form>
+</section>
+
+<!-- APP -->
+<div id="vApp" hidden>
+  <header class="bar">
+    <a class="brand" href="../" title="Vai al sito"><img src="../2026-11-07-Logo-WhyNot.png" alt="" width="36" height="36"><b>WHY NOT</b><span>admin</span></a>
+    <nav class="tabs" role="tablist">
+      <button role="tab" data-tab="cal" aria-selected="true">Calendario</button>
+      <button role="tab" data-tab="schede" aria-selected="false">Schede</button>
+      <button role="tab" data-tab="ai" aria-selected="false" class="only-mobile">Assistente</button>
+    </nav>
+    <div class="who"><span id="whoEmail"></span><button class="link" id="logout">Esci</button></div>
+  </header>
+
+  <div class="layout">
+    <main>
+      <!-- CALENDARIO -->
+      <section id="tab-cal" class="tab">
+        <div class="toolbar">
+          <div class="nav"><button class="icon" id="prevW" aria-label="Settimana precedente">&lsaquo;</button><strong id="weekLbl"></strong><button class="icon" id="nextW" aria-label="Settimana successiva">&rsaquo;</button><button class="ghost sm" id="todayW">Oggi</button></div>
+          <div class="acts"><button class="ghost sm" id="genW">Genera dal palinsesto</button><button class="btn sm" id="newLez">+ Nuova lezione</button></div>
+        </div>
+        <div id="cal" class="cal"></div>
+      </section>
+
+      <!-- SCHEDE -->
+      <section id="tab-schede" class="tab" hidden>
+        <div class="toolbar">
+          <div class="nav filters" id="schFilter">
+            <button class="chip" data-f="" aria-pressed="true">Tutte</button><button class="chip" data-f="bozza" aria-pressed="false">Bozze</button>
+            <button class="chip" data-f="pubblicata" aria-pressed="false">Pubblicate</button><button class="chip" data-f="archiviata" aria-pressed="false">Archiviate</button>
+          </div>
+          <div class="acts"><button class="btn sm" id="newScheda">+ Nuova scheda</button></div>
+        </div>
+        <div id="schede" class="list"></div>
+      </section>
+    </main>
+
+    <!-- ASSISTENTE AI -->
+    <aside id="tab-ai" class="ai">
+      <div class="ai-head"><h2>Assistente</h2><button class="link" id="aiReset">Nuova chat</button></div>
+      <div id="aiLog" class="ai-log" aria-live="polite">
+        <div class="m bot">Ciao! Posso leggere calendario, prenotazioni e schede. Per ogni modifica ti preparo una proposta da confermare.<br><span class="mut">Esempi: «Quanti iscritti ha lo Zumba di giovedì?» · «Genera le lezioni della prossima settimana» · «Crea una scheda total body per principianti».</span></div>
+      </div>
+      <form id="aiForm" class="ai-form"><textarea id="aiInput" rows="2" placeholder="Scrivi una richiesta..." required></textarea><button class="btn sm" type="submit">Invia</button></form>
+    </aside>
+  </div>
+</div>
+
+<!-- DETTAGLIO LEZIONE -->
+<dialog id="dLez" class="sheet">
+  <div class="sheet-body">
+    <button class="close" data-close aria-label="Chiudi">&times;</button>
+    <div id="lezBody"></div>
+  </div>
+</dialog>
+
+<!-- NUOVA LEZIONE -->
+<dialog id="dNew" class="sheet">
+  <form id="newForm" class="sheet-body">
+    <button class="close" type="button" data-close aria-label="Chiudi">&times;</button>
+    <h2>Nuova lezione</h2>
+    <label>Corso<select name="corso_id" id="newCorso" required></select></label>
+    <div class="row"><label>Data<input name="data" type="date" required></label><label>Ripeti per (settimane)<input name="ripeti" type="number" min="1" max="26" value="1"></label></div>
+    <div class="row"><label>Inizio<input name="ora_inizio" type="time" required></label><label>Fine<input name="ora_fine" type="time" required></label></div>
+    <div class="row"><label>Sala<input name="sala" placeholder="quella del corso"></label><label>Capienza<input name="capienza" type="number" min="1" placeholder="quella del corso"></label></div>
+    <label>Istruttore<input name="istruttore"></label>
+    <label>Note<input name="note"></label>
+    <p class="mut">Orari in ora italiana.</p>
+    <button class="btn" type="submit">Crea</button>
+    <p class="msg" id="newMsg" role="status"></p>
+  </form>
+</dialog>
+
+<!-- SCHEDA -->
+<dialog id="dSch" class="sheet wide">
+  <form id="schForm" class="sheet-body">
+    <button class="close" type="button" data-close aria-label="Chiudi">&times;</button>
+    <h2 id="schTitle">Nuova scheda</h2>
+    <input type="hidden" name="id">
+    <label>Titolo<input name="titolo" required minlength="2" maxlength="120"></label>
+    <div class="row"><label>Obiettivo<input name="obiettivo" placeholder="es. tonificazione"></label>
+      <label>Livello<select name="livello"><option value="">—</option><option>principiante</option><option>intermedio</option><option>avanzato</option></select></label></div>
+    <label>Descrizione breve<input name="descrizione" maxlength="300"></label>
+    <label>Contenuto<textarea name="contenuto" rows="12" placeholder="Esercizi, serie, ripetizioni, recuperi..."></textarea></label>
+    <div class="acts end"><span class="mut" id="schStato"></span>
+      <button class="ghost" type="submit" data-stato="bozza">Salva bozza</button>
+      <button class="ghost" type="submit" data-stato="archiviata">Archivia</button>
+      <button class="btn" type="submit" data-stato="pubblicata">Pubblica</button></div>
+    <p class="msg" id="schMsg" role="status"></p>
+  </form>
+</dialog>
+
+<script src="../assets/supabase-config.js"></script>
+<script type="module" src="admin.js"></script>
+</body>
+</html>

@@ -1,0 +1,21 @@
+// Configurazione Cloudflare Worker (ambiente dev: *.workers.dev).
+// Il nome DEVE coincidere con quello del Worker già collegato al repo su Cloudflare.
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "2026-11-07-whynot-fitness-landing",
+  "main": "worker/index.js",
+  "compatibility_date": "2026-09-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "directory": "./",
+    "binding": "ASSETS",
+    "run_worker_first": ["/api/*"]
+  },
+  "vars": {
+    // Valori PUBBLICI del progetto Supabase (Settings > API). La chiave segreta Anthropic va come secret, mai qui.
+    "SUPABASE_URL": "",
+    "SUPABASE_ANON_KEY": "",
+    "AI_MODEL": "claude-opus-5-5"
+  },
+  "observability": { "enabled": true }
+}
