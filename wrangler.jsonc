@@ -13,8 +13,8 @@
   },
   "vars": {
     // Valori PUBBLICI del progetto Supabase (Settings > API). La chiave segreta Anthropic va come secret, mai qui.
-    "SUPABASE_URL": "",
-    "SUPABASE_ANON_KEY": "",
+    "SUPABASE_URL": "https://fnyvsawkdiloyujoiumx.supabase.co",
+    "SUPABASE_ANON_KEY": "sb_publishable_AoAkme4i4S0AAG1q4jW-SQ_roh-_ke_",
     "AI_MODEL": "claude-opus-5-5"
   },
   "observability": { "enabled": true }

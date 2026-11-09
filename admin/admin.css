@@ -109,3 +109,6 @@ table.bk th{font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var
   .ai:not(.show){display:none}
   .who span{display:none}
 }
+
+/* assistente disattivato */
+.layout.no-ai{grid-template-columns:1fr}

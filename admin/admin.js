@@ -27,6 +27,12 @@ if (!cfg.url || !cfg.anonKey) {
   throw new Error("config mancante");
 }
 const sb = createClient(cfg.url, cfg.anonKey);
+// Assistente AI in stand-by finché aiEnabled non è true in assets/supabase-config.js
+if (!cfg.aiEnabled) {
+  $("tab-ai").hidden = true;
+  document.querySelector(".tabs [data-tab=\"ai\"]").hidden = true;
+  document.querySelector(".layout").classList.add("no-ai");
+}
 let session = null, corsi = [], lunedi = lunediDi(ymdRome(new Date())), lezioni = [], schFiltro = "";
 
 // ------------------------------------------------------------------ auth

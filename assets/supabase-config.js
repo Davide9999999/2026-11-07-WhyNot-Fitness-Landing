@@ -3,6 +3,8 @@
 // Queste chiavi sono pensate per stare nel browser: la sicurezza è garantita dalle regole RLS del database.
 // NON inserire mai qui la service_role key o la chiave Anthropic.
 window.WHYNOT_SUPABASE = {
-  url: "",
-  anonKey: ""
+  url: "https://fnyvsawkdiloyujoiumx.supabase.co",
+  anonKey: "sb_publishable_AoAkme4i4S0AAG1q4jW-SQ_roh-_ke_",
+  // Assistente AI in stand-by: mettere true quando il Worker avrà una chiave del modello configurata
+  aiEnabled: false
 };
