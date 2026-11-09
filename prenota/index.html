@@ -3,83 +3,94 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Prenota i corsi della settimana | WHY NOT Fitness Club</title>
-<meta name="description" content="Prenota le lezioni della settimana di WHY NOT Fitness Club a Biella.">
-<!-- PAGINA NASCOSTA (dev): non indicizzare, non linkare, non inserire in sitemap finché non viene pubblicata -->
-<meta name="robots" content="noindex, nofollow">
+<title>Prenota i corsi della settimana | WHY NOT Fitness Club Biella</title>
+<meta name="description" content="Prenota online le lezioni della settimana di WHY NOT Fitness Club a Biella: Pilates, Zumba, Body Pump, Cross Training, H.E.A.T. e tutti gli altri corsi. Posti liberi in tempo reale e lista d'attesa automatica.">
+<link rel="canonical" href="https://davide9999999.github.io/2026-11-07-WhyNot-Fitness-Landing/prenota/">
+<meta property="og:type" content="website">
+<meta property="og:locale" content="it_IT">
+<meta property="og:site_name" content="WHY NOT Fitness Club">
+<meta property="og:title" content="Prenota i corsi della settimana | WHY NOT Fitness Club Biella">
+<meta property="og:description" content="Scegli la lezione, vedi i posti liberi in tempo reale e prenota in pochi secondi.">
+<meta property="og:url" content="https://davide9999999.github.io/2026-11-07-WhyNot-Fitness-Landing/prenota/">
+<meta property="og:image" content="https://davide9999999.github.io/2026-11-07-WhyNot-Fitness-Landing/2026-11-07-Logo-WhyNot.png">
 <meta name="theme-color" content="#121212">
 <link rel="icon" type="image/png" href="../2026-11-07-Logo-WhyNot.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700;800&family=Permanent+Marker&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../assets/corsi.css">
-<style>
-  .week{color:var(--mut);font-weight:600;margin-top:10px}
-  .days{display:flex;gap:8px;flex-wrap:wrap;margin:30px 0 22px}
-  .day{padding:10px 16px;border-radius:999px;border:1.5px solid rgba(255,255,255,.2);background:transparent;color:var(--txt);font:600 14px Inter,sans-serif;cursor:pointer}
-  .day small{display:block;font-size:11px;opacity:.65;font-weight:600}
-  .day[aria-pressed="true"]{background:var(--red);border-color:var(--red)}
-  .day.past{opacity:.45}
-  .slots{display:flex;flex-direction:column;gap:12px;padding-bottom:80px}
-  .slot{display:grid;grid-template-columns:110px 1fr auto;gap:18px;align-items:center;padding:18px 20px;border-radius:18px;background:var(--card);border:1px solid var(--line)}
-  .slot .time{font-family:Anton,sans-serif;font-size:26px;line-height:1}
-  .slot .time small{display:block;font-family:Inter,sans-serif;font-size:12px;color:var(--mut);margin-top:4px}
-  .slot h3{font-family:"Permanent Marker",cursive;font-weight:400;font-size:22px;text-transform:uppercase;line-height:1.1}
-  .slot h3 a:hover{color:var(--red-hi)}
-  .slot .meta{font-size:13.5px;color:var(--mut);margin-top:4px}
-  .slot .bar{height:6px;border-radius:9px;background:rgba(255,255,255,.1);margin-top:10px;max-width:260px;overflow:hidden}
-  .slot .bar i{display:block;height:100%;background:var(--red-hi)}
-  .slot .btn{white-space:nowrap}
-  .slot.off{opacity:.5}
-  .badge{display:inline-block;font-size:11px;font-weight:800;letter-spacing:1px;text-transform:uppercase;padding:4px 9px;border-radius:999px;background:rgba(255,255,255,.08);margin-left:6px}
-  .badge.full{background:#5a1a1f;color:#ffb4b9}.badge.x{background:#333;color:#bbb}
-  @media(max-width:640px){.slot{grid-template-columns:1fr auto}.slot .time{grid-column:1/-1;display:flex;gap:10px;align-items:baseline}.slot .time small{margin:0}}
-  .empty,.err{padding:30px;border-radius:18px;background:var(--card);border:1px dashed var(--line);color:var(--mut)}
-  .err{border-color:rgba(224,34,51,.5);color:#ffb4b9}
-  dialog{border:0;padding:0;background:transparent;max-width:min(520px,92vw);width:100%}
-  dialog::backdrop{background:rgba(0,0,0,.7)}
-  dialog .info{max-height:90vh;overflow:auto}
-  .check{display:flex;gap:10px;align-items:flex-start;font-size:13.5px;color:#ccc;margin:6px 0 4px}
-  .check input{margin-top:3px;accent-color:var(--red-hi)}
-  .msg{margin-top:12px;font-size:14.5px;padding:12px 14px;border-radius:12px}
-  .msg.ok{background:rgba(111,211,90,.12);color:#c5f2b8}.msg.ko{background:rgba(224,34,51,.14);color:#ffc2c6}
-  .close{position:absolute;right:16px;top:14px;background:none;border:0;color:#fff;font-size:26px;cursor:pointer}
-</style>
+<link rel="stylesheet" href="../assets/app.css">
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[
+ {"@type":"ListItem","position":1,"name":"Home","item":"https://davide9999999.github.io/2026-11-07-WhyNot-Fitness-Landing/"},
+ {"@type":"ListItem","position":2,"name":"Prenota i corsi","item":"https://davide9999999.github.io/2026-11-07-WhyNot-Fitness-Landing/prenota/"}]}
+</script>
 </head>
 <body>
 <header class="top"><div class="wrap">
   <a class="logo" href="../"><img src="../2026-11-07-Logo-WhyNot.png" alt="Logo WHY NOT Fitness Club" width="44" height="44"><b>WHY NOT<small>FITNESS CLUB</small></b></a>
-  <nav class="toplinks" aria-label="Menu principale"><a href="../corsi/">Corsi</a><a href="../#prezzi">Prezzi</a><a href="../#orari">Orari</a><a href="../#contatti">Contatti</a></nav>
-  <a class="btn" href="tel:+393337933400">Chiama</a>
+  <nav class="toplinks" aria-label="Menu principale"><a href="../corsi/">Corsi</a><a href="./" aria-current="page">Prenota</a><a href="../#prezzi">Prezzi</a><a href="../#orari">Orari</a><a href="../#contatti">Contatti</a></nav>
+  <div class="top-r"><a class="btn ghost hide-s" href="tel:+393337933400">Chiama</a><a class="acct" id="acct" href="../area-personale/"><span class="lbl">Accedi</span></a></div>
 </div></header>
+
 <main>
   <div class="wrap">
-    <section class="c-hero">
-      <h1>Prenota i corsi <em>della settimana</em></h1>
-      <p class="lead">Scegli la lezione, inserisci i tuoi dati e ricevi subito la conferma del posto. Se la lezione è piena entri in lista d'attesa.</p>
-      <p class="week" id="weekLabel"></p>
-      <aside class="ig-note" role="note"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r=".6"/></svg><p><strong>Orari soggetti a variazioni.</strong> Ogni settimana pubblichiamo sul nostro profilo Instagram il post con gli orari aggiornati dei corsi. <a href="https://www.instagram.com/whynotfitnessclub/?hl=it" target="_blank" rel="noopener">Vai su Instagram @whynotfitnessclub &rarr;</a></p></aside>
+    <nav class="crumbs" aria-label="Percorso"><ol><li><a href="../">Home</a></li><li><span aria-current="page">Prenota i corsi</span></li></ol></nav>
+    <section class="c-hero compact">
+      <div class="hero-grid">
+        <div>
+          <span class="eyebrow">Prenotazioni online</span>
+          <h1>Prenota i corsi <em>della settimana</em></h1>
+          <p class="lead">Posti liberi in tempo reale: scegli il giorno, trova la lezione e conferma in pochi secondi. Se è piena entri in lista d'attesa e passi in automatico tra i confermati appena si libera un posto.</p>
+          <ol class="steps"><li>Scegli il giorno</li><li>Scegli la lezione</li><li>Conferma</li></ol>
+        </div>
+        <aside class="me" id="meCard" aria-live="polite">
+          <div class="me-top"><span class="av">?</span><div><b>Prenoti spesso?</b><small>Crea il tuo account gratuito</small></div></div>
+          <p>Con l'account i tuoi dati si compilano da soli e ritrovi tutte le prenotazioni nella tua area personale.</p>
+          <div class="row2"><a class="btn" href="../area-personale/?registrati">Registrati</a><a class="btn ghost" href="../area-personale/">Accedi</a></div>
+        </aside>
+      </div>
     </section>
-    <div class="days" id="days" role="group" aria-label="Giorni della settimana"></div>
-    <div class="slots" id="slots"><p class="empty">Caricamento delle lezioni...</p></div>
+
+    <div class="daybar">
+      <div class="days" id="days" role="group" aria-label="Giorni della settimana"></div>
+      <div class="chips" id="cats" role="group" aria-label="Filtra per tipo di corso"></div>
+    </div>
+
+    <div class="dayhead"><h2 id="dayTitle">Lezioni</h2><span id="weekLabel"></span></div>
+    <div class="slots" id="slots" aria-live="polite"><div class="skel"></div><div class="skel"></div><div class="skel"></div></div>
+
+    <div class="legend" id="legend"></div>
+    <aside class="ig-note" role="note" style="margin-bottom:60px"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r=".6"/></svg><p><strong>Orari soggetti a variazioni.</strong> Ogni settimana pubblichiamo sul nostro profilo Instagram il post con gli orari aggiornati dei corsi. <a href="https://www.instagram.com/whynotfitnessclub/?hl=it" target="_blank" rel="noopener">Vai su Instagram @whynotfitnessclub &rarr;</a></p></aside>
   </div>
 </main>
 
-<dialog id="dlg">
-  <div class="info" style="position:relative">
+<dialog id="dlg" class="bk" aria-labelledby="dlgCorso">
+  <div class="bk-body">
     <button class="close" type="button" id="dlgClose" aria-label="Chiudi">&times;</button>
-    <h2>Prenota <span id="dlgCorso"></span></h2>
-    <p id="dlgWhen"></p>
-    <form id="bookForm">
-      <div class="field"><label for="b-nome">Nome e cognome *</label><input id="b-nome" name="nome" required minlength="2" maxlength="80" autocomplete="name"></div>
-      <div class="field"><label for="b-tel">Telefono</label><input id="b-tel" name="telefono" type="tel" maxlength="30" autocomplete="tel"></div>
-      <div class="field"><label for="b-mail">Email</label><input id="b-mail" name="email" type="email" maxlength="120" autocomplete="email"></div>
-      <div class="field"><label for="b-note">Note (facoltative)</label><textarea id="b-note" name="note" maxlength="500"></textarea></div>
-      <label class="check"><input type="checkbox" name="consenso" required> <span>Acconsento al trattamento dei miei dati da parte di WHY NOT FITNESS CLUB SSDRL al solo fine di gestire la prenotazione. *</span></label>
-      <p class="privacy">Serve almeno un recapito tra telefono ed email. * campo obbligatorio.</p>
-      <button class="btn" type="submit" id="bookBtn">Conferma prenotazione</button>
-      <div id="bookMsg" role="status" aria-live="polite"></div>
-    </form>
+    <div class="bk-head" id="dlgHead">
+      <span class="k" id="dlgCat"></span>
+      <h2 id="dlgCorso"></h2>
+      <div class="kv" id="dlgKv"></div>
+    </div>
+    <div class="bk-main" id="dlgMain">
+      <form id="bookForm" novalidate>
+        <div id="whoBox"></div>
+        <div id="fields">
+          <div class="field"><label for="b-nome">Nome e cognome *</label><input id="b-nome" name="nome" required minlength="2" maxlength="80" autocomplete="name"></div>
+          <div class="form-grid">
+            <div class="field"><label for="b-tel">Telefono</label><input id="b-tel" name="telefono" type="tel" maxlength="30" autocomplete="tel"></div>
+            <div class="field"><label for="b-mail">Email</label><input id="b-mail" name="email" type="email" maxlength="120" autocomplete="email"></div>
+          </div>
+        </div>
+        <div class="field"><label for="b-note">Note per l'istruttore (facoltative)</label><textarea id="b-note" name="note" maxlength="500" placeholder="es. prima volta, infortunio recente..."></textarea></div>
+        <label class="check" id="consensoBox"><input type="checkbox" name="consenso"> <span>Acconsento al trattamento dei miei dati da parte di WHY NOT FITNESS CLUB SSDRL al solo fine di gestire la prenotazione. *</span></label>
+        <p class="privacy" id="reqNote">Serve almeno un recapito tra telefono ed email. * campo obbligatorio.</p>
+        <button class="btn full" type="submit" id="bookBtn">Conferma prenotazione</button>
+        <div id="bookMsg" class="msg" role="status" aria-live="polite"></div>
+      </form>
+      <div id="doneBox" hidden></div>
+    </div>
   </div>
 </dialog>
 

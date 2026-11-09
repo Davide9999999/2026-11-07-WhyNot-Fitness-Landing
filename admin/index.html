@@ -2,14 +2,14 @@
 <html lang="it">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Admin | WHY NOT Fitness Club</title>
 <meta name="robots" content="noindex, nofollow">
-<meta name="theme-color" content="#121212">
+<meta name="theme-color" content="#0f0f10">
 <link rel="icon" type="image/png" href="../2026-11-07-Logo-WhyNot.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700;800&family=Permanent+Marker&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Permanent+Marker&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="admin.css">
 </head>
 <body>
@@ -17,8 +17,7 @@
 <section id="vLogin" class="login" hidden>
   <form id="loginForm" class="card">
     <img src="../2026-11-07-Logo-WhyNot.png" alt="" width="64" height="64">
-    <h1>Area staff</h1>
-    <p class="mut">Accedi con l'account creato in Supabase.</p>
+    <div><h1>Area staff</h1><p class="mut">Gestione corsi, prenotazioni e iscritti.</p></div>
     <label>Email<input name="email" type="email" required autocomplete="username"></label>
     <label>Password<input name="password" type="password" required autocomplete="current-password"></label>
     <button class="btn" type="submit">Accedi</button>
@@ -27,59 +26,96 @@
 </section>
 
 <!-- APP -->
-<div id="vApp" hidden>
-  <header class="bar">
-    <a class="brand" href="../" title="Vai al sito"><img src="../2026-11-07-Logo-WhyNot.png" alt="" width="36" height="36"><b>WHY NOT</b><span>admin</span></a>
-    <nav class="tabs" role="tablist">
-      <button role="tab" data-tab="cal" aria-selected="true">Calendario</button>
-      <button role="tab" data-tab="schede" aria-selected="false">Schede</button>
-      <button role="tab" data-tab="ai" aria-selected="false" class="only-mobile">Assistente</button>
+<div id="vApp" class="app" hidden>
+  <aside class="side">
+    <a class="brand" href="../" title="Vai al sito"><img src="../2026-11-07-Logo-WhyNot.png" alt="" width="38" height="38"><div><b>WHY NOT</b><span>Gestione</span></div></a>
+    <nav class="nav" id="sideNav" aria-label="Sezioni">
+      <button data-tab="home"><svg viewBox="0 0 24 24"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>Panoramica</button>
+      <button data-tab="cal"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/></svg>Calendario</button>
+      <button data-tab="iscritti"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="4"/><path d="M2 21a7 7 0 0 1 14 0M16 4a4 4 0 0 1 0 8M22 21a7 7 0 0 0-4-6.3"/></svg>Iscritti<span class="count" id="nIscritti"></span></button>
+      <button data-tab="schede"><svg viewBox="0 0 24 24"><rect x="5" y="4" width="14" height="18" rx="2"/><path d="M9 4V3h6v1M9 10h6M9 14h6M9 18h4"/></svg>Schede</button>
+      <button data-tab="ai" class="ai-only"><svg viewBox="0 0 24 24"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/></svg>Assistente</button>
     </nav>
-    <div class="who"><span id="whoEmail"></span><button class="link" id="logout">Esci</button></div>
-  </header>
+    <div class="side-foot">
+      <a href="../prenota/" target="_blank" rel="noopener"><svg viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>Pagina prenotazioni</a>
+      <a href="../" target="_blank" rel="noopener"><svg viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>Sito</a>
+      <div class="me"><span class="av" id="meAv">?</span><div><b id="whoEmail"></b><small id="whoRole"></small></div><button class="link" id="logout">Esci</button></div>
+    </div>
+  </aside>
 
-  <div class="layout">
-    <main>
-      <!-- CALENDARIO -->
-      <section id="tab-cal" class="tab">
-        <div class="toolbar">
-          <div class="nav"><button class="icon" id="prevW" aria-label="Settimana precedente">&lsaquo;</button><strong id="weekLbl"></strong><button class="icon" id="nextW" aria-label="Settimana successiva">&rsaquo;</button><button class="ghost sm" id="todayW">Oggi</button></div>
-          <div class="acts"><button class="ghost sm" id="genW">Genera dal palinsesto</button><button class="btn sm" id="newLez">+ Nuova lezione</button></div>
-        </div>
-        <div id="cal" class="cal"></div>
-      </section>
+  <div class="main">
+    <header class="topbar">
+      <a class="m-brand" href="../"><img src="../2026-11-07-Logo-WhyNot.png" alt="WHY NOT" width="34" height="34"></a>
+      <div><h1 id="pgTitle">Panoramica</h1><p id="pgSub"></p></div>
+      <div class="acts">
+        <span data-for="home cal" class="acts"><button class="ghost sm" data-act="genera"><svg viewBox="0 0 24 24"><path d="M4 4v6h6M20 20v-6h-6"/><path d="M20 10A8 8 0 0 0 6 6L4 10M4 14a8 8 0 0 0 14 4l2-4"/></svg><span>Genera dal palinsesto</span></button><button class="btn sm" data-act="nuova"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Nuova lezione</button></span>
+        <span data-for="schede" class="acts"><button class="btn sm" id="newScheda"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Nuova scheda</button></span>
+        <span data-for="ai" class="acts"><button class="ghost sm" id="aiReset">Nuova chat</button></span>
+        <button class="link" id="logoutM" style="display:none">Esci</button>
+      </div>
+    </header>
 
-      <!-- SCHEDE -->
-      <section id="tab-schede" class="tab" hidden>
-        <div class="toolbar">
-          <div class="nav filters" id="schFilter">
-            <button class="chip" data-f="" aria-pressed="true">Tutte</button><button class="chip" data-f="bozza" aria-pressed="false">Bozze</button>
-            <button class="chip" data-f="pubblicata" aria-pressed="false">Pubblicate</button><button class="chip" data-f="archiviata" aria-pressed="false">Archiviate</button>
-          </div>
-          <div class="acts"><button class="btn sm" id="newScheda">+ Nuova scheda</button></div>
+    <!-- PANORAMICA -->
+    <section id="tab-home" class="page">
+      <div id="homeAlert"></div>
+      <div class="kpis" id="kpis"><div class="skel"></div><div class="skel"></div><div class="skel"></div><div class="skel"></div></div>
+      <div class="grid2">
+        <div class="panel"><h2>Lezioni di oggi <button class="link" data-goto="cal">Apri calendario</button></h2><div class="tl" id="today"><div class="skel"></div><div class="skel"></div></div></div>
+        <div>
+          <div class="panel"><h2>Ultime prenotazioni</h2><div class="feed" id="feed"></div></div>
+          <div class="panel"><h2>Più richiesti questa settimana</h2><div class="rank" id="rank"></div></div>
         </div>
-        <div id="schede" class="list"></div>
-      </section>
-    </main>
+      </div>
+    </section>
+
+    <!-- CALENDARIO -->
+    <section id="tab-cal" class="page" hidden>
+      <div class="calbar">
+        <div class="nav2"><button class="icon" id="prevW" aria-label="Settimana precedente">&lsaquo;</button><strong id="weekLbl"></strong><button class="icon" id="nextW" aria-label="Settimana successiva">&rsaquo;</button><button class="ghost sm" id="todayW">Oggi</button></div>
+        <label class="search" aria-label="Cerca corso"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg><input id="calSearch" type="search" placeholder="Cerca corso o istruttore"></label>
+      </div>
+      <div class="mdays" id="mdays"></div>
+      <div id="cal" class="cal"></div>
+      <div class="legend" id="legend"></div>
+    </section>
+
+    <!-- ISCRITTI -->
+    <section id="tab-iscritti" class="page" hidden>
+      <div class="calbar"><label class="search" aria-label="Cerca iscritto" style="flex-basis:340px"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg><input id="iscSearch" type="search" placeholder="Cerca per nome, email o telefono"></label><span class="mut" id="iscCount"></span></div>
+      <div id="iscritti"></div>
+    </section>
+
+    <!-- SCHEDE -->
+    <section id="tab-schede" class="page" hidden>
+      <div class="chips" id="schFilter">
+        <button class="chip" data-f="" aria-pressed="true">Tutte</button><button class="chip" data-f="bozza" aria-pressed="false">Bozze</button>
+        <button class="chip" data-f="pubblicata" aria-pressed="false">Pubblicate</button><button class="chip" data-f="archiviata" aria-pressed="false">Archiviate</button>
+      </div>
+      <div id="schede" class="list"></div>
+    </section>
 
     <!-- ASSISTENTE AI -->
-    <aside id="tab-ai" class="ai">
-      <div class="ai-head"><h2>Assistente</h2><button class="link" id="aiReset">Nuova chat</button></div>
-      <div id="aiLog" class="ai-log" aria-live="polite">
-        <div class="m bot">Ciao! Posso leggere calendario, prenotazioni e schede. Per ogni modifica ti preparo una proposta da confermare.<br><span class="mut">Esempi: «Quanti iscritti ha lo Zumba di giovedì?» · «Genera le lezioni della prossima settimana» · «Crea una scheda total body per principianti».</span></div>
+    <section id="tab-ai" class="page" hidden>
+      <div class="ai">
+        <div id="aiLog" class="ai-log" aria-live="polite">
+          <div class="m bot">Ciao! Posso leggere calendario, prenotazioni e schede. Per ogni modifica ti preparo una proposta da confermare.<br><span class="mut">Esempi: «Quanti iscritti ha lo Zumba di giovedì?» · «Genera le lezioni della prossima settimana» · «Crea una scheda total body per principianti».</span></div>
+        </div>
+        <form id="aiForm" class="ai-form"><textarea id="aiInput" rows="2" placeholder="Scrivi una richiesta..." required></textarea><button class="btn sm" type="submit">Invia</button></form>
       </div>
-      <form id="aiForm" class="ai-form"><textarea id="aiInput" rows="2" placeholder="Scrivi una richiesta..." required></textarea><button class="btn sm" type="submit">Invia</button></form>
-    </aside>
+    </section>
   </div>
+
+  <nav class="bnav" id="bNav" aria-label="Sezioni">
+    <button data-tab="home"><svg viewBox="0 0 24 24"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>Oggi</button>
+    <button data-tab="cal"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/></svg>Calendario</button>
+    <button data-tab="iscritti"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="4"/><path d="M2 21a7 7 0 0 1 14 0M16 4a4 4 0 0 1 0 8M22 21a7 7 0 0 0-4-6.3"/></svg>Iscritti</button>
+    <button data-tab="schede"><svg viewBox="0 0 24 24"><rect x="5" y="4" width="14" height="18" rx="2"/><path d="M9 4V3h6v1M9 10h6M9 14h6M9 18h4"/></svg>Schede</button>
+    <button data-tab="ai" class="ai-only"><svg viewBox="0 0 24 24"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/></svg>AI</button>
+  </nav>
 </div>
 
-<!-- DETTAGLIO LEZIONE -->
-<dialog id="dLez" class="sheet">
-  <div class="sheet-body">
-    <button class="close" data-close aria-label="Chiudi">&times;</button>
-    <div id="lezBody"></div>
-  </div>
-</dialog>
+<!-- DETTAGLIO LEZIONE / ISCRITTO (pannello laterale) -->
+<dialog id="dLez" class="drawer" aria-label="Dettaglio"><div class="dw" id="lezBody"></div></dialog>
 
 <!-- NUOVA LEZIONE -->
 <dialog id="dNew" class="sheet">
@@ -87,13 +123,13 @@
     <button class="close" type="button" data-close aria-label="Chiudi">&times;</button>
     <h2>Nuova lezione</h2>
     <label>Corso<select name="corso_id" id="newCorso" required></select></label>
-    <div class="row"><label>Data<input name="data" type="date" required></label><label>Ripeti per (settimane)<input name="ripeti" type="number" min="1" max="26" value="1"></label></div>
+    <div class="row"><label>Data<input name="data" type="date" required></label><label>Ripeti ogni settimana per<select name="ripeti"><option value="1">solo questa volta</option><option value="2">2 settimane</option><option value="4">4 settimane</option><option value="8">8 settimane</option><option value="12">12 settimane</option><option value="26">26 settimane</option></select></label></div>
     <div class="row"><label>Inizio<input name="ora_inizio" type="time" required></label><label>Fine<input name="ora_fine" type="time" required></label></div>
     <div class="row"><label>Sala<input name="sala" placeholder="quella del corso"></label><label>Capienza<input name="capienza" type="number" min="1" placeholder="quella del corso"></label></div>
     <label>Istruttore<input name="istruttore"></label>
     <label>Note<input name="note"></label>
-    <p class="mut">Orari in ora italiana.</p>
-    <button class="btn" type="submit">Crea</button>
+    <p class="preview" id="newPrev">Orari in ora italiana.</p>
+    <div class="acts end"><button class="ghost" type="button" data-close>Annulla</button><button class="btn" type="submit">Crea lezione</button></div>
     <p class="msg" id="newMsg" role="status"></p>
   </form>
 </dialog>
@@ -116,6 +152,11 @@
     <p class="msg" id="schMsg" role="status"></p>
   </form>
 </dialog>
+
+<!-- CONFERMA -->
+<dialog id="dAsk" class="ask"><form method="dialog" class="sheet-body"><h2 id="askT"></h2><p id="askP"></p><div class="acts end"><button class="ghost" value="no">Annulla</button><button class="btn" value="ok" id="askOk">Conferma</button></div></form></dialog>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script src="../assets/supabase-config.js"></script>
 <script type="module" src="admin.js"></script>

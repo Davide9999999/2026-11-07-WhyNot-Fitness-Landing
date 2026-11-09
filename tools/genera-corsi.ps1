@@ -76,8 +76,8 @@ function Header([string]$pre, [bool]$hub) {
   return @"
 <header class="top"><div class="wrap">
   <a class="logo" href="$pre"><img src="$pre$($CFG.logo)" alt="Logo WHY NOT Fitness Club" width="44" height="44"><b>WHY NOT<small>FITNESS CLUB</small></b></a>
-  <nav class="toplinks" aria-label="Menu principale"><a href="$($pre)corsi/"$cur>Corsi</a><a href="$($pre)#prezzi">Prezzi</a><a href="$($pre)#orari">Orari</a><a href="$($pre)#faq">FAQ</a><a href="$($pre)#contatti">Contatti</a></nav>
-  <a class="btn" href="tel:$($CFG.telHref)">Chiama</a>
+  <nav class="toplinks" aria-label="Menu principale"><a href="$($pre)corsi/"$cur>Corsi</a><a href="$($pre)prenota/">Prenota</a><a href="$($pre)#prezzi">Prezzi</a><a href="$($pre)#orari">Orari</a><a href="$($pre)#contatti">Contatti</a><a href="$($pre)area-personale/">Area personale</a></nav>
+  <a class="btn" href="$($pre)prenota/">Prenota</a>
 </div></header>
 "@
 }
@@ -348,7 +348,7 @@ $idx = $rx.Replace($idx, [System.Text.RegularExpressions.MatchEvaluator] { param
 [IO.File]::WriteAllText($idxPath, $idx, $utf8)
 
 # ---------- sitemap ----------
-$urls = @($base, "$($base)corsi/") + @($corsi | ForEach-Object { "$($base)corsi/$($_.slug)/" })
+$urls = @($base, "$($base)corsi/", "$($base)prenota/") + @($corsi | ForEach-Object { "$($base)corsi/$($_.slug)/" })
 $sm = "<?xml version=""1.0"" encoding=""UTF-8""?>`n<urlset xmlns=""http://www.sitemaps.org/schemas/sitemap/0.9"">`n" + (($urls | ForEach-Object { "  <url>`n    <loc>$_</loc>`n    <lastmod>$today</lastmod>`n  </url>" }) -join "`n") + "`n</urlset>`n"
 WriteFile 'sitemap.xml' $sm
 

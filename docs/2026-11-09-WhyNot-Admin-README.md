@@ -5,7 +5,8 @@ Ambiente: `https://2026-11-07-whynot-fitness-landing.davide-tettamanti.workers.d
 | Cosa | Dove |
 |---|---|
 | Area staff (login, calendario, prenotazioni, schede, assistente AI) | `/admin/` |
-| Pagina pubblica **nascosta** "Prenota i corsi della settimana" (noindex, non linkata, non in sitemap) | `/prenota/` |
+| Pagina pubblica "Prenota i corsi della settimana" (pubblicata il 2026-11-09) | `/prenota/` |
+| Area personale iscritti (accesso, profilo, storico) | `/area-personale/` |
 | Database, regole di sicurezza, capienza e lista d'attesa | `supabase/2026-11-09-WhyNot-schema.sql` |
 | Corsi e palinsesto iniziali (brochure 2026/2027) | `supabase/2026-11-09-WhyNot-seed.sql` |
 | Worker Cloudflare (sito + API assistente) | `worker/index.js`, `wrangler.jsonc` |
@@ -50,4 +51,16 @@ Ogni push su `main` viene pubblicato da Cloudflare (Workers Builds). Il Worker s
 - **Fasce condivise** del palinsesto (es. Hatha Yoga / Pilates): ora è attivo il primo corso, il secondo è disattivato.
 - **Privacy**: informativa per le prenotazioni online e accordo trattamento dati (DPA) con Supabase – da verificare con il consulente.
 - **Notifiche** (email/WhatsApp di conferma e promozione dalla lista d'attesa): non ancora presenti.
-- Pubblicazione di `/prenota/` (togliere `noindex`, aggiungere link e sitemap) quando inizierete a usarla.
+
+## 5. Area personale iscritti (aggiunta il 2026-11-09)
+Pagine: `/prenota/` (ora pubblica, in sitemap e nel menu) e `/area-personale/` (accesso, registrazione, profilo, storico, annullo prenotazioni; noindex).
+
+**Una volta sola su Supabase:**
+1. **SQL Editor** → esegui `supabase/2026-11-09-WhyNot-iscritti.sql` (tabella `profili`, funzioni `mio_profilo`, `salva_profilo`, `mie_prenotazioni`, `annulla_mia_prenotazione`, `admin_iscritti`, nuova `prenota_lezione` che collega la prenotazione all'account).
+2. **Authentication → Sign In / Providers**: attiva **Allow new users to sign up**.
+3. **Email provider → Confirm email**: in dev **disattivato**. Motivo: il servizio email predefinito di Supabase consegna solo agli indirizzi del team del progetto e ha un limite di 2 email/ora (docs Supabase, "Send emails with custom SMTP"). Prima della produzione: configurare uno **SMTP personalizzato** (es. Brevo, Resend) e riattivare la conferma email; serve anche per "Password dimenticata".
+4. **Authentication → URL Configuration**: Site URL = indirizzo del sito; in **Redirect URLs** aggiungi `https://2026-11-07-whynot-fitness-landing.davide-tettamanti.workers.dev/area-personale/` e `https://davide9999999.github.io/2026-11-07-WhyNot-Fitness-Landing/area-personale/` (link di recupero password).
+
+**Sicurezza:** l'iscritto vede e modifica solo il proprio profilo e le prenotazioni fatte col proprio account. Le vecchie prenotazioni anonime con la stessa email non vengono collegate (senza conferma email chiunque potrebbe registrarsi con l'email di un altro). Tutte le tabelle staff restano protette da `is_staff()`.
+
+**Da decidere prima della produzione:** informativa privacy per account e prenotazioni (testo del consenso da validare con il consulente), cancellazione account (ora su richiesta via email), protezione anti-bot della registrazione (CAPTCHA di Supabase), eventuale limite di annullo (ora: fino all'inizio della lezione).
