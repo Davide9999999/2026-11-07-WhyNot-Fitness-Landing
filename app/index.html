@@ -93,6 +93,16 @@
       <div id="mieList" class="list"></div>
     </main>
 
+    <!-- SCHEDE -->
+    <main id="pSchede" class="page" hidden>
+      <div id="schedeList" class="list"></div>
+    </main>
+
+    <!-- BACHECA -->
+    <main id="pBacheca" class="page" hidden>
+      <div id="bachecaList" class="list"></div>
+    </main>
+
     <!-- PROFILO -->
     <main id="pProfilo" class="page" hidden>
       <div class="me">
@@ -107,6 +117,7 @@
           <label>Promemoria prima della lezione<select name="promemoria_min"><option value="0">Nessun promemoria</option><option value="30">30 minuti prima</option><option value="60">1 ora prima</option><option value="120">2 ore prima</option><option value="240">4 ore prima</option><option value="1440">Il giorno prima</option></select></label>
           <label class="check"><input type="checkbox" name="lista"><span>Posto confermato dalla lista d'attesa</span></label>
           <label class="check"><input type="checkbox" name="annullate"><span>Lezione annullata dalla palestra</span></label>
+          <label class="check"><input type="checkbox" name="settimana"><span>Nuova settimana pubblicata (con i tuoi corsi preferiti)</span></label>
           <label class="check"><input type="checkbox" name="avvisi"><span>Avvisi della palestra</span></label>
           <button class="btn ghost" type="submit">Salva preferenze</button>
           <div class="row2"><button class="link" type="button" id="notifProva">Invia una notifica di prova</button><button class="link" type="button" id="notifOff">Disattiva su questo dispositivo</button></div>
@@ -116,6 +127,11 @@
         <h2>Installa l'app</h2>
         <p id="installTxt">Aggiungi WHY NOT alla schermata Home: si apre come un'app, a schermo intero.</p>
         <button class="btn" type="button" id="installBtn" hidden>Installa</button>
+      </div>
+      <div class="card">
+        <h2>Corsi preferiti</h2>
+        <p>Tocca i corsi che segui: li vedi con il cuore nell'elenco e, se hai le notifiche attive, ti avvisiamo quando escono nella nuova settimana.</p>
+        <div class="chips wrap" id="prefList"></div>
       </div>
       <form class="card" id="fProf" novalidate>
         <h2>I miei dati</h2>
@@ -156,6 +172,8 @@
     <nav class="tabbar" aria-label="Sezioni">
       <button data-p="pPrenota" aria-current="page"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18M9 15l2 2 4-4"/></svg>Prenota</button>
       <button data-p="pMie"><svg viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>Le mie<i id="nMie"></i></button>
+      <button data-p="pSchede"><svg viewBox="0 0 24 24"><rect x="5" y="4" width="14" height="18" rx="2"/><path d="M9 4V3h6v1M9 10h6M9 14h6M9 18h4"/></svg>Schede</button>
+      <button data-p="pBacheca"><svg viewBox="0 0 24 24"><path d="M4 5h16v11H8l-4 4z"/></svg>Bacheca<i id="nBac"></i></button>
       <button data-p="pProfilo"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>Profilo</button>
     </nav>
   </section>

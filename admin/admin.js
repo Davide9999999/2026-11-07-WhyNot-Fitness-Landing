@@ -71,9 +71,12 @@ async function avvia() {
   $("vLogin").hidden = true; $("vApp").hidden = false;
   $("whoEmail").textContent = st.nome || session.user.email; $("whoRole").textContent = st.ruolo; mioRuolo = st.ruolo; document.body.classList.toggle("is-admin", st.ruolo === "admin"); $("whoEmail").title = session.user.email;
   $("meAv").textContent = initials(st.nome || session.user.email);
+  document.body.classList.toggle("is-istr", st.ruolo === "istruttore");
+  if (st.ruolo === "istruttore") { vai("mie"); return; }
+  caricaIstruttori();
   const { data: c } = await sb.from("corsi").select("id,nome,categoria,sala,capienza_default,attivo").order("nome");
   corsi = c || [];
-  $("newCorso").innerHTML = corsi.filter((x) => x.attivo).map((x) => `<option value="${x.id}">${esc(x.nome)}</option>`).join("");
+  opzioniCorsi();
   disegnaLegenda();
   vai((location.hash || "#home").slice(1));
   caricaIscritti(true);
@@ -97,16 +100,21 @@ const TITOLI = {
   iscritti: ["Iscritti", () => "Anagrafica, attivazione app e storico"],
   schede: ["Schede", () => "Schede di allenamento"],
   ai: ["Assistente", () => "Le modifiche vengono eseguite solo dopo la tua conferma"],
+  mie: ["Le mie lezioni", () => "Appello e partecipanti delle tue lezioni"],
+  palinsesto: ["Corsi e orari", () => "Corsi, capienze, palinsesto settimanale e regole"],
+  bacheca: ["Bacheca", () => "Avvisi visibili nell'app"],
+  stat: ["Statistiche", () => "Riempimento, andamento e iscritti da richiamare"],
 };
 function vai(t) {
   if (!TITOLI[t] || (t === "ai" && !cfg.aiEnabled)) t = "home";
+  if (mioRuolo === "istruttore") t = "mie"; else if (t === "mie") t = "home";
   tab = t; history.replaceState(null, "", "#" + t);
   document.querySelectorAll("[data-tab]").forEach((b) => (b.dataset.tab === t ? b.setAttribute("aria-current", "page") : b.removeAttribute("aria-current")));
   Object.keys(TITOLI).forEach((k) => ($(`tab-${k}`).hidden = k !== t));
   document.querySelectorAll("[data-for]").forEach((el) => (el.hidden = !el.dataset.for.split(" ").includes(t)));
   $("pgTitle").textContent = TITOLI[t][0]; $("pgSub").textContent = TITOLI[t][1]();
   window.scrollTo(0, 0);
-  if (t === "home") caricaHome(); else if (t === "cal") caricaSettimana(); else if (t === "iscritti") caricaIscritti(); else if (t === "schede") caricaSchede();
+  if (t === "home") caricaHome(); else if (t === "cal") caricaSettimana(); else if (t === "iscritti") caricaIscritti(); else if (t === "schede") caricaSchede(); else if (t === "mie") caricaMie(); else if (t === "palinsesto") caricaPalinsesto(); else if (t === "bacheca") caricaBacheca(); else if (t === "stat") caricaStat();
 }
 document.addEventListener("click", (e) => {
   const b = e.target.closest("[data-tab],[data-goto]"); if (b) vai(b.dataset.tab || b.dataset.goto);
@@ -238,17 +246,18 @@ function disegnaLegenda() {
 async function apriLezione(id) {
   lezAperta = id;
   const [{ data: l, error }, { data: pren }] = await Promise.all([
-    sb.from("lezioni").select("id,inizio,fine,sala,capienza,istruttore,note,stato,pubblicata,corsi(nome,categoria,slug)").eq("id", id).single(),
-    sb.from("prenotazioni").select("id,nome,telefono,email,stato,origine,note,created_at,member_id").eq("lezione_id", id).order("created_at"),
+    sb.from("lezioni").select("id,inizio,fine,sala,capienza,istruttore,istruttore_id,note,stato,pubblicata,corsi(nome,categoria,slug)").eq("id", id).single(),
+    sb.from("prenotazioni").select("id,nome,telefono,email,stato,origine,note,created_at,member_id,presenza").eq("lezione_id", id).order("created_at"),
   ]);
   if (error || !l) return toast(error?.message || "Lezione non trovata", false);
   const P = pren || [], conf = P.filter((p) => p.stato === "confermata"), att = P.filter((p) => p.stato === "attesa"), ann = P.filter((p) => p.stato === "annullata");
   const perc = Math.min(100, Math.round((conf.length / l.capienza) * 100)), col = catColor(l.corsi.categoria);
+  const appelloAperto = new Date(l.inizio).getTime() - 30 * 60000 <= Date.now() && l.stato !== "annullata";
   const persona = (p, k) => `<div class="pp">${p.stato === "attesa" ? `<span class="pos">${k + 1}°</span>` : ""}<span class="av sm2${p.member_id ? " member" : ""}">${esc(initials(p.nome))}</span>
     <div><b>${esc(p.nome)}</b>${p.member_id ? '<span class="tag">iscritto</span>' : ""}
       <small>${[p.telefono ? `<a href="tel:${esc(p.telefono)}">${esc(p.telefono)}</a>` : "", p.email ? `<a href="mailto:${esc(p.email)}">${esc(p.email)}</a>` : ""].filter(Boolean).join(" · ")}</small>
       <small>${esc(p.origine)} · ${fDT.format(new Date(p.created_at))}${p.note ? ` · «${esc(p.note)}»` : ""}</small></div>
-    <div class="acts">${p.stato === "annullata" ? `<button class="ghost sm" data-pst="ripristina" data-pid="${p.id}">Ripristina</button>` : `<button class="ghost sm danger" data-pst="annullata" data-pid="${p.id}">Annulla</button>`}</div></div>`;
+    <div class="acts">${p.stato === "confermata" && appelloAperto ? `<button class="ghost sm${p.presenza === true ? " on" : ""}" data-pres="1" data-pid="${p.id}">Presente</button><button class="ghost sm${p.presenza === false ? " off" : ""}" data-pres="0" data-pid="${p.id}">Assente</button>` : ""}${p.stato === "annullata" ? `<button class="ghost sm" data-pst="ripristina" data-pid="${p.id}">Ripristina</button>` : `<button class="ghost sm danger" data-pst="annullata" data-pid="${p.id}">Annulla</button>`}</div></div>`;
   $("lezBody").innerHTML = `
     <div class="dw-head" style="--c:${col}"><button class="close" data-x aria-label="Chiudi">&times;</button>
       <span class="k">${esc(l.corsi.categoria)}</span><h2>${esc(l.corsi.nome)}</h2>
@@ -266,7 +275,7 @@ async function apriLezione(id) {
           <button class="btn full" type="submit">Aggiungi${conf.length >= l.capienza ? " in lista d'attesa" : ""}</button></form>
         <datalist id="iscList">${(iscritti || []).map((i) => `<option value="${esc(i.nome)}">${esc(i.email || i.telefono || "")}</option>`).join("")}</datalist></div>
       <div class="sec box"><h3>Impostazioni lezione</h3>
-        <div class="form2"><label>Capienza<input id="lzCap" type="number" min="1" value="${l.capienza}"></label><label>Istruttore<input id="lzIstr" value="${esc(l.istruttore || "")}"></label><label class="full">Note<input id="lzNote" value="${esc(l.note || "")}"></label></div>
+        <div class="form2"><label>Capienza<input id="lzCap" type="number" min="1" value="${l.capienza}"></label><label>Istruttore<select id="lzIstr">${opzioniIstr(l.istruttore_id, l.istruttore)}</select></label><label class="full">Note<input id="lzNote" value="${esc(l.note || "")}"></label></div>
         <div class="acts-row" style="margin-top:12px"><button class="btn sm" id="lzSave">Salva modifiche</button>
           <button class="ghost sm" id="lzPub">${l.pubblicata ? "Nascondi online" : "Pubblica online"}</button>
           <button class="ghost sm${l.stato === "annullata" ? "" : " danger"}" id="lzAnn">${l.stato === "annullata" ? "Ripristina lezione" : "Annulla lezione"}</button></div></div>
@@ -274,7 +283,7 @@ async function apriLezione(id) {
   const dopo = async (t) => { if (t) toast(t); await apriLezione(id); ricarica(); };
   $("lezBody").querySelector("[data-x]").onclick = () => $("dLez").close();
   const upd = async (patch, t) => { const { error: e } = await sb.from("lezioni").update(patch).eq("id", id); if (e) return toast(e.message, false); dopo(t); };
-  $("lzSave").onclick = () => upd({ capienza: Math.max(1, Number($("lzCap").value) || l.capienza), istruttore: $("lzIstr").value.trim() || null, note: $("lzNote").value.trim() || null }, "Lezione aggiornata.");
+  $("lzSave").onclick = () => upd({ capienza: Math.max(1, Number($("lzCap").value) || l.capienza), ...istrDa($("lzIstr").value, l), note: $("lzNote").value.trim() || null }, "Lezione aggiornata.");
   $("lzPub").onclick = () => upd({ pubblicata: !l.pubblicata }, l.pubblicata ? "Lezione nascosta dalla pagina prenotazioni." : "Lezione visibile online.");
   $("lzAnn").onclick = async () => {
     if (l.stato === "annullata") return upd({ stato: "programmata" }, "Lezione ripristinata.");
@@ -285,7 +294,14 @@ async function apriLezione(id) {
     const t = `${l.corsi.nome} – ${fFull.format(new Date(l.inizio))} ${fTime.format(new Date(l.inizio))}\n` + conf.map((p, k) => `${k + 1}. ${p.nome}${p.telefono ? " – " + p.telefono : ""}`).join("\n");
     navigator.clipboard.writeText(t).then(() => toast("Elenco copiato."), () => toast("Copia non riuscita.", false));
   });
-  $("lezBody").querySelectorAll("[data-pid]").forEach((b) => (b.onclick = async () => {
+  $("lezBody").querySelectorAll("[data-pres]").forEach((b) => (b.onclick = async (ev) => {
+    ev.stopPropagation();
+    const p = P.find((x) => x.id === b.dataset.pid), v = b.dataset.pres === "1";
+    const { error: e } = await sb.rpc("segna_presenza", { p_prenotazione_id: p.id, p_presente: p.presenza === v ? null : v });
+    if (e) return toast(e.message, false);
+    dopo(p.presenza === v ? "Presenza tolta." : v ? "Segnato presente." : "Segnato assente.");
+  }));
+  $("lezBody").querySelectorAll("[data-pid]:not([data-pres])").forEach((b) => (b.onclick = async () => {
     const p = P.find((x) => x.id === b.dataset.pid);
     let stato = b.dataset.pst;
     if (stato === "annullata" && !(await ask("Annullare la prenotazione?", `${p.nome}${p.stato === "confermata" && att.length ? ". Il primo in lista d'attesa passerà automaticamente tra i confermati." : ""}`, "Annulla prenotazione"))) return;
@@ -331,7 +347,7 @@ $("newForm").addEventListener("submit", async (e) => {
   const rows = [...Array(n)].map((_, k) => {
     const d = addDays(f.elements.data.value, 7 * k);
     return { corso_id: corso.id, inizio: romaToISO(d, f.ora_inizio.value), fine: romaToISO(d, f.ora_fine.value), sala: f.sala.value.trim() || corso.sala,
-      capienza: Number(f.capienza.value) || corso.capienza_default, istruttore: f.istruttore.value.trim() || null, note: f.note.value.trim() || null };
+      capienza: Number(f.capienza.value) || corso.capienza_default, ...istrDa(f.istruttore_id.value), note: f.note.value.trim() || null };
   });
   const { error } = await sb.from("lezioni").insert(rows);
   if (error) return msg($("newMsg"), /lezioni_unica|duplicate/i.test(error.message) ? "Esiste già una lezione di questo corso alla stessa ora e nella stessa sala." : error.message);
@@ -405,7 +421,7 @@ async function apriIscritto(id, codice) {
       ${!i.user_id && !codice ? `<div class="box"><h3 class="mut" style="font-size:12px;letter-spacing:1.2px;text-transform:uppercase;margin-bottom:6px">Attivazione app</h3>
         <p class="mut" style="margin-bottom:10px">${i.stato === "codice scaduto" ? "Il codice è scaduto." : `Non ha ancora attivato l'app. Il codice scade il ${i.codice_scade ? fDate.format(new Date(i.codice_scade)) : "—"}.`} Se l'ha perso, generane uno nuovo (quello vecchio smette di funzionare).</p>
         <button class="btn sm" type="button" id="iscCod">Genera nuovo codice</button></div>` : ""}
-      ${i.user_id ? `<div class="kpis" style="grid-template-columns:repeat(3,1fr);margin:0"><div class="kpi"><span>Frequentate</span><b>${i.frequentate}</b></div><div class="kpi"><span>Prossime</span><b>${i.prossime}</b></div><div class="kpi"><span>Totale</span><b>${i.prenotazioni}</b></div></div>
+      ${i.user_id ? `<div class="kpis" style="grid-template-columns:repeat(4,1fr);margin:0"><div class="kpi"><span>Frequentate</span><b>${i.frequentate}</b></div><div class="kpi"><span>Assenze</span><b>${i.assenze ?? 0}</b></div><div class="kpi"><span>Prossime</span><b>${i.prossime}</b></div><div class="kpi"><span>Totale</span><b>${i.prenotazioni}</b></div></div>
       <div class="sec"><h3>Prossime lezioni</h3>${fut.length ? `<div class="tl">${fut.map(riga).join("")}</div>` : '<p class="empty">Nessuna lezione in programma.</p>'}</div>
       <div class="sec"><h3>Storico</h3>${pas.length ? `<div class="tl">${pas.map(riga).join("")}</div>` : '<p class="empty">Nessuna lezione nello storico.</p>'}</div>` : ""}
       ${i.user_id ? `<div class="box"><h3 class="mut" style="font-size:12px;letter-spacing:1.2px;text-transform:uppercase;margin-bottom:6px">Password dimenticata?</h3>
@@ -413,7 +429,7 @@ async function apriIscritto(id, codice) {
         <button class="ghost sm" type="button" id="iscReset">Reimposta accesso</button></div>` : ""}
       ${mioRuolo === "admin" ? `<div class="box"><h3 class="mut" style="font-size:12px;letter-spacing:1.2px;text-transform:uppercase;margin-bottom:6px">Collaboratore</h3>
         <p class="mut" style="margin-bottom:10px">${i.user_id ? "Dà accesso all'area staff (questa dashboard) con il suo account." : "Il ruolo diventa attivo quando attiva l'app."}</p>
-        <div class="acts-row"><select id="iscRuolo" style="width:auto"><option value="">Nessuno (solo iscritto)</option><option value="staff" ${i.ruolo_staff === "staff" ? "selected" : ""}>Staff</option><option value="admin" ${i.ruolo_staff === "admin" ? "selected" : ""}>Admin</option></select><button class="ghost sm" type="button" id="iscRuoloOk">Applica</button></div></div>` : ""}
+        <div class="acts-row"><select id="iscRuolo" style="width:auto"><option value="">Nessuno (solo iscritto)</option><option value="staff" ${i.ruolo_staff === "staff" ? "selected" : ""}>Staff</option><option value="admin" ${i.ruolo_staff === "admin" ? "selected" : ""}>Admin</option><option value="istruttore" ${i.ruolo_staff === "istruttore" ? "selected" : ""}>Istruttore</option></select><button class="ghost sm" type="button" id="iscRuoloOk">Applica</button></div></div>` : ""}
       <form class="sec box" id="iscEdit"><h3>Dati iscritto</h3>
         <div class="form2"><label class="full">Nome e cognome<input name="nome" value="${esc(i.nome)}" required minlength="2"></label><label>Telefono<input name="telefono" value="${esc(i.telefono || "")}"></label><label>Email<input value="${esc(i.email)}" readonly title="L'email è quella di accesso all'app"></label>
         <label class="full">Note interne<input name="note" value="${esc(i.note || "")}" placeholder="es. abbonamento annuale"></label>
@@ -481,6 +497,7 @@ $("newScheda").onclick = () => apriScheda(null);
 $("schede").addEventListener("click", (e) => { const b = e.target.closest(".sc"); if (b) apriScheda(b.dataset.id); });
 async function apriScheda(id) {
   const f = $("schForm"); f.reset(); msg($("schMsg"), "");
+  $("schDest").innerHTML = '<option value="">Tutti gli iscritti</option>' + (iscritti || []).filter((i) => i.user_id && i.attivo).map((i) => `<option value="${i.user_id}">Solo ${esc(i.nome)}</option>`).join("");
   if (id) {
     const { data } = await sb.from("schede").select("*").eq("id", id).single();
     Object.entries(data || {}).forEach(([k, v]) => { if (f.elements[k]) f.elements[k].value = v ?? ""; });
@@ -491,7 +508,7 @@ async function apriScheda(id) {
 $("schForm").addEventListener("submit", async (e) => {
   e.preventDefault(); const f = e.target; const stato = e.submitter?.dataset.stato || "bozza";
   const row = { titolo: f.titolo.value.trim(), obiettivo: f.obiettivo.value.trim() || null, livello: f.livello.value || null,
-    descrizione: f.descrizione.value.trim() || null, contenuto: f.contenuto.value, stato };
+    descrizione: f.descrizione.value.trim() || null, contenuto: f.contenuto.value, stato, member_id: f.member_id.value || null };
   if (stato === "pubblicata") row.pubblicata_il = new Date().toISOString();
   const res = f.elements.id.value ? await sb.from("schede").update(row).eq("id", f.elements.id.value).select("id").single() : await sb.from("schede").insert(row).select("id").single();
   if (res.error) return msg($("schMsg"), res.error.message);
@@ -568,8 +585,266 @@ async function apriAvviso() {
 $("avvForm").addEventListener("submit", async (e) => {
   e.preventDefault(); const f = e.target;
   if (f.titolo.value.trim().length < 3 || f.testo.value.trim().length < 3) return msg($("avvMsg"), "Scrivi titolo e testo.");
-  if (!(await ask("Inviare l'avviso?", `«${f.titolo.value.trim()}» arriverà a tutti gli iscritti con le notifiche attive.`, "Invia"))) return;
-  const { data, error } = await sb.rpc("admin_invia_avviso", { p_titolo: f.titolo.value.trim(), p_testo: f.testo.value.trim() });
+  if (!(await ask("Pubblicare l'avviso?", `«${f.titolo.value.trim()}» comparirà nella bacheca dell'app${f.notifica.checked ? " e arriverà come notifica a chi le ha attive" : ""}.`, "Pubblica"))) return;
+  const { data, error } = await sb.rpc("admin_invia_avviso", { p_titolo: f.titolo.value.trim(), p_testo: f.testo.value.trim(), p_notifica: f.notifica.checked });
   if (error) return msg($("avvMsg"), error.message);
-  $("dAvv").close(); toast(data ? `Avviso in invio a ${data} ${data === 1 ? "iscritto" : "iscritti"}.` : "Nessun iscritto ha ancora attivato le notifiche.");
+  $("dAvv").close(); toast(`Avviso pubblicato in bacheca${data.notifiche ? ` e inviato come notifica a ${data.notifiche} ${data.notifiche === 1 ? "iscritto" : "iscritti"}` : ""}.`); if (tab === "bacheca") caricaBacheca();
 });
+
+// ================================================================== funzioni v2
+// ------------------------------------------------------------------ istruttori e selettori
+let istruttori = [];
+async function caricaIstruttori() {
+  const { data } = await sb.rpc("admin_istruttori");
+  istruttori = data || [];
+  document.querySelectorAll(".selIstr").forEach((s) => (s.innerHTML = opzioniIstr(null)));
+}
+function opzioniIstr(id, nomeLibero) {
+  const noto = istruttori.some((i) => i.user_id === id);
+  return '<option value="">—</option>' + istruttori.map((i) => `<option value="${i.user_id}"${i.user_id === id ? " selected" : ""}>${esc(i.nome)}${i.ruolo !== "istruttore" ? ` (${esc(i.ruolo)})` : ""}</option>`).join("")
+    + (!noto && nomeLibero ? `<option value="libero:${esc(nomeLibero)}" selected>${esc(nomeLibero)}</option>` : "");
+}
+// valore del selettore -> campi della lezione (istruttore_id + nome mostrato)
+function istrDa(v, attuale) {
+  if (!v) return { istruttore_id: null, istruttore: null };
+  if (v.startsWith("libero:")) return { istruttore_id: null, istruttore: v.slice(7) };
+  const i = istruttori.find((x) => x.user_id === v);
+  return { istruttore_id: v, istruttore: i ? i.nome : attuale?.istruttore || null };
+}
+function opzioniCorsi() {
+  $("newCorso").innerHTML = corsi.filter((x) => x.attivo).map((x) => `<option value="${x.id}">${esc(x.nome)}</option>`).join("");
+  $("slotCorso").innerHTML = corsi.map((x) => `<option value="${x.id}">${esc(x.nome)}${x.attivo ? "" : " (non attivo)"}</option>`).join("");
+}
+
+// ------------------------------------------------------------------ CSV (Excel italiano: separatore ; e BOM UTF-8)
+function scaricaCsv(nome, intestazioni, righe) {
+  const cella = (v) => { const s = v == null ? "" : String(v); return /[";\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
+  const csv = "﻿" + [intestazioni, ...righe].map((r) => r.map(cella).join(";")).join("\r\n");
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+  a.download = nome; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+}
+const oggiYmd = () => ymdRome(new Date());
+$("expIsc").onclick = async () => {
+  if (!iscritti?.length) await caricaIscritti(true);
+  scaricaCsv(`${oggiYmd()}-WhyNot-Iscritti.csv`, ["Nome", "Email", "Telefono", "Stato", "Ruolo", "Iscritto dal", "Prenotazioni", "Frequentate", "Assenze", "Prossime", "Ultima lezione", "Note"],
+    (iscritti || []).map((i) => [i.nome, i.email, i.telefono, i.stato, i.ruolo_staff || "", fDate.format(new Date(i.iscritto_dal)), i.prenotazioni, i.frequentate, i.assenze ?? 0, i.prossime, i.ultima ? fDate.format(new Date(i.ultima)) : "", i.note || ""]));
+};
+$("expPren").onclick = async () => {
+  const a = oggiYmd(), da = addDays(a, -statGiorni);
+  const { data, error } = await sb.rpc("admin_export_prenotazioni", { p_da: da, p_a: addDays(a, 42) });
+  if (error) return toast(error.message, false);
+  scaricaCsv(`${oggiYmd()}-WhyNot-Prenotazioni.csv`, ["Data", "Ora", "Corso", "Sala", "Istruttore", "Nome", "Telefono", "Email", "Stato", "Presenza", "Origine", "Prenotata il", "Voto"],
+    (data || []).map((r) => [r.data, r.ora, r.corso, r.sala, r.istruttore, r.nome, r.telefono, r.email, r.stato, r.presenza, r.origine, r.prenotata_il, r.voto]));
+  toast(`Esportate ${data.length} prenotazioni (dal ${fDate.format(noon(da))} alle prossime 6 settimane).`);
+};
+
+// ------------------------------------------------------------------ istruttore: le mie lezioni e appello
+let mLun = lunediDi(ymdRome(new Date()));
+async function caricaMie() {
+  $("mLbl").textContent = `${fDay.format(noon(mLun))} – ${fDay.format(noon(addDays(mLun, 6)))}`;
+  const { data, error } = await sb.rpc("istruttore_lezioni", { p_da: mLun, p_a: addDays(mLun, 6) });
+  if (error) { $("mieLez").innerHTML = `<p class="empty">${esc(error.message)}</p>`; return; }
+  const now = Date.now();
+  $("mieLez").innerHTML = (data || []).map((l) => {
+    const s = new Date(l.inizio), p = Math.min(100, Math.round((l.confermate / l.capienza) * 100));
+    return `<button class="tli${l.stato === "annullata" ? " x done" : new Date(l.fine).getTime() < now ? " done" : ""}" data-app="${l.id}" style="--c:${catColor(l.categoria)}">
+      <span class="t">${esc(fWd.format(s))}<small>${fTime.format(s)}</small></span><span class="s"></span>
+      <span><b>${esc(l.corso)}</b><span class="sub">${esc(fDate.format(s))} · ${esc(l.sala)}${l.stato === "annullata" ? " · annullata" : ""}</span></span>
+      <span class="fill">${l.confermate}/${l.capienza}${l.attesa ? ` <span class="mut">+${l.attesa}</span>` : ""}<div class="pb"><i class="${fillCls(p)}" style="width:${p}%"></i></div></span></button>`;
+  }).join("") || '<p class="empty">Nessuna lezione assegnata a te in questa settimana.</p>';
+}
+$("mPrev").onclick = () => { mLun = addDays(mLun, -7); caricaMie(); };
+$("mNext").onclick = () => { mLun = addDays(mLun, 7); caricaMie(); };
+$("mOggi").onclick = () => { mLun = lunediDi(ymdRome(new Date())); caricaMie(); };
+$("mieLez").addEventListener("click", (e) => { const b = e.target.closest("[data-app]"); if (b) apriAppello(Number(b.dataset.app)); });
+async function apriAppello(id) {
+  const [{ data: L }, { data: P, error }] = await Promise.all([sb.rpc("istruttore_lezioni", { p_da: mLun, p_a: addDays(mLun, 6) }), sb.rpc("appello", { p_lezione_id: id })]);
+  if (error) return toast(error.message, false);
+  const l = (L || []).find((x) => x.id === id); if (!l) return;
+  const aperto = new Date(l.inizio).getTime() - 30 * 60000 <= Date.now();
+  const conf = (P || []).filter((p) => p.stato === "confermata"), att = (P || []).filter((p) => p.stato === "attesa");
+  const riga = (p) => `<div class="pp"><span class="av sm2">${esc(initials(p.nome))}</span><div><b>${esc(p.nome)}</b>${p.note ? `<small>«${esc(p.note)}»</small>` : ""}</div>
+    ${p.stato === "confermata" && aperto ? `<div class="acts"><button class="ghost sm${p.presenza === true ? " on" : ""}" data-pr="1" data-id="${p.id}">Presente</button><button class="ghost sm${p.presenza === false ? " off" : ""}" data-pr="0" data-id="${p.id}">Assente</button></div>` : ""}</div>`;
+  $("lezBody").innerHTML = `<div class="dw-head" style="--c:${catColor(l.categoria)}"><button class="close" data-x aria-label="Chiudi">&times;</button><span class="k">${esc(l.categoria)}</span><h2>${esc(l.corso)}</h2>
+      <div class="kv"><span>${esc(cap1(fFull.format(new Date(l.inizio))))}</span><span>${fTime.format(new Date(l.inizio))}–${fTime.format(new Date(l.fine))}</span><span>${esc(l.sala)}</span></div></div>
+    <div class="dw-body">${aperto ? "" : '<p class="mut">L\'appello si apre 30 minuti prima della lezione.</p>'}
+      <div class="sec"><h3>Partecipanti (${conf.length}/${l.capienza})</h3>${conf.length ? `<div class="ppl">${conf.map(riga).join("")}</div>` : '<p class="empty">Nessun partecipante.</p>'}</div>
+      ${att.length ? `<div class="sec"><h3>Lista d'attesa (${att.length})</h3><div class="ppl">${att.map(riga).join("")}</div></div>` : ""}</div>`;
+  $("lezBody").querySelector("[data-x]").onclick = () => $("dLez").close();
+  $("lezBody").querySelectorAll("[data-pr]").forEach((b) => (b.onclick = async () => {
+    const p = conf.find((x) => x.id === b.dataset.id), v = b.dataset.pr === "1";
+    const { error: e } = await sb.rpc("segna_presenza", { p_prenotazione_id: p.id, p_presente: p.presenza === v ? null : v });
+    if (e) return toast(e.message, false);
+    apriAppello(id);
+  }));
+  if (!$("dLez").open) $("dLez").showModal();
+}
+
+// ------------------------------------------------------------------ corsi e orari
+const GIORNI = ["Lunedì", "Martedì", "Mercoledì", "Giovedì", "Venerdì", "Sabato", "Domenica"];
+let palinsesto = [];
+async function caricaPalinsesto() {
+  const [c, p, imp] = await Promise.all([
+    sb.from("corsi").select("id,slug,nome,categoria,sala,capienza_default,prenotazione_obbligatoria,attivo").order("nome"),
+    sb.from("palinsesto").select("id,corso_id,giorno,ora_inizio,ora_fine,sala,capienza,istruttore_id,attivo,note").order("giorno").order("ora_inizio"),
+    sb.from("impostazioni").select("chiave,valore"),
+  ]);
+  if (c.error || p.error) { $("corsiTbl").innerHTML = `<p class="empty">${esc((c.error || p.error).message)}</p>`; return; }
+  corsi = c.data || []; palinsesto = p.data || []; opzioniCorsi(); disegnaLegenda();
+  const ore = (imp.data || []).find((x) => x.chiave === "ore_annullo");
+  $("fRegole").ore.value = ore ? Number(ore.valore) : 2;
+  $("corsiTbl").innerHTML = `<div class="wrap-tbl"><table class="tbl"><thead><tr><th>Corso</th><th class="hm">Categoria</th><th>Sala</th><th class="num">Posti</th><th class="num hm">Fasce</th><th>Stato</th></tr></thead><tbody>${
+    corsi.map((x) => `<tr data-corso="${x.id}"><td><div class="p"><span class="dotc" style="background:${catColor(x.categoria)}"></span><b>${esc(x.nome)}</b></div></td><td class="hm">${esc(x.categoria)}</td><td>${esc(x.sala)}</td>
+      <td class="num"><b>${x.capienza_default}</b></td><td class="num hm">${palinsesto.filter((s) => s.corso_id === x.id && s.attivo).length}</td>
+      <td>${x.attivo ? '<span class="pill ok">Attivo</span>' : '<span class="pill">Non attivo</span>'}${x.prenotazione_obbligatoria ? ' <span class="pill w">Su prenotazione</span>' : ""}</td></tr>`).join("")}</tbody></table></div>`;
+  const nomeC = (id) => corsi.find((x) => x.id === id) || { nome: "?", categoria: "", sala: "", capienza_default: 0 };
+  const nomeI = (id) => istruttori.find((i) => i.user_id === id)?.nome || "";
+  $("palGrid").innerHTML = GIORNI.map((g, k) => {
+    const lista = palinsesto.filter((s) => s.giorno === k + 1);
+    return `<div class="col"><h3><span>${g}</span><span>${lista.filter((s) => s.attivo).length}</span></h3>${lista.map((s) => { const cc = nomeC(s.corso_id);
+      return `<button class="lz${s.attivo ? "" : " annullata"}" data-slot="${s.id}" style="--c:${catColor(cc.categoria)}"><small>${s.ora_inizio.slice(0, 5)}–${s.ora_fine.slice(0, 5)}${(s.sala || cc.sala) !== "Sala 1" ? ` · ${esc(s.sala || cc.sala)}` : ""}</small>
+        <b>${esc(cc.nome)}</b><div class="row3"><span>${s.capienza || cc.capienza_default} posti</span><span>${s.attivo ? "" : '<span class="tg">spenta</span>'}</span></div>${nomeI(s.istruttore_id) ? `<small>${esc(nomeI(s.istruttore_id))}</small>` : ""}</button>`; }).join("") || '<p class="none">—</p>'}
+      <button class="link" data-addslot="${k + 1}" style="padding:4px 6px">+ aggiungi</button></div>`;
+  }).join("");
+}
+$("fRegole").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const { error } = await sb.rpc("admin_salva_impostazioni", { p_ore_annullo: Number(e.target.ore.value) });
+  toast(error ? error.message : `Annullo consentito fino a ${e.target.ore.value} ore prima.`, !error);
+});
+function apriCorso(c) {
+  const f = $("corsoForm"); f.reset(); msg($("corsoMsg"), "");
+  f.elements.id.value = c?.id || ""; f.nome.value = c?.nome || ""; f.categoria.value = c?.categoria || ""; f.sala.value = c?.sala || "Sala 1";
+  f.capienza_default.value = c?.capienza_default || 20; f.prenotazione_obbligatoria.checked = !!c?.prenotazione_obbligatoria; f.attivo.checked = c ? c.attivo : true;
+  $("applicaBox").hidden = !c; $("corsoT").textContent = c ? c.nome : "Nuovo corso";
+  f.dataset.capPrima = c?.capienza_default || "";
+  $("dCorso").showModal();
+}
+$("addCorso").onclick = () => apriCorso(null);
+$("corsiTbl").addEventListener("click", (e) => { const r = e.target.closest("[data-corso]"); if (r) apriCorso(corsi.find((x) => x.id === Number(r.dataset.corso))); });
+$("corsoForm").addEventListener("submit", async (e) => {
+  e.preventDefault(); const f = e.target;
+  const row = { nome: f.nome.value.trim(), categoria: f.categoria.value.trim(), sala: f.sala.value.trim(), capienza_default: Number(f.capienza_default.value),
+    prenotazione_obbligatoria: f.prenotazione_obbligatoria.checked, attivo: f.attivo.checked };
+  if (row.nome.length < 2 || !row.categoria || !row.sala || !(row.capienza_default > 0)) return msg($("corsoMsg"), "Compila nome, categoria, sala e capienza.");
+  let res;
+  if (f.elements.id.value) res = await sb.from("corsi").update(row).eq("id", f.elements.id.value);
+  else {
+    row.slug = row.nome.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") + "-" + Date.now().toString(36);
+    res = await sb.from("corsi").insert(row);
+  }
+  if (res.error) return msg($("corsoMsg"), res.error.message);
+  let extra = "";
+  if (f.elements.id.value && f.applica.checked && String(row.capienza_default) !== f.dataset.capPrima) {
+    const { data: n, error } = await sb.rpc("admin_applica_capienza", { p_corso_id: Number(f.elements.id.value) });
+    extra = error ? ` (lezioni future non aggiornate: ${error.message})` : ` e su ${n} lezioni future`;
+  }
+  $("dCorso").close(); toast(`Corso salvato${extra}.`); caricaPalinsesto();
+});
+function apriSlot(s, giorno) {
+  const f = $("slotForm"); f.reset(); msg($("slotMsg"), "");
+  f.querySelectorAll(".selIstr").forEach((x) => (x.innerHTML = opzioniIstr(s?.istruttore_id || null)));
+  f.elements.id.value = s?.id || ""; f.corso_id.value = s?.corso_id || corsi.find((c) => c.attivo)?.id || "";
+  f.giorno.value = s?.giorno || giorno || 1; f.ora_inizio.value = s?.ora_inizio?.slice(0, 5) || ""; f.ora_fine.value = s?.ora_fine?.slice(0, 5) || "";
+  f.sala.value = s?.sala || ""; f.capienza.value = s?.capienza || ""; f.attivo.checked = s ? s.attivo : true;
+  $("slotDel").hidden = !s; $("slotT").textContent = s ? "Modifica fascia" : "Nuova fascia oraria";
+  $("dSlot").showModal();
+}
+$("newSlot").onclick = () => apriSlot(null);
+$("palGrid").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-slot]"); if (b) return apriSlot(palinsesto.find((s) => s.id === Number(b.dataset.slot)));
+  const a = e.target.closest("[data-addslot]"); if (a) apriSlot(null, Number(a.dataset.addslot));
+});
+$("slotForm").addEventListener("submit", async (e) => {
+  e.preventDefault(); const f = e.target;
+  if (!f.ora_inizio.value || !f.ora_fine.value || f.ora_fine.value <= f.ora_inizio.value) return msg($("slotMsg"), "Controlla gli orari: la fine deve essere dopo l'inizio.");
+  const iv = f.istruttore_id.value;
+  const row = { corso_id: Number(f.corso_id.value), giorno: Number(f.giorno.value), ora_inizio: f.ora_inizio.value, ora_fine: f.ora_fine.value,
+    sala: f.sala.value.trim() || null, capienza: Number(f.capienza.value) || null, istruttore_id: iv && !iv.startsWith("libero:") ? iv : null, attivo: f.attivo.checked };
+  const res = f.elements.id.value ? await sb.from("palinsesto").update(row).eq("id", f.elements.id.value) : await sb.from("palinsesto").insert(row);
+  if (res.error) return msg($("slotMsg"), res.error.message);
+  $("dSlot").close(); toast("Palinsesto aggiornato: vale per le prossime settimane generate."); caricaPalinsesto();
+});
+$("slotDel").onclick = async () => {
+  const id = $("slotForm").elements.id.value; if (!id) return;
+  if (!(await ask("Eliminare la fascia?", "Non verrà più usata quando generi le settimane. Le lezioni già generate restano.", "Elimina"))) return;
+  const { error } = await sb.from("palinsesto").delete().eq("id", id);
+  if (error) return msg($("slotMsg"), error.message);
+  $("dSlot").close(); toast("Fascia eliminata."); caricaPalinsesto();
+};
+
+// ------------------------------------------------------------------ bacheca
+async function caricaBacheca() {
+  const { data, error } = await sb.from("avvisi").select("id,titolo,testo,created_at").order("created_at", { ascending: false }).limit(100);
+  if (error) { $("avvisiList").innerHTML = `<p class="empty">${esc(error.message)}</p>`; return; }
+  const limite = Date.now() - 60 * 86400000;
+  $("avvisiList").innerHTML = (data || []).map((a) => `<div class="fi panel" style="align-items:flex-start${new Date(a.created_at).getTime() < limite ? ";opacity:.5" : ""}"><div><b>${esc(a.titolo)}</b>
+    <small style="white-space:normal">${esc(a.testo)}</small><small>${esc(fDT.format(new Date(a.created_at)))}${new Date(a.created_at).getTime() < limite ? " · non più visibile nell'app" : ""}</small></div>
+    <button class="ghost sm danger" data-delav="${a.id}">Elimina</button></div>`).join("") || '<p class="empty">Nessun avviso. Pubblicane uno con «+ Nuovo avviso».</p>';
+}
+$("avvisiList").addEventListener("click", async (e) => {
+  const b = e.target.closest("[data-delav]"); if (!b) return;
+  if (!(await ask("Eliminare l'avviso?", "Sparirà dalla bacheca dell'app. Le notifiche già inviate non si possono ritirare.", "Elimina"))) return;
+  const { error } = await sb.from("avvisi").delete().eq("id", b.dataset.delav);
+  if (error) return toast(error.message, false);
+  toast("Avviso eliminato."); caricaBacheca();
+});
+
+// ------------------------------------------------------------------ statistiche
+// Una sola serie per grafico (niente doppi assi), un solo colore per la grandezza, valori al passaggio e in tabella.
+let statGiorni = 28;
+const pct = (v) => (v == null ? "—" : `${v}%`);
+async function caricaStat() {
+  const a = oggiYmd(), da = addDays(a, -statGiorni);
+  $("statKpi").innerHTML = '<div class="skel"></div><div class="skel"></div><div class="skel"></div><div class="skel"></div>';
+  const [s, ina] = await Promise.all([sb.rpc("admin_statistiche", { p_da: da, p_a: a }), sb.rpc("admin_inattivi", { p_giorni: 21 })]);
+  if (s.error) { $("statKpi").innerHTML = `<p class="empty">${esc(s.error.message)}</p>`; return; }
+  const d = s.data, t = d.totali || {};
+  const riemp = t.posti ? Math.round((100 * t.prenotati) / t.posti) : 0;
+  $("statKpi").innerHTML = `
+    <div class="kpi"><span>Riempimento medio</span><b>${riemp}%</b><small>${t.prenotati} prenotati su ${t.posti} posti</small><div class="meter"><i style="width:${riemp}%"></i></div></div>
+    <div class="kpi"><span>Lezioni</span><b>${t.lezioni}</b><small>dal ${fDate.format(noon(da))}</small></div>
+    <div class="kpi"><span>Assenze segnate</span><b>${t.prenotati ? Math.round((100 * t.assenti) / t.prenotati) : 0}%</b><small>${t.assenti} su ${t.prenotati} prenotati · ${t.annullate} annullate</small></div>
+    <div class="kpi"><span>Voto medio lezioni</span><b>${t.voto_medio != null ? Number(t.voto_medio).toFixed(1).replace(".", ",") : "—"}</b><small>${t.voti} valutazioni</small></div>`;
+  const pc = d.per_corso || [];
+  $("statCorsi").innerHTML = pc.length ? `<div class="hbars">${pc.map((r) => `<div class="hb" title="${esc(r.corso)}: ${r.prenotati} prenotati su ${r.posti} posti in ${r.lezioni} lezioni${r.voto ? ` · voto ${r.voto}` : ""}">
+      <span class="hl">${esc(r.corso)}</span><span class="ht"><i style="width:${Math.min(100, r.riempimento || 0)}%"></i></span><span class="hv">${pct(r.riempimento)}</span></div>`).join("")}</div>
+    <details style="margin-top:10px"><summary class="mut">Tabella</summary><div class="wrap-tbl" style="margin-top:8px"><table class="tbl"><thead><tr><th>Corso</th><th class="num">Lezioni</th><th class="num">Prenotati</th><th class="num">Posti</th><th class="num">Riemp.</th><th class="num">Assenti</th><th class="num">Voto</th></tr></thead><tbody>${
+      pc.map((r) => `<tr><td>${esc(r.corso)}</td><td class="num">${r.lezioni}</td><td class="num">${r.prenotati}</td><td class="num">${r.posti}</td><td class="num">${pct(r.riempimento)}</td><td class="num">${r.assenti}</td><td class="num">${r.voto ?? "—"}${r.voti ? ` (${r.voti})` : ""}</td></tr>`).join("")}</tbody></table></div></details>`
+    : '<p class="empty">Nessuna lezione nel periodo.</p>';
+  const pf = d.per_fascia || [], ore = [...new Set(pf.map((r) => r.ora))].sort((x, y) => x - y);
+  const cella = (g, o) => pf.find((r) => r.giorno === g && r.ora === o);
+  $("statHeat").innerHTML = pf.length ? `<div class="heat" style="grid-template-columns:44px repeat(7,minmax(0,1fr))"><span></span>${GIORNI.map((g) => `<span class="hh">${g.slice(0, 3)}</span>`).join("")}
+    ${ore.map((o) => `<span class="hh hr">${String(o).padStart(2, "0")}:00</span>${[1, 2, 3, 4, 5, 6, 7].map((g) => { const c = cella(g, o); const v = c ? c.riempimento || 0 : null;
+      return c ? `<span class="hc" style="--a:${(0.12 + (0.88 * Math.min(100, v)) / 100).toFixed(2)}" title="${GIORNI[g - 1]} ${String(o).padStart(2, "0")}:00 · riempimento ${v}% su ${c.lezioni} ${c.lezioni === 1 ? "lezione" : "lezioni"}">${v}</span>` : '<span class="hc vuota"></span>'; }).join("")}`).join("")}</div>
+    <div class="legend" style="margin-top:10px"><span><i style="background:rgba(224,34,51,.15)"></i>poco pieno</span><span><i style="background:rgba(224,34,51,1)"></i>pieno</span><span>valori in % · celle vuote = nessuna lezione</span></div>`
+    : '<p class="empty">Nessuna lezione nel periodo.</p>';
+  const ms = d.mensile || [], fM = F({ month: "short" });
+  const mini = (titolo, campo) => { const max = Math.max(1, ...ms.map((m) => m[campo] || 0));
+    return `<div class="mini"><span class="mt">${titolo}</span><div class="mb">${ms.map((m) => `<span class="mc" title="${esc(fM.format(noon(m.mese + "-15")))} ${m.mese.slice(0, 4)}: ${m[campo]}"><i style="height:${Math.max(2, Math.round((100 * (m[campo] || 0)) / max))}%"></i></span>`).join("")}</div>
+      <div class="mx"><span>da ${esc(fM.format(noon(ms[0].mese + "-15")))}</span><span>ultimo mese: <b>${ms[ms.length - 1][campo]}</b></span></div></div>`; };
+  $("statMesi").innerHTML = ms.length ? mini("Prenotazioni confermate", "prenotati") + mini("Presenze", "frequenze") + mini("Iscritti che hanno prenotato", "iscritti_attivi") + mini("Nuovi iscritti", "nuovi_iscritti") : "";
+  const L = ina.data || [];
+  $("statInatt").innerHTML = L.length ? `<p class="mut" style="margin-bottom:8px">${L.length} iscritti attivi senza prenotazioni negli ultimi 21 giorni; ${L.filter((x) => x.notifiche).length} hanno le notifiche attive (gli altri contattali su WhatsApp).</p>
+    <div class="wrap-tbl"><table class="tbl"><thead><tr><th><input type="checkbox" id="inaAll" aria-label="Seleziona tutti"></th><th>Iscritto</th><th class="hm">Telefono</th><th>Ultima presenza</th><th>Notifiche</th></tr></thead><tbody>${
+      L.map((x) => `<tr><td><input type="checkbox" class="inaSel" value="${x.user_id}" ${x.notifiche ? "" : "disabled"}></td><td><b>${esc(x.nome)}</b><small style="display:block;color:var(--mut)">${esc(x.email)}</small></td>
+        <td class="hm">${x.telefono ? `<a href="https://wa.me/${String(x.telefono).replace(/[^0-9]/g, "").replace(/^(?=\d{9,10}$)/, "39")}" target="_blank" rel="noopener">${esc(x.telefono)}</a>` : "—"}</td>
+        <td>${x.ultima ? fDate.format(new Date(x.ultima)) : "mai"}</td><td>${x.notifiche ? '<span class="pill ok">sì</span>' : '<span class="pill">no</span>'}</td></tr>`).join("")}</tbody></table></div>`
+    : '<p class="empty">Nessun iscritto inattivo da 3 settimane.</p>';
+  const agg = () => { $("richiamoBtn").disabled = !document.querySelectorAll(".inaSel:checked").length; };
+  $("inaAll")?.addEventListener("change", (e) => { document.querySelectorAll(".inaSel:not(:disabled)").forEach((c) => (c.checked = e.target.checked)); agg(); });
+  document.querySelectorAll(".inaSel").forEach((c) => c.addEventListener("change", agg)); agg();
+}
+$("statPer").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-g]"); if (!b) return;
+  statGiorni = Number(b.dataset.g); $("statPer").querySelectorAll(".chip").forEach((x) => x.setAttribute("aria-pressed", x === b)); caricaStat();
+});
+$("richiamoBtn").onclick = async () => {
+  const ids = [...document.querySelectorAll(".inaSel:checked")].map((c) => c.value);
+  if (!ids.length) return;
+  if (!(await ask("Inviare il richiamo?", `Notifica a ${ids.length} ${ids.length === 1 ? "iscritto" : "iscritti"}: «Ci manchi! Dai un'occhiata ai corsi di questa settimana e prenota il prossimo allenamento.»`, "Invia"))) return;
+  const { data, error } = await sb.rpc("admin_richiamo", { p_utenti: ids, p_titolo: "Ci manchi!", p_testo: "Dai un'occhiata ai corsi di questa settimana e prenota il prossimo allenamento. Ti aspettiamo!" });
+  toast(error ? error.message : `Richiamo inviato a ${data} ${data === 1 ? "iscritto" : "iscritti"}.`, !error);
+};

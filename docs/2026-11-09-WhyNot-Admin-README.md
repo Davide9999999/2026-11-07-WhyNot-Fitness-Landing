@@ -96,3 +96,14 @@ Pagine: `/prenota/` (ora pubblica, in sitemap e nel menu) e `/area-personale/` (
 - **Admin**: «Invia avviso» (Panoramica/Iscritti). Annullando una lezione i prenotati con notifiche attive vengono avvisati.
 - **Come funziona**: il database mette in coda le notifiche; il Worker Cloudflare (cron ogni minuto, `worker/push.js`) le invia con Web Push (VAPID + aes128gcm, verificato con il vettore di prova dell'RFC 8291).
 - **Setup**: 1) SQL Editor → `supabase/2026-11-09-WhyNot-notifiche.sql`; 2) Cloudflare → Worker → Settings → Variables and Secrets → due **Secret**: `VAPID_PRIVATE_KEY` e `PUSH_SECRET` (valori consegnati a parte, mai nel repo). La chiave pubblica è già in `wrangler.jsonc` e `assets/supabase-config.js`.
+
+## 10. Funzioni v2 (2026-11-10) — `supabase/2026-11-10-WhyNot-funzioni-v2.sql` (eseguito)
+- **Corsi e orari** (admin): modifica corsi (capienza, sala, attivo, prenotazione obbligatoria; opzione per applicare la capienza alle lezioni future), palinsesto settimanale (fasce con istruttore), regola di annullo (ore di preavviso, default 2; chi è in attesa esce fino all'inizio).
+- **Presenze**: Presente/Assente dal dettaglio lezione (da 30 minuti prima). «Frequentata» = confermata e non segnata assente.
+- **Istruttore**: ruolo `istruttore` (Nuovo iscritto → Collaboratore → Istruttore). Nell'admin vede solo «Le mie lezioni» e l'appello (nome e note, niente recapiti). Si assegna nelle fasce del palinsesto o nella singola lezione.
+- **Nuova settimana**: quando l'admin genera una settimana (la prima volta) gli iscritti con notifiche ricevono l'avviso, con i loro corsi preferiti. Preferiti dall'app (cuore sulla lezione o Profilo → Corsi preferiti).
+- **Schede**: destinatario «Tutti» o un iscritto; visibili nell'app (tab Schede) se pubblicate.
+- **Bacheca**: avvisi visibili 60 giorni nell'app; «Nuovo avviso» con o senza notifica.
+- **Valutazioni**: 1–5 stelle entro 14 giorni dalle lezioni frequentate (Le mie → Storico).
+- **Statistiche**: riempimento per corso e per fascia, andamento mensile, voto medio, iscritti inattivi da 3 settimane con richiamo via notifica.
+- **Esportazione CSV** (separatore `;`, si apre in Excel): iscritti (Iscritti) e prenotazioni (Statistiche).

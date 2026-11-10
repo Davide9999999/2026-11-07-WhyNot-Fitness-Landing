@@ -185,3 +185,23 @@ dialog.sheet[open]{animation:up .25s ease-out}
 .tag.soon{background:rgba(91,155,240,.15);color:#cfe0ff}
 select{font:inherit;font-size:16px;color:var(--txt);background:#0d0d0d;border:1px solid var(--line2);border-radius:12px;padding:12px 14px;width:100%}
 .row2{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}.row2 .link{margin:12px 0 0}
+/* v2 */
+.tabbar{grid-template-columns:repeat(5,1fr);padding-left:4px;padding-right:4px}
+.tabbar button{font-size:10.5px}
+.favbtn{float:right;margin-top:-2px;padding:6px 12px;border-radius:999px;border:1px solid var(--line2);font-size:12.5px;font-weight:700;color:#ddd}
+.favbtn.on{background:rgba(224,34,51,.18);border-color:rgba(224,34,51,.6);color:#ffc2c6}
+.hrt{font-style:normal;color:var(--red-hi);font-size:13px}
+.chips.wrap{flex-wrap:wrap;overflow:visible;margin:0;padding:0}
+.chip.on{background:rgba(224,34,51,.18);border-color:rgba(224,34,51,.6);color:#fff}
+.stars{color:#f0b33c;letter-spacing:1px;font-size:14px}
+.rate{display:inline-flex;gap:0}
+.rate button{font-size:20px;line-height:1;color:#f0b33c;padding:2px 3px;border:0!important;border-radius:6px!important}
+.rate:hover button{color:#f0b33c}.rate button:hover~button{color:#666}
+.sch{display:flex;flex-direction:column;gap:4px;width:100%;text-align:left;padding:16px;border-radius:18px;background:var(--card);border:1px solid var(--line)}
+.sch b{font-size:16px}.sch small{color:var(--mut);font-size:12.5px}.sch p{font-size:13.5px;color:#cfcfcf;margin-top:4px}
+.sch .tag{align-self:flex-start}
+.schtxt{white-space:pre-wrap;font-size:14.5px;line-height:1.6;background:#111;border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:6px}
+.avv{padding:16px;border-radius:18px;background:var(--card);border:1px solid var(--line)}
+.avv.nuovo{border-color:rgba(224,34,51,.55)}
+.avv small{color:var(--mut);font-size:12px}.avv.nuovo small{color:#ffc2c6}
+.avv h3{font-size:16px;margin:2px 0 6px}.avv p{font-size:14px;color:#d4d4d4;white-space:pre-wrap}

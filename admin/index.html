@@ -30,8 +30,12 @@
     <nav class="nav" id="sideNav" aria-label="Sezioni">
       <button data-tab="home"><svg viewBox="0 0 24 24"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>Panoramica</button>
       <button data-tab="cal"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/></svg>Calendario</button>
+      <button data-tab="mie" class="istr-only"><svg viewBox="0 0 24 24"><path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9"/></svg>Le mie lezioni</button>
       <button data-tab="iscritti"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="4"/><path d="M2 21a7 7 0 0 1 14 0M16 4a4 4 0 0 1 0 8M22 21a7 7 0 0 0-4-6.3"/></svg>Iscritti<span class="count" id="nIscritti"></span></button>
+      <button data-tab="palinsesto" class="staff-only"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/><circle cx="19" cy="18" r="2"/></svg>Corsi e orari</button>
       <button data-tab="schede"><svg viewBox="0 0 24 24"><rect x="5" y="4" width="14" height="18" rx="2"/><path d="M9 4V3h6v1M9 10h6M9 14h6M9 18h4"/></svg>Schede</button>
+      <button data-tab="bacheca" class="staff-only"><svg viewBox="0 0 24 24"><path d="M4 5h16v11H8l-4 4z"/></svg>Bacheca</button>
+      <button data-tab="stat" class="staff-only"><svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Statistiche</button>
       <button data-tab="ai" class="ai-only"><svg viewBox="0 0 24 24"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/></svg>Assistente</button>
     </nav>
     <div class="side-foot">
@@ -46,10 +50,14 @@
       <a class="m-brand" href="../"><img src="../2026-11-07-Logo-WhyNot.png" alt="WHY NOT" width="34" height="34"></a>
       <div><h1 id="pgTitle">Panoramica</h1><p id="pgSub"></p></div>
       <div class="acts">
-        <span data-for="home iscritti" class="acts"><button class="ghost sm" data-act="avviso"><svg viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg><span>Invia avviso</span></button></span>
+        <span data-for="home" class="acts"><button class="ghost sm" data-act="avviso"><svg viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg><span>Invia avviso</span></button></span>
         <span data-for="home cal" class="acts"><button class="ghost sm" data-act="genera"><svg viewBox="0 0 24 24"><path d="M4 4v6h6M20 20v-6h-6"/><path d="M20 10A8 8 0 0 0 6 6L4 10M4 14a8 8 0 0 0 14 4l2-4"/></svg><span>Genera dal palinsesto</span></button><button class="btn sm" data-act="nuova"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Nuova lezione</button></span>
         <span data-for="schede" class="acts"><button class="btn sm" id="newScheda"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Nuova scheda</button></span>
         <span data-for="iscritti" class="acts"><button class="btn sm" id="newIsc"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Nuovo iscritto</button></span>
+        <span data-for="palinsesto" class="acts"><button class="ghost sm" id="addCorso">+ Corso</button><button class="btn sm" id="newSlot">+ Fascia oraria</button></span>
+        <span data-for="bacheca" class="acts"><button class="btn sm" data-act="avviso">+ Nuovo avviso</button></span>
+        <span data-for="stat" class="acts"><button class="ghost sm" id="expPren">Esporta prenotazioni (CSV)</button></span>
+        <span data-for="iscritti" class="acts"><button class="ghost sm" id="expIsc">Esporta (CSV)</button></span>
         <span data-for="ai" class="acts"><button class="ghost sm" id="aiReset">Nuova chat</button></span>
         <button class="link" id="logoutM" style="display:none">Esci</button>
       </div>
@@ -95,6 +103,39 @@
       <div id="schede" class="list"></div>
     </section>
 
+    <!-- LE MIE LEZIONI (istruttore) -->
+    <section id="tab-mie" class="page" hidden>
+      <div class="calbar"><div class="nav2"><button class="icon" id="mPrev" aria-label="Settimana precedente">&lsaquo;</button><strong id="mLbl"></strong><button class="icon" id="mNext" aria-label="Settimana successiva">&rsaquo;</button><button class="ghost sm" id="mOggi">Oggi</button></div></div>
+      <div id="mieLez" class="tl panel"></div>
+    </section>
+
+    <!-- CORSI E ORARI -->
+    <section id="tab-palinsesto" class="page" hidden>
+      <div class="panel admin-only" id="regole"><h2>Regole prenotazioni</h2>
+        <form id="fRegole" class="acts-row" style="align-items:flex-end"><label style="max-width:300px">Annullo consentito fino a (ore prima della lezione)<input name="ore" type="number" min="0" max="72" required></label><button class="btn sm" type="submit">Salva</button></form>
+        <p class="mut" style="margin-top:8px">Chi è confermato può annullare dall'app fino a questo limite; chi è in lista d'attesa può uscire fino all'inizio. Le prenotazioni si aprono la domenica prima della settimana.</p></div>
+      <div class="panel"><h2>Corsi <span class="mut">capienza e sala valgono per le settimane generate da adesso in poi</span></h2><div id="corsiTbl"></div></div>
+      <div class="panel"><h2>Palinsesto settimanale <span class="mut">modello usato da «Genera dal palinsesto»</span></h2><div id="palGrid" class="palgrid"></div></div>
+    </section>
+
+    <!-- BACHECA -->
+    <section id="tab-bacheca" class="page" hidden>
+      <p class="mut" style="margin-bottom:12px">Gli avvisi restano visibili nell'app per 60 giorni, anche per chi non ha attivato le notifiche.</p>
+      <div id="avvisiList" class="feed"></div>
+    </section>
+
+    <!-- STATISTICHE -->
+    <section id="tab-stat" class="page" hidden>
+      <div class="chips" id="statPer" style="margin-bottom:14px"><button class="chip" data-g="28" aria-pressed="true">Ultime 4 settimane</button><button class="chip" data-g="91" aria-pressed="false">Ultimi 3 mesi</button><button class="chip" data-g="365" aria-pressed="false">Ultimo anno</button></div>
+      <div class="kpis" id="statKpi"></div>
+      <div class="grid2">
+        <div class="panel"><h2>Riempimento per corso</h2><div id="statCorsi"></div></div>
+        <div class="panel"><h2>Riempimento per giorno e ora</h2><div id="statHeat"></div></div>
+      </div>
+      <div class="panel" style="margin-top:16px"><h2>Andamento mese per mese</h2><div id="statMesi" class="mesi"></div></div>
+      <div class="panel" style="margin-top:16px"><h2>Iscritti che non vengono da 3 settimane <button class="btn sm" id="richiamoBtn" disabled>Invia richiamo</button></h2><div id="statInatt"></div></div>
+    </section>
+
     <!-- ASSISTENTE AI -->
     <section id="tab-ai" class="page" hidden>
       <div class="ai">
@@ -109,8 +150,12 @@
   <nav class="bnav" id="bNav" aria-label="Sezioni">
     <button data-tab="home"><svg viewBox="0 0 24 24"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>Oggi</button>
     <button data-tab="cal"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/></svg>Calendario</button>
+    <button data-tab="mie" class="istr-only"><svg viewBox="0 0 24 24"><path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9"/></svg>Lezioni</button>
     <button data-tab="iscritti"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="4"/><path d="M2 21a7 7 0 0 1 14 0M16 4a4 4 0 0 1 0 8M22 21a7 7 0 0 0-4-6.3"/></svg>Iscritti</button>
+    <button data-tab="palinsesto" class="staff-only"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/><circle cx="19" cy="18" r="2"/></svg>Orari</button>
     <button data-tab="schede"><svg viewBox="0 0 24 24"><rect x="5" y="4" width="14" height="18" rx="2"/><path d="M9 4V3h6v1M9 10h6M9 14h6M9 18h4"/></svg>Schede</button>
+    <button data-tab="bacheca" class="staff-only"><svg viewBox="0 0 24 24"><path d="M4 5h16v11H8l-4 4z"/></svg>Bacheca</button>
+    <button data-tab="stat" class="staff-only"><svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Statistiche</button>
     <button data-tab="ai" class="ai-only"><svg viewBox="0 0 24 24"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/></svg>AI</button>
   </nav>
 </div>
@@ -127,7 +172,7 @@
     <div class="row"><label>Data<input name="data" type="date" required></label><label>Ripeti ogni settimana per<select name="ripeti"><option value="1">solo questa volta</option><option value="2">2 settimane</option><option value="4">4 settimane</option><option value="8">8 settimane</option><option value="12">12 settimane</option><option value="26">26 settimane</option></select></label></div>
     <div class="row"><label>Inizio<input name="ora_inizio" type="time" required></label><label>Fine<input name="ora_fine" type="time" required></label></div>
     <div class="row"><label>Sala<input name="sala" placeholder="quella del corso"></label><label>Capienza<input name="capienza" type="number" min="1" placeholder="quella del corso"></label></div>
-    <label>Istruttore<input name="istruttore"></label>
+    <label>Istruttore<select name="istruttore_id" class="selIstr"><option value="">—</option></select></label>
     <label>Note<input name="note"></label>
     <p class="preview" id="newPrev">Orari in ora italiana.</p>
     <div class="acts end"><button class="ghost" type="button" data-close>Annulla</button><button class="btn" type="submit">Crea lezione</button></div>
@@ -144,6 +189,7 @@
     <label>Titolo<input name="titolo" required minlength="2" maxlength="120"></label>
     <div class="row"><label>Obiettivo<input name="obiettivo" placeholder="es. tonificazione"></label>
       <label>Livello<select name="livello"><option value="">—</option><option>principiante</option><option>intermedio</option><option>avanzato</option></select></label></div>
+    <label>Destinatario<select name="member_id" id="schDest"><option value="">Tutti gli iscritti</option></select></label>
     <label>Descrizione breve<input name="descrizione" maxlength="300"></label>
     <label>Contenuto<textarea name="contenuto" rows="12" placeholder="Esercizi, serie, ripetizioni, recuperi..."></textarea></label>
     <div class="acts end"><span class="mut" id="schStato"></span>
@@ -162,7 +208,7 @@
     <form id="iscForm" novalidate style="display:flex;flex-direction:column;gap:12px">
       <label>Nome e cognome<input name="nome" required minlength="2" maxlength="80" autocomplete="off"></label>
       <div class="row"><label>Email (accesso all'app)<input name="email" type="email" required autocomplete="off"></label><label>Telefono<input name="telefono" type="tel" autocomplete="off"></label></div>
-      <label class="admin-only">Collaboratore<select name="ruolo"><option value="">No, solo iscritto</option><option value="staff">Staff (accesso all'area staff)</option><option value="admin">Admin</option></select></label>
+      <label class="admin-only">Collaboratore<select name="ruolo"><option value="">No, solo iscritto</option><option value="staff">Staff (accesso all'area staff)</option><option value="admin">Admin</option><option value="istruttore">Istruttore (vede solo le sue lezioni)</option></select></label>
       <p class="mut">Dopo il salvataggio ricevi un codice di attivazione valido 30 giorni: l'iscritto lo usa con questa email per attivare l'app.</p>
       <div class="acts end"><button class="ghost" type="button" data-close>Annulla</button><button class="btn" type="submit">Crea e genera codice</button></div>
       <p class="msg" id="iscMsg" role="status"></p>
@@ -178,11 +224,36 @@
     <h2>Invia un avviso</h2>
     <p class="mut" id="avvInfo">Notifica sul telefono a tutti gli iscritti attivi che hanno attivato le notifiche nell'app.</p>
     <label>Titolo<input name="titolo" required maxlength="120" placeholder="es. Palestra chiusa lunedì"></label>
-    <label>Testo<textarea name="testo" rows="4" required maxlength="400" placeholder="es. Lunedì 8 dicembre la palestra resta chiusa per la festività. Buone feste!"></textarea></label>
+    <label class="chk"><input type="checkbox" name="notifica" checked> Invia anche come notifica a chi le ha attive (oltre alla bacheca)</label>
+    <label>Testo<textarea name="testo" rows="4" required maxlength="1000" placeholder="es. Lunedì 8 dicembre la palestra resta chiusa per la festività. Buone feste!"></textarea></label>
     <div class="acts end"><button class="ghost" type="button" data-close>Annulla</button><button class="btn" type="submit">Invia</button></div>
     <p class="msg" id="avvMsg" role="status"></p>
   </form>
 </dialog>
+
+<!-- CORSO -->
+<dialog id="dCorso" class="sheet"><form id="corsoForm" class="sheet-body" novalidate>
+  <button class="close" type="button" data-close aria-label="Chiudi">&times;</button><h2 id="corsoT">Corso</h2><input type="hidden" name="id">
+  <div class="row"><label>Nome<input name="nome" required maxlength="80"></label><label>Categoria<input name="categoria" required maxlength="40" list="catList"></label></div>
+  <datalist id="catList"><option>Posturale</option><option>Tonificazione</option><option>Aerobico</option><option>Funzionale</option><option>H.E.A.T. Program</option><option>Sala attrezzi</option></datalist>
+  <div class="row"><label>Sala<input name="sala" required maxlength="40"></label><label>Capienza (posti)<input name="capienza_default" type="number" min="1" max="500" required></label></div>
+  <label class="chk"><input type="checkbox" name="prenotazione_obbligatoria"> Prenotazione obbligatoria</label>
+  <label class="chk"><input type="checkbox" name="attivo"> Attivo (compare nel palinsesto e nell'app)</label>
+  <label class="chk" id="applicaBox"><input type="checkbox" name="applica"> Applica la nuova capienza anche alle lezioni future già generate</label>
+  <div class="acts end"><button class="ghost" type="button" data-close>Annulla</button><button class="btn" type="submit">Salva</button></div><p class="msg" id="corsoMsg"></p>
+</form></dialog>
+
+<!-- FASCIA DEL PALINSESTO -->
+<dialog id="dSlot" class="sheet"><form id="slotForm" class="sheet-body" novalidate>
+  <button class="close" type="button" data-close aria-label="Chiudi">&times;</button><h2 id="slotT">Fascia oraria</h2><input type="hidden" name="id">
+  <div class="row"><label>Corso<select name="corso_id" id="slotCorso" required></select></label><label>Giorno<select name="giorno"><option value="1">Lunedì</option><option value="2">Martedì</option><option value="3">Mercoledì</option><option value="4">Giovedì</option><option value="5">Venerdì</option><option value="6">Sabato</option><option value="7">Domenica</option></select></label></div>
+  <div class="row"><label>Inizio<input name="ora_inizio" type="time" required></label><label>Fine<input name="ora_fine" type="time" required></label></div>
+  <div class="row"><label>Sala<input name="sala" placeholder="quella del corso"></label><label>Capienza<input name="capienza" type="number" min="1" placeholder="quella del corso"></label></div>
+  <label>Istruttore<select name="istruttore_id" class="selIstr"><option value="">—</option></select></label>
+  <label class="chk"><input type="checkbox" name="attivo" checked> Attiva (usata quando generi le settimane)</label>
+  <p class="mut">Le modifiche valgono per le settimane generate da adesso in poi; quelle già generate si cambiano dal calendario.</p>
+  <div class="acts end"><button class="ghost danger" type="button" id="slotDel">Elimina</button><button class="ghost" type="button" data-close>Annulla</button><button class="btn" type="submit">Salva</button></div><p class="msg" id="slotMsg"></p>
+</form></dialog>
 
 <!-- CONFERMA -->
 <dialog id="dAsk" class="ask"><form method="dialog" class="sheet-body"><h2 id="askT"></h2><p id="askP"></p><div class="acts end"><button class="ghost" value="no">Annulla</button><button class="btn" value="ok" id="askOk">Conferma</button></div></form></dialog>

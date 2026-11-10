@@ -4,7 +4,7 @@ import { cfg, sb, $, esc, fmt, dayKey, hourRome, cap, catColor, initials, relTim
 
 const ICO_OK = '<svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
 const ICO_WAIT = '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>';
-const TITOLI = { pPrenota: "Prenota", pMie: "Le mie lezioni", pProfilo: "Profilo" };
+const TITOLI = { pPrenota: "Prenota", pMie: "Le mie lezioni", pSchede: "Schede", pBacheca: "Bacheca", pProfilo: "Profilo" };
 let session = null, prof = null, lezioni = [], mie = [], giornoSel = null, catSel = "", vistaMie = "prossime", pagina = "pPrenota", recovery = false;
 
 const show = (id) => ["vLoad", "vAuth", "vApp"].forEach((v) => ($(v).hidden = v !== id));
@@ -145,7 +145,8 @@ function disegnaSettimana() {
 }
 
 async function ricarica() {
-  const [err, m] = await Promise.all([caricaLezioni(), sb.rpc("mie_prenotazioni")]);
+  const [err, m] = await Promise.all([caricaLezioni(), sb.rpc("mie_prenotazioni"), caricaPreferiti()]);
+  badgeBacheca();
   if (err) { $("slots").innerHTML = `<p class="empty"><b>Impossibile caricare le lezioni</b>${esc(err.message)}</p>`; }
   mie = m.error ? [] : (m.data || []).map(mappa);
   const prossime = mie.filter((x) => x.stato !== "annullata" && x.lezione_stato !== "annullata" && x.d > new Date());
@@ -168,9 +169,10 @@ document.addEventListener("visibilitychange", () => { if (!document.hidden && se
 
 function vai(p) {
   pagina = p;
-  ["pPrenota", "pMie", "pProfilo"].forEach((k) => ($(k).hidden = k !== p));
+  Object.keys(TITOLI).forEach((k) => ($(k).hidden = k !== p));
   document.querySelectorAll(".tabbar button").forEach((b) => (b.dataset.p === p ? b.setAttribute("aria-current", "page") : b.removeAttribute("aria-current")));
   $("hTitle").textContent = TITOLI[p];
+  if (p === "pSchede") caricaSchede(); if (p === "pBacheca") caricaBacheca();
   window.scrollTo(0, 0);
 }
 document.querySelector(".tabbar").addEventListener("click", (e) => { const b = e.target.closest("[data-p]"); if (b) vai(b.dataset.p); });
@@ -229,7 +231,7 @@ function riga(l) {
   const off = ann || (passata && !mia) || chiusa;
   return `<button class="les${ann || (passata && !mia) ? " off" : ""}" data-id="${l.id}" style="--c:${l.col}" ${off ? "disabled" : ""}>
     <span class="t">${fmt.time.format(l.d)}<small>${Math.round((l.f - l.d) / 60000)} min</small></span>
-    <span><b>${esc(l.corso)}</b><span class="s"><span class="ct">${esc(l.categoria)}</span> · ${esc(l.sala)}${posti ? ` · ${posti}` : ""}</span>
+    <span><b>${esc(l.corso)}${preferiti.has(corsoId(l)) ? ' <i class="hrt" title="Preferito">♥</i>' : ""}</b><span class="s"><span class="ct">${esc(l.categoria)}</span> · ${esc(l.sala)}${posti ? ` · ${posti}` : ""}</span>
       ${ann ? "" : `<span class="pb"><i class="${perc >= 100 ? "full" : perc >= 75 ? "mid" : ""}" style="width:${perc}%"></i></span>`}</span>
     ${tag}</button>`;
 }
@@ -241,7 +243,8 @@ $("slots").addEventListener("click", (e) => { const b = e.target.closest(".les[d
 const sheet = $("sheet");
 sheet.addEventListener("click", (e) => { if (e.target === sheet) sheet.close(); });
 function testa(l) {
-  return `<span class="k" style="color:${l.col}">${esc(l.categoria)}</span><h2 id="shTitle">${esc(l.corso)}</h2>
+  const cid = corsoId(l);
+  return `${cid ? `<button class="favbtn${preferiti.has(cid) ? " on" : ""}" data-fav="${cid}" type="button">${preferiti.has(cid) ? "♥ Preferito" : "♡ Preferito"}</button>` : ""}<span class="k" style="color:${l.col}">${esc(l.categoria)}</span><h2 id="shTitle">${esc(l.corso)}</h2>
     <div class="kv"><span>${esc(cap(fmt.day.format(l.d)))}</span><span>${fmt.time.format(l.d)}–${fmt.time.format(l.f)}</span><span>${esc(l.sala)}</span></div>`;
 }
 function apri(l) {
@@ -274,15 +277,17 @@ function apri(l) {
 function gestisci(p, l) {
   l = l || p;
   const futura = p.d > new Date() && p.stato !== "annullata" && p.lezione_stato !== "annullata";
+  const limite = p.annullabile_fino ? new Date(p.annullabile_fino) : p.d, puoAnnullare = futura && new Date() < limite;
   $("shBody").innerHTML = testa(l) + `
     <p style="margin-bottom:14px">${p.stato === "attesa" ? `<span class="tag wait">In lista d'attesa${p.posizione_attesa ? ` · ${p.posizione_attesa}°` : ""}</span>` : '<span class="tag ok">✓ Prenotazione confermata</span>'}</p>
     ${p.note ? `<p style="font-size:13.5px;color:#cfcfcf;margin-bottom:12px">Nota: «${esc(p.note)}»</p>` : ""}
-    <div class="btns">${futura ? '<button class="btn ghost" id="shIcs">Aggiungi al calendario</button><button class="btn ghost danger" id="shDel">Annulla prenotazione</button>' : ""}<button class="btn ghost" id="shNo">Chiudi</button></div>
+    ${futura ? `<p style="font-size:13px;color:#cfcfcf;margin-bottom:12px">${puoAnnullare ? `Puoi annullare fino a ${esc(fmt.dayShort.format(limite))} alle ${fmt.time.format(limite)}.` : "Il termine per annullare è passato: per disdire contatta la reception."}</p>` : ""}
+    <div class="btns">${futura ? `<button class="btn ghost" id="shIcs">Aggiungi al calendario</button>${puoAnnullare ? '<button class="btn ghost danger" id="shDel">Annulla prenotazione</button>' : '<a class="btn ghost" href="tel:+393337933400">Chiama la reception</a>'}` : ""}<button class="btn ghost" id="shNo">Chiudi</button></div>
     <p class="msg" id="shMsg"></p>`;
   $("shNo").onclick = () => sheet.close();
   if (futura) {
     $("shIcs").onclick = () => scaricaIcs({ id: p.id, corso: p.corso, sala: p.sala, inizio: p.d, fine: p.f });
-    $("shDel").onclick = async (ev) => {
+    if ($("shDel")) $("shDel").onclick = async (ev) => {
       const b = ev.currentTarget;
       if (b.dataset.sure !== "1") { b.dataset.sure = "1"; b.textContent = "Tocca di nuovo per confermare"; return; }
       busy(b, true, "Annullamento...");
@@ -297,7 +302,7 @@ function gestisci(p, l) {
 // ------------------------------------------------------------------ le mie
 function disegnaMie() {
   const now = new Date(), mese = dayKey(now).slice(0, 7);
-  const fatte = mie.filter((x) => x.stato === "confermata" && x.lezione_stato !== "annullata" && x.f <= now);
+  const fatte = mie.filter((x) => x.stato === "confermata" && x.lezione_stato !== "annullata" && x.f <= now && x.presenza !== false);
   const prossime = mie.filter((x) => x.stato !== "annullata" && x.lezione_stato !== "annullata" && x.d > now).sort((a, b) => a.d - b.d);
   const conta = {}; fatte.forEach((x) => (conta[x.corso] = (conta[x.corso] || 0) + 1));
   const pref = Object.entries(conta).sort((a, b) => b[1] - a[1])[0];
@@ -315,10 +320,12 @@ function disegnaMie() {
     if (vistaMie === "storico") { const mm = fmt.monthYear.format(x.d); if (mm !== m) { html += `<p class="month">${esc(mm)}</p>`; m = mm; } }
     const ann = x.stato === "annullata" || x.lezione_stato === "annullata", fut = vistaMie === "prossime";
     const tag = x.lezione_stato === "annullata" ? '<span class="tag x">Lezione annullata</span>' : x.stato === "annullata" ? '<span class="tag x">Annullata</span>'
-      : x.stato === "attesa" ? `<span class="tag wait">${fut ? `In attesa${x.posizione_attesa ? ` ${x.posizione_attesa}°` : ""}` : "Non confermata"}</span>` : `<span class="tag ok">${fut ? "Confermata" : "Frequentata"}</span>`;
+      : x.stato === "attesa" ? `<span class="tag wait">${fut ? `In attesa${x.posizione_attesa ? ` ${x.posizione_attesa}°` : ""}` : "Non confermata"}</span>` : x.presenza === false && !fut ? '<span class="tag x">Assente</span>' : `<span class="tag ok">${fut ? "Confermata" : "Frequentata"}</span>`;
+    const valutabile = !fut && x.stato === "confermata" && x.presenza !== false && x.lezione_stato !== "annullata" && x.f <= now && now - x.f < 14 * 86400000;
+    const stelle = x.voto ? `<span class="stars" title="Il tuo voto">${"★".repeat(x.voto)}${"☆".repeat(5 - x.voto)}</span>` : valutabile ? `<span class="rate" aria-label="Valuta la lezione">${[1, 2, 3, 4, 5].map((v) => `<button data-voto="${v}" data-pid="${x.id}" aria-label="${v} stelle">☆</button>`).join("")}</span>` : "";
     html += `<div class="bk${fut ? "" : " past"}${ann ? " x" : ""}" style="--c:${x.col}"><div class="d"><small>${esc(fmt.monthShort.format(x.d).replace(".", ""))}</small><b>${esc(fmt.dayNum.format(x.d))}</b></div>
       <div><h3>${esc(x.corso)}</h3><p>${esc(cap(fmt.dayShort.format(x.d)))} · ${fmt.time.format(x.d)} · ${esc(x.sala)}${fut ? ` · ${esc(relTime(x.d))}` : ""}</p>
-      <div class="row">${tag}${fut ? `<button data-ics="${x.id}">Calendario</button><button data-ges="${x.id}">Gestisci</button>` : ""}</div></div></div>`;
+      <div class="row">${tag}${stelle}${fut ? `<button data-ics="${x.id}">Calendario</button><button data-ges="${x.id}">Gestisci</button>` : ""}</div></div></div>`;
   });
   $("mieList").innerHTML = html;
 }
@@ -327,6 +334,7 @@ $("pMie").addEventListener("click", (e) => {
   const g = e.target.closest("[data-goto]"); if (g) return vai(g.dataset.goto);
   const i = e.target.closest("[data-ics]"); if (i) { const x = mie.find((p) => p.id === i.dataset.ics); if (x) scaricaIcs({ id: x.id, corso: x.corso, sala: x.sala, inizio: x.d, fine: x.f }); return; }
   const s = e.target.closest("[data-ges]"); if (s) { const x = mie.find((p) => p.id === s.dataset.ges); if (x) gestisci(x); }
+  const v = e.target.closest("[data-voto]"); if (v) valuta(v.dataset.pid, Number(v.dataset.voto));
 });
 
 // ------------------------------------------------------------------ profilo
@@ -390,7 +398,7 @@ async function statoNotifiche() {
   $("notifStato").textContent = "Notifiche attive su questo dispositivo.";
   const { data } = await sb.rpc("mie_notifiche");
   const f = $("fNotif"), p = data || {};
-  f.promemoria_min.value = String(p.promemoria_min ?? 120); f.lista.checked = p.lista !== false; f.annullate.checked = p.annullate !== false; f.avvisi.checked = p.avvisi !== false;
+  f.promemoria_min.value = String(p.promemoria_min ?? 120); f.lista.checked = p.lista !== false; f.annullate.checked = p.annullate !== false; f.avvisi.checked = p.avvisi !== false; f.settimana.checked = p.settimana !== false;
   f.hidden = false;
 }
 
@@ -412,7 +420,7 @@ $("notifBtn").onclick = async (ev) => {
 $("fNotif").addEventListener("submit", async (e) => {
   e.preventDefault(); const f = e.target, b = f.querySelector("[type=submit]");
   busy(b, true, "Salvataggio...");
-  const { error } = await sb.rpc("salva_notifiche", { p_promemoria_min: Number(f.promemoria_min.value), p_lista: f.lista.checked, p_annullate: f.annullate.checked, p_avvisi: f.avvisi.checked });
+  const { error } = await sb.rpc("salva_notifiche", { p_promemoria_min: Number(f.promemoria_min.value), p_lista: f.lista.checked, p_annullate: f.annullate.checked, p_avvisi: f.avvisi.checked, p_settimana: f.settimana.checked });
   busy(b, false);
   toast(error ? error.message : "Preferenze salvate.", !error);
 });
@@ -427,3 +435,77 @@ async function spegniPush() {
   try { await sub.unsubscribe(); } catch {}
 }
 $("notifOff").onclick = async () => { await spegniPush(); toast("Notifiche disattivate su questo dispositivo."); statoNotifiche(); };
+
+// ------------------------------------------------------------------ corsi preferiti
+let preferiti = new Set(), corsiAttivi = [];
+const corsoId = (l) => l.corso_id || corsiAttivi.find((c) => c.slug === l.slug)?.id || null;
+async function caricaPreferiti() {
+  const [p, c] = await Promise.all([sb.rpc("miei_preferiti"), corsiAttivi.length ? null : sb.from("corsi").select("id,slug,nome,categoria").eq("attivo", true).order("nome")]);
+  if (!p.error) preferiti = new Set((p.data || []).map((x) => (typeof x === "object" ? Object.values(x)[0] : x)));
+  if (c && !c.error) corsiAttivi = c.data || [];
+  disegnaPreferiti();
+}
+function disegnaPreferiti() {
+  const box = $("prefList"); if (!box) return;
+  box.innerHTML = corsiAttivi.map((c) => `<button type="button" class="chip${preferiti.has(c.id) ? " on" : ""}" data-fav="${c.id}" aria-pressed="${preferiti.has(c.id)}"><i style="background:${catColor(c.categoria)}"></i>${esc(c.nome)}</button>`).join("");
+}
+async function cambiaPreferito(id) {
+  const on = !preferiti.has(id);
+  const { error } = await sb.rpc("imposta_preferito", { p_corso_id: id, p_preferito: on });
+  if (error) return toast(error.message, false);
+  on ? preferiti.add(id) : preferiti.delete(id);
+  toast(on ? "Aggiunto ai preferiti: ti avvisiamo quando esce la nuova settimana." : "Tolto dai preferiti.");
+  disegnaPreferiti(); disegnaLezioni();
+  document.querySelectorAll(`.favbtn[data-fav="${id}"]`).forEach((b) => { b.classList.toggle("on", on); b.textContent = on ? "♥ Preferito" : "♡ Preferito"; });
+}
+document.addEventListener("click", (e) => { const b = e.target.closest("[data-fav]"); if (b) cambiaPreferito(Number(b.dataset.fav)); });
+
+// ------------------------------------------------------------------ valutazione lezione
+async function valuta(pid, voto) {
+  const { error } = await sb.rpc("valuta_lezione", { p_prenotazione_id: pid, p_voto: voto, p_commento: null });
+  if (error) return toast(error.message, false);
+  const x = mie.find((p) => p.id === pid); if (x) x.voto = voto;
+  toast("Grazie per la valutazione!"); disegnaMie();
+}
+
+// ------------------------------------------------------------------ schede
+async function caricaSchede() {
+  const { data, error } = await sb.rpc("mie_schede");
+  if (error) { $("schedeList").innerHTML = `<p class="empty"><b>Impossibile caricare le schede</b>${esc(error.message)}</p>`; return; }
+  schede = data || [];
+  $("schedeList").innerHTML = schede.map((s, k) => `<button class="sch" data-sch="${k}"><span class="tag${s.personale ? " ok" : ""}">${s.personale ? "Per te" : "Per tutti"}</span>
+    <b>${esc(s.titolo)}</b><small>${esc([s.obiettivo, s.livello].filter(Boolean).join(" · ") || "Scheda di allenamento")}</small>${s.descrizione ? `<p>${esc(s.descrizione)}</p>` : ""}</button>`).join("")
+    || '<div class="empty"><b>Ancora nessuna scheda</b>Quando la palestra pubblica una scheda di allenamento per te o per tutti la trovi qui.</div>';
+}
+let schede = [];
+$("schedeList").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-sch]"); if (!b) return;
+  const s = schede[Number(b.dataset.sch)];
+  $("shBody").innerHTML = `<span class="k" style="color:var(--red-hi)">${s.personale ? "Scheda per te" : "Scheda"}</span><h2>${esc(s.titolo)}</h2>
+    <div class="kv">${s.obiettivo ? `<span>${esc(s.obiettivo)}</span>` : ""}${s.livello ? `<span>${esc(s.livello)}</span>` : ""}<span>${esc(fmt.date.format(new Date(s.pubblicata_il)))}</span></div>
+    ${s.descrizione ? `<p style="color:#cfcfcf;margin-bottom:12px">${esc(s.descrizione)}</p>` : ""}<div class="schtxt">${esc(s.contenuto || "")}</div>
+    <div class="btns"><button class="btn ghost" id="shNo">Chiudi</button></div>`;
+  $("shNo").onclick = () => sheet.close();
+  sheet.showModal();
+});
+
+// ------------------------------------------------------------------ bacheca
+const LETTO = "whynot-bacheca-letto";
+const ultimoLetto = () => { try { return Number(localStorage.getItem(LETTO)) || 0; } catch { return 0; } };
+let avvisiApp = [];
+async function badgeBacheca() {
+  const { data } = await sb.rpc("bacheca");
+  avvisiApp = data || [];
+  const n = avvisiApp.filter((a) => a.id > ultimoLetto()).length;
+  $("nBac").textContent = n || "";
+  if (pagina === "pBacheca") disegnaBacheca();
+}
+async function caricaBacheca() { await badgeBacheca(); disegnaBacheca(); }
+function disegnaBacheca() {
+  const letto = ultimoLetto();
+  $("bachecaList").innerHTML = avvisiApp.map((a) => `<article class="avv${a.id > letto ? " nuovo" : ""}"><small>${esc(fmt.date.format(new Date(a.created_at)))}${a.id > letto ? " · nuovo" : ""}</small><h3>${esc(a.titolo)}</h3><p>${esc(a.testo)}</p></article>`).join("")
+    || '<div class="empty"><b>Nessun avviso</b>Qui trovi le comunicazioni della palestra degli ultimi 60 giorni.</div>';
+  const max = Math.max(0, ...avvisiApp.map((a) => a.id));
+  try { if (max) localStorage.setItem(LETTO, String(max)); } catch {}
+  $("nBac").textContent = "";
+}
