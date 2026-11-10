@@ -485,7 +485,7 @@ async function caricaSchede() {
   if (schFiltro) q = q.eq("stato", schFiltro);
   const [{ data, error }] = await Promise.all([q, iscritti ? null : caricaIscritti(true)]);
   if (error) { $("schede").innerHTML = `<p class="msg ko">${esc(error.message)}</p>`; return; }
-  const nomeDi = (uid) => (iscritti || []).find((i) => i.user_id === uid)?.nome || "un iscritto";
+  const nomeDi = (uid) => (iscritti || []).find((i) => i.user_id === uid)?.email || "un iscritto";
   $("schede").innerHTML = (data || []).map((s) => {
     const g = s.struttura?.giorni || [], nEs = g.reduce((t, d) => t + (d.esercizi || []).length, 0);
     return `<button class="sc" data-id="${s.id}"><span class="st ${s.stato}">${s.stato}</span><h3>${esc(s.titolo)}</h3>
@@ -573,13 +573,14 @@ $("edModelli").addEventListener("click", async (e) => {
 async function apriScheda(id) {
   await Promise.all([caricaCatalogo(), iscritti ? null : caricaIscritti(true)]);
   const f = $("schForm"); f.reset(); msg($("schMsg"), "");
-  $("schDest").innerHTML = '<option value="">Tutti gli iscritti</option>' + (iscritti || []).filter((i) => i.user_id && i.attivo).map((i) => `<option value="${i.user_id}">Solo ${esc(i.nome)}</option>`).join("");
+  $("schDestList").innerHTML = (iscritti || []).filter((i) => i.user_id && i.attivo).map((i) => `<option value="${esc(i.email)}">${esc(i.nome)}</option>`).join("");
   ed = { giorni: [{ nome: "Giorno A", note: "", esercizi: [] }] };
   f.elements.id.value = ""; $("schStato").textContent = "nuova"; $("schStato").className = "st";
   if (id) {
     const { data, error } = await sb.from("schede").select("*").eq("id", id).single();
     if (error) return toast(error.message, false);
-    ["titolo", "obiettivo", "livello", "descrizione", "member_id"].forEach((k) => (f.elements[k].value = data[k] ?? ""));
+    ["titolo", "obiettivo", "livello", "descrizione"].forEach((k) => (f.elements[k].value = data[k] ?? ""));
+    f.dest.value = data.member_id ? (iscritti || []).find((i) => i.user_id === data.member_id)?.email || "" : "";
     f.elements.id.value = data.id; $("schStato").textContent = data.stato; $("schStato").className = "st " + data.stato;
     const s = data.struttura;
     if (s?.giorni?.length) ed = { giorni: s.giorni.map((g) => ({ nome: g.nome || "Giorno", note: g.note || "", esercizi: (g.esercizi || []).map((x) => ({ ...x })) })) };
@@ -599,18 +600,21 @@ function testoScheda() {
 $("schForm").addEventListener("submit", async (e) => {
   e.preventDefault(); const f = e.target; const stato = e.submitter?.dataset.stato || "bozza";
   if (f.titolo.value.trim().length < 2) { f.titolo.focus(); return msg($("schMsg"), "Scrivi il titolo della scheda."); }
+  const mail = f.dest.value.trim().toLowerCase(), dest = mail ? (iscritti || []).find((i) => i.email === mail) : null;
+  if (mail && !dest) { f.dest.focus(); return msg($("schMsg"), `Nessun iscritto con l'email ${mail}.`); }
+  if (dest && !dest.user_id) { f.dest.focus(); return msg($("schMsg"), `${dest.nome} non ha ancora attivato l'app: la scheda non gli arriverebbe.`); }
   const vuoti = ed.giorni.filter((g) => !g.esercizi.length).length;
   if (stato === "pubblicata" && vuoti === ed.giorni.length && !ed.giorni.some((g) => g.note)) return msg($("schMsg"), "Aggiungi almeno un esercizio prima di pubblicare.");
   const struttura = { settimane: Number(f.settimane.value) || null, frequenza: Number(f.frequenza.value) || null, note: f.note.value.trim() || null,
     giorni: ed.giorni.map((g) => ({ nome: g.nome.trim() || "Giorno", note: g.note.trim() || null, esercizi: g.esercizi.map(({ id, nome, gruppo, tipo, serie, rip, carico, rec, note, ss }) =>
       ({ id, nome, gruppo, tipo, serie: Number(serie) || 1, rip: String(rip || "").trim(), carico: String(carico || "").trim() || null, rec: Number(rec) || 0, note: String(note || "").trim() || null, ss: !!ss })) })) };
   const row = { titolo: f.titolo.value.trim(), obiettivo: f.obiettivo.value.trim() || null, livello: f.livello.value || null, descrizione: f.descrizione.value.trim() || null,
-    member_id: f.member_id.value || null, stato, struttura, contenuto: testoScheda() };
+    member_id: dest ? dest.user_id : null, stato, struttura, contenuto: testoScheda() };
   if (stato === "pubblicata") row.pubblicata_il = new Date().toISOString();
   const res = f.elements.id.value ? await sb.from("schede").update(row).eq("id", f.elements.id.value).select("id").single() : await sb.from("schede").insert(row).select("id").single();
   if (res.error) return msg($("schMsg"), res.error.message);
   f.elements.id.value = res.data.id; $("schStato").textContent = stato; $("schStato").className = "st " + stato; msg($("schMsg"), "");
-  toast(stato === "pubblicata" ? `Scheda pubblicata: la vede ${row.member_id ? "l'iscritto scelto" : "ogni iscritto"} nell'app.` : stato === "archiviata" ? "Scheda archiviata." : "Bozza salvata.");
+  toast(stato === "pubblicata" ? `Scheda pubblicata: la vede ${dest ? dest.email : "ogni iscritto"} nell'app.` : stato === "archiviata" ? "Scheda archiviata." : "Bozza salvata.");
   caricaSchede();
 });
 
