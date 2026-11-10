@@ -78,7 +78,9 @@ async function rpc(env, nome, args) {
 // Un giro: legge la coda, invia, toglie gli abbonamenti scaduti. Restituisce un riepilogo per i log.
 export async function giroNotifiche(env) {
   if (!env.PUSH_SECRET || !env.VAPID_PRIVATE_KEY || !env.VAPID_PUBLIC_KEY) return { saltato: "PUSH_SECRET / VAPID_PRIVATE_KEY non configurati" };
-  const lista = await rpc(env, "push_da_inviare", { p_segreto: env.PUSH_SECRET, p_max: 200 });
+  // max 45 per giro: il piano Workers Free consente 50 richieste esterne per esecuzione (1 lettura + 45 invii + 1 pulizia);
+  // il resto resta in coda e parte al giro successivo (cron ogni minuto)
+  const lista = await rpc(env, "push_da_inviare", { p_segreto: env.PUSH_SECRET, p_max: 45 });
   const scadute = [], esiti = {};
   await Promise.all(lista.map(async (n) => {
     try {
