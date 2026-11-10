@@ -206,7 +206,9 @@
           <label>Obiettivo<input name="obiettivo" list="obList" maxlength="60" placeholder="es. tonificazione"></label>
           <datalist id="obList"><option>Tonificazione</option><option>Forza</option><option>Ipertrofia</option><option>Dimagrimento</option><option>Resistenza</option><option>Mobilità e postura</option><option>Ricondizionamento</option></datalist>
           <label>Livello<select name="livello"><option value="">—</option><option>principiante</option><option>intermedio</option><option>avanzato</option></select></label>
-          <label>Destinatario (email)<input name="dest" id="schDest" type="email" list="schDestList" autocomplete="off" placeholder="vuoto = tutti gli iscritti"><datalist id="schDestList"></datalist></label>
+          <div class="full destbox"><label for="schDest">Destinatari (email) <span class="mut" id="destInfo">nessuno = tutti gli iscritti</span></label>
+            <div class="destwrap"><span id="destChips"></span><input id="schDest" type="email" list="schDestList" autocomplete="off" placeholder="scrivi un'email e premi Invio"><button class="ghost sm" type="button" id="destAdd">Aggiungi</button></div>
+            <datalist id="schDestList"></datalist></div>
           <label>Settimane<input name="settimane" type="number" min="1" max="52" placeholder="es. 6"></label>
           <label>Allenamenti a settimana<input name="frequenza" type="number" min="1" max="7" placeholder="es. 3"></label>
           <label class="full">Descrizione breve (la vede l'iscritto)<input name="descrizione" maxlength="300" placeholder="es. Scheda base per riprendere ad allenarsi in sala"></label>

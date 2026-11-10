@@ -481,7 +481,7 @@ $("iscForm").addEventListener("submit", async (e) => {
 
 // ------------------------------------------------------------------ schede: elenco
 async function caricaSchede() {
-  let q = sb.from("schede").select("id,titolo,obiettivo,livello,stato,updated_at,member_id,struttura,contenuto").order("updated_at", { ascending: false });
+  let q = sb.from("schede").select("id,titolo,obiettivo,livello,stato,updated_at,member_id,destinatari,struttura,contenuto").order("updated_at", { ascending: false });
   if (schFiltro) q = q.eq("stato", schFiltro);
   const [{ data, error }] = await Promise.all([q, iscritti ? null : caricaIscritti(true)]);
   if (error) { $("schede").innerHTML = `<p class="msg ko">${esc(error.message)}</p>`; return; }
@@ -490,7 +490,7 @@ async function caricaSchede() {
     const g = s.struttura?.giorni || [], nEs = g.reduce((t, d) => t + (d.esercizi || []).length, 0);
     return `<button class="sc" data-id="${s.id}"><span class="st ${s.stato}">${s.stato}</span><h3>${esc(s.titolo)}</h3>
       <span class="mut">${esc([s.obiettivo, s.livello].filter(Boolean).join(" · ") || "—")}</span>
-      <span class="mut">${g.length ? `${g.length} ${g.length === 1 ? "giorno" : "giorni"} · ${nEs} esercizi` : s.contenuto ? "scheda di solo testo" : "vuota"} · ${s.member_id ? `per ${esc(nomeDi(s.member_id))}` : "per tutti"}</span>
+      <span class="mut">${g.length ? `${g.length} ${g.length === 1 ? "giorno" : "giorni"} · ${nEs} esercizi` : s.contenuto ? "scheda di solo testo" : "vuota"} · ${destTesto(s)}</span>
       <span class="mut">Aggiornata ${fa(s.updated_at)}</span></button>`;
   }).join("") || `<p class="empty" style="grid-column:1/-1">Nessuna scheda${schFiltro ? " in questo stato" : ""}. Creane una con «Nuova scheda»: puoi partire da un modello.</p>`;
 }
@@ -575,12 +575,13 @@ async function apriScheda(id) {
   const f = $("schForm"); f.reset(); msg($("schMsg"), "");
   $("schDestList").innerHTML = (iscritti || []).filter((i) => i.user_id && i.attivo).map((i) => `<option value="${esc(i.email)}">${esc(i.nome)}</option>`).join("");
   ed = { giorni: [{ nome: "Giorno A", note: "", esercizi: [] }] };
+  destSel = []; $("schDest").value = "";
   f.elements.id.value = ""; $("schStato").textContent = "nuova"; $("schStato").className = "st";
   if (id) {
     const { data, error } = await sb.from("schede").select("*").eq("id", id).single();
     if (error) return toast(error.message, false);
     ["titolo", "obiettivo", "livello", "descrizione"].forEach((k) => (f.elements[k].value = data[k] ?? ""));
-    f.dest.value = data.member_id ? (iscritti || []).find((i) => i.user_id === data.member_id)?.email || "" : "";
+    destSel = data.destinatari?.length ? [...data.destinatari] : data.member_id ? [data.member_id] : [];
     f.elements.id.value = data.id; $("schStato").textContent = data.stato; $("schStato").className = "st " + data.stato;
     const s = data.struttura;
     if (s?.giorni?.length) ed = { giorni: s.giorni.map((g) => ({ nome: g.nome || "Giorno", note: g.note || "", esercizi: (g.esercizi || []).map((x) => ({ ...x })) })) };
@@ -588,6 +589,7 @@ async function apriScheda(id) {
     f.settimane.value = s?.settimane || ""; f.frequenza.value = s?.frequenza || ""; f.note.value = s?.note || "";
   }
   gSel = 0; libGruppo = ""; $("libQ").value = ""; $("libAttr").value = "";
+  disegnaDest();
   disegnaEditor(); disegnaLibreria();
   $("dSch").showModal();
   if (!id) f.titolo.focus();
@@ -600,21 +602,19 @@ function testoScheda() {
 $("schForm").addEventListener("submit", async (e) => {
   e.preventDefault(); const f = e.target; const stato = e.submitter?.dataset.stato || "bozza";
   if (f.titolo.value.trim().length < 2) { f.titolo.focus(); return msg($("schMsg"), "Scrivi il titolo della scheda."); }
-  const mail = f.dest.value.trim().toLowerCase(), dest = mail ? (iscritti || []).find((i) => i.email === mail) : null;
-  if (mail && !dest) { f.dest.focus(); return msg($("schMsg"), `Nessun iscritto con l'email ${mail}.`); }
-  if (dest && !dest.user_id) { f.dest.focus(); return msg($("schMsg"), `${dest.nome} non ha ancora attivato l'app: la scheda non gli arriverebbe.`); }
+  if ($("schDest").value.trim() && !aggiungiDest()) return;   // email scritta ma non ancora aggiunta
   const vuoti = ed.giorni.filter((g) => !g.esercizi.length).length;
   if (stato === "pubblicata" && vuoti === ed.giorni.length && !ed.giorni.some((g) => g.note)) return msg($("schMsg"), "Aggiungi almeno un esercizio prima di pubblicare.");
   const struttura = { settimane: Number(f.settimane.value) || null, frequenza: Number(f.frequenza.value) || null, note: f.note.value.trim() || null,
     giorni: ed.giorni.map((g) => ({ nome: g.nome.trim() || "Giorno", note: g.note.trim() || null, esercizi: g.esercizi.map(({ id, nome, gruppo, tipo, serie, rip, carico, rec, note, ss }) =>
       ({ id, nome, gruppo, tipo, serie: Number(serie) || 1, rip: String(rip || "").trim(), carico: String(carico || "").trim() || null, rec: Number(rec) || 0, note: String(note || "").trim() || null, ss: !!ss })) })) };
   const row = { titolo: f.titolo.value.trim(), obiettivo: f.obiettivo.value.trim() || null, livello: f.livello.value || null, descrizione: f.descrizione.value.trim() || null,
-    member_id: dest ? dest.user_id : null, stato, struttura, contenuto: testoScheda() };
+    member_id: null, destinatari: destSel.length ? destSel : null, stato, struttura, contenuto: testoScheda() };
   if (stato === "pubblicata") row.pubblicata_il = new Date().toISOString();
   const res = f.elements.id.value ? await sb.from("schede").update(row).eq("id", f.elements.id.value).select("id").single() : await sb.from("schede").insert(row).select("id").single();
   if (res.error) return msg($("schMsg"), res.error.message);
   f.elements.id.value = res.data.id; $("schStato").textContent = stato; $("schStato").className = "st " + stato; msg($("schMsg"), "");
-  toast(stato === "pubblicata" ? `Scheda pubblicata: la vede ${dest ? dest.email : "ogni iscritto"} nell'app.` : stato === "archiviata" ? "Scheda archiviata." : "Bozza salvata.");
+  toast(stato === "pubblicata" ? `Scheda pubblicata: la vedono ${destSel.length ? `${destSel.length} ${destSel.length === 1 ? "iscritto" : "iscritti"}` : "tutti gli iscritti"} nell'app.` : stato === "archiviata" ? "Scheda archiviata." : "Bozza salvata.");
   caricaSchede();
 });
 
@@ -1146,3 +1146,39 @@ function disegnaValutazioni(V) {
       <div class="legend" style="margin-top:8px">${[5, 4, 3, 2, 1].map((s) => `<span><i class="ds" style="--s:${s}"></i>${s}★</span>`).join("")}</div></details>
     ${C.length ? `<h3 class="vh" style="margin-top:16px">Ultimi commenti</h3><div class="feed">${C.map((c) => `<div class="fi"><div><b>${esc(c.corso)}</b> <span class="stars-a">${"★".repeat(c.voto)}</span><small style="white-space:normal">«${esc(c.commento)}»</small><small>${esc(c.autore)} · ${esc(fDate.format(new Date(c.quando)))}</small></div></div>`).join("")}</div>` : ""}`;
 }
+
+// ------------------------------------------------------------------ schede: destinatari multipli (per email, univoca)
+let destSel = [];
+const iscrittoDi = (uid) => (iscritti || []).find((i) => i.user_id === uid);
+function destTesto(s) {
+  const L = s.destinatari?.length ? s.destinatari : s.member_id ? [s.member_id] : [];
+  if (!L.length) return "per tutti";
+  const prime = L.slice(0, 2).map((u) => esc(iscrittoDi(u)?.email || "iscritto rimosso")).join(", ");
+  return `per ${prime}${L.length > 2 ? ` e altri ${L.length - 2}` : ""}`;
+}
+function disegnaDest() {
+  $("destChips").innerHTML = destSel.map((u) => { const i = iscrittoDi(u);
+    return `<span class="dchip" title="${esc(i?.nome || "")}">${esc(i?.email || "iscritto rimosso")}<button type="button" data-rmd="${u}" aria-label="Togli ${esc(i?.email || "")}">&times;</button></span>`; }).join("");
+  $("destInfo").textContent = destSel.length ? `${destSel.length} ${destSel.length === 1 ? "iscritto" : "iscritti"}` : "nessuno = tutti gli iscritti";
+  // nei suggerimenti solo chi ha l'app attiva e non è già scelto
+  $("schDestList").innerHTML = (iscritti || []).filter((i) => i.user_id && i.attivo && !destSel.includes(i.user_id)).map((i) => `<option value="${esc(i.email)}">${esc(i.nome)}</option>`).join("");
+}
+function aggiungiDest() {
+  const campo = $("schDest"), voci = campo.value.split(/[\s,;]+/).map((x) => x.trim().toLowerCase()).filter(Boolean);
+  if (!voci.length) return true;
+  const errori = [];
+  voci.forEach((mail) => {
+    const i = (iscritti || []).find((x) => x.email === mail);
+    if (!i) errori.push(`nessun iscritto con l'email ${mail}`);
+    else if (!i.user_id) errori.push(`${i.nome} non ha ancora attivato l'app`);
+    else if (!destSel.includes(i.user_id)) destSel.push(i.user_id);
+  });
+  campo.value = ""; disegnaDest();
+  if (errori.length) { msg($("schMsg"), errori.join("; ") + "."); campo.focus(); return false; }
+  msg($("schMsg"), ""); return true;
+}
+$("destAdd").onclick = () => aggiungiDest();
+$("schDest").addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === ",") { e.preventDefault(); aggiungiDest(); } });
+// scelta dai suggerimenti: aggiunge subito
+$("schDest").addEventListener("input", (e) => { const v = e.target.value.trim().toLowerCase(); if ((iscritti || []).some((i) => i.email === v && i.user_id) && e.inputType !== "insertText") aggiungiDest(); });
+$("destChips").addEventListener("click", (e) => { const b = e.target.closest("[data-rmd]"); if (b) { destSel = destSel.filter((u) => u !== b.dataset.rmd); disegnaDest(); } });
