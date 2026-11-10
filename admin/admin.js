@@ -408,6 +408,17 @@ async function apriIscritto(id, codice) {
     const { data } = await sb.from("prenotazioni").select("id,stato,origine,created_at,lezione_id,lezioni(inizio,fine,sala,stato,corsi(nome,categoria))").eq("member_id", i.user_id);
     P = (data || []).filter((p) => p.lezioni).sort((a, b) => new Date(b.lezioni.inizio) - new Date(a.lezioni.inizio));
   }
+  // carichi registrati dall'iscritto in modalità allenamento (ultimi 90 giorni)
+  let carichiHtml = "";
+  if (i.user_id) {
+    const { data: C } = await sb.rpc("admin_carichi", { p_user: i.user_id, p_giorni: 90 });
+    const gruppi = [];
+    (C || []).forEach((r) => { const k = r.data + "|" + r.esercizio; let g = gruppi.find((x) => x.k === k); if (!g) gruppi.push((g = { k, data: r.data, esercizio: r.esercizio, serie: [] })); g.serie.push(r); });
+    const fK = (v) => (v == null ? "—" : String(Number(v)).replace(".", ","));
+    carichiHtml = `<div class="sec"><h3>Carichi registrati (90 giorni)</h3>${gruppi.length ? `<div class="wrap-tbl"><table class="tbl"><thead><tr><th>Data</th><th>Esercizio</th><th>Serie (kg × rip)</th></tr></thead><tbody>${
+      gruppi.slice(0, 60).map((g) => `<tr><td>${esc(fDate.format(noon(g.data)))}</td><td>${esc(g.esercizio)}</td><td>${g.serie.sort((a, b) => a.serie - b.serie).map((r) => `${fK(r.kg)}${r.rip != null ? ` × ${r.rip}` : ""}`).join(" · ")}</td></tr>`).join("")}</tbody></table></div>`
+      : "<p class=\"empty\">Nessun carico registrato: l'iscritto li segna dall'app in modalità allenamento.</p>"}</div>`;
+  }
   const riga = (p) => { const d = new Date(p.lezioni.inizio);
     return `<button class="tli${p.stato === "annullata" ? " x done" : d.getTime() < now ? " done" : ""}" data-lez="${p.lezione_id}" style="--c:${catColor(p.lezioni.corsi.categoria)}"><span class="t">${esc(fDn.format(d))}<small>${esc(F({ month: "short" }).format(d))}</small></span><span class="s"></span>
       <span><b>${esc(p.lezioni.corsi.nome)}</b><span class="sub">${esc(fWd.format(d))} ${fTime.format(d)} · ${esc(p.lezioni.sala)}</span></span><span class="fill">${p.stato === "confermata" ? (d.getTime() < now ? "frequentata" : "confermata") : esc(p.stato)}</span></button>`; };
@@ -430,6 +441,7 @@ async function apriIscritto(id, codice) {
       ${mioRuolo === "admin" ? `<div class="box"><h3 class="mut" style="font-size:12px;letter-spacing:1.2px;text-transform:uppercase;margin-bottom:6px">Collaboratore</h3>
         <p class="mut" style="margin-bottom:10px">${i.user_id ? "Dà accesso all'area staff (questa dashboard) con il suo account." : "Il ruolo diventa attivo quando attiva l'app."}</p>
         <div class="acts-row"><select id="iscRuolo" style="width:auto"><option value="">Nessuno (solo iscritto)</option><option value="staff" ${i.ruolo_staff === "staff" ? "selected" : ""}>Staff</option><option value="admin" ${i.ruolo_staff === "admin" ? "selected" : ""}>Admin</option><option value="istruttore" ${i.ruolo_staff === "istruttore" ? "selected" : ""}>Istruttore</option></select><button class="ghost sm" type="button" id="iscRuoloOk">Applica</button></div></div>` : ""}
+      ${carichiHtml}
       <form class="sec box" id="iscEdit"><h3>Dati iscritto</h3>
         <div class="form2"><label class="full">Nome e cognome<input name="nome" value="${esc(i.nome)}" required minlength="2"></label><label>Telefono<input name="telefono" value="${esc(i.telefono || "")}"></label><label>Email<input value="${esc(i.email)}" readonly title="L'email è quella di accesso all'app"></label>
         <label class="full">Note interne<input name="note" value="${esc(i.note || "")}" placeholder="es. abbonamento annuale"></label>

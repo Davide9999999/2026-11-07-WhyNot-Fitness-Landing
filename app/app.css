@@ -235,3 +235,16 @@ dialog.sheet.tall .sh{min-height:88vh}
 .sets button[aria-pressed="true"]{background:var(--ok);border-color:var(--ok);color:#0b2a07}
 .wtimer{position:sticky;bottom:calc(8px + var(--sb));margin-top:12px;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 16px;border-radius:16px;background:var(--red);color:#fff;font-size:18px;font-weight:800;box-shadow:0 14px 40px -10px #000;font-variant-numeric:tabular-nums}
 .wtimer button{padding:8px 14px;border-radius:999px;background:rgba(0,0,0,.25);font-weight:700;font-size:13px}
+/* carichi */
+.wlast{font-size:12.5px;color:#cfcfcf;margin-top:6px}
+.wsug{font-size:12.5px;color:#c5f2b8;margin-top:4px;font-weight:600}
+.srows{display:flex;flex-direction:column;gap:6px;margin-top:10px}
+.srow{display:grid;grid-template-columns:28px minmax(0,1fr) 14px minmax(0,1fr) 48px;gap:6px;align-items:center}
+.srow .sn{display:grid;place-items:center;width:28px;height:28px;border-radius:8px;background:var(--card2);font-size:12px;font-weight:800;color:#ccc}
+.srow label{position:relative;margin:0;flex-direction:row}
+.srow input{padding:10px 30px 10px 10px;font-size:17px;font-weight:700;text-align:right;font-variant-numeric:tabular-nums}
+.srow small{position:absolute;right:9px;top:50%;transform:translateY(-50%);font-size:11px;color:var(--mut);font-weight:600}
+.srow .sx{text-align:center;color:var(--mut)}
+.sok{width:48px;height:46px;border-radius:12px;border:1px solid var(--line2);background:#141414;font-size:20px;font-weight:800;color:#777}
+.sok[aria-pressed="true"]{background:var(--ok);border-color:var(--ok);color:#0b2a07}
+.srow.fatta input{opacity:.75}

@@ -511,26 +511,45 @@ async function caricaSchede() {
 }
 $("schedeList").addEventListener("click", (e) => { const b = e.target.closest("[data-sch]"); if (b) apriSchedaApp(schede[Number(b.dataset.sch)]); });
 
-// ------------------------------------------------------------------ schede: lettura e modalità allenamento
+// ------------------------------------------------------------------ schede: lettura e modalità allenamento (con carichi)
 let wo = null, timer = null;
 const fmtRec = (s) => (!s ? "" : s >= 60 ? `${Math.floor(s / 60)}'${s % 60 ? String(s % 60).padStart(2, "0") + '"' : ""}` : `${s}"`);
-const chiaveWo = (s, g) => `whynot-wo-${s.id}-${g}-${dayKey(new Date())}`;
-function leggiWo(k) { try { return JSON.parse(localStorage.getItem(k)) || {}; } catch { return {}; } }
-function scriviWo(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }
+const fmtKg = (v) => (v == null || v === "" ? "" : String(Number(v)).replace(".", ","));
+const numero = (v) => { const n = parseFloat(String(v ?? "").replace(",", ".")); return Number.isFinite(n) ? n : null; };
+const conCarico = (x) => !x.tipo || x.tipo === "forza";
+const oggiK = () => dayKey(new Date());
+const fDataBreve = new Intl.DateTimeFormat("it-IT", { timeZone: "Europe/Rome", day: "numeric", month: "short" });
 
 async function apriSchedaApp(s) {
-  wo = { s, g: 0, attivo: false };
+  wo = { s, g: 0, attivo: false, reg: [], bozza: {} };
   const ids = [...new Set((s.struttura?.giorni || []).flatMap((g) => (g.esercizi || []).map((x) => x.id)).filter((id) => id && !cues.has(id)))];
-  if (ids.length) {
-    const { data } = await sb.from("esercizi").select("id,descrizione,attrezzo").in("id", ids);
-    (data || []).forEach((x) => cues.set(x.id, x));
-  }
+  const [, r] = await Promise.all([
+    ids.length ? sb.from("esercizi").select("id,descrizione,attrezzo").in("id", ids).then(({ data }) => (data || []).forEach((x) => cues.set(x.id, x))) : null,
+    s.struttura?.giorni?.length ? sb.rpc("miei_carichi") : { data: [] },
+  ]);
+  wo.reg = r?.data || [];
   sheet.classList.add("tall");
   disegnaScheda();
   if (!sheet.open) sheet.showModal();
 }
 sheet.addEventListener("close", () => { sheet.classList.remove("tall"); fermaTimer(); wo = null; });
 
+// serie già fatte oggi (dal database) per l'esercizio i del giorno corrente
+const fatteOggi = (i) => wo.reg.filter((r) => r.scheda_id === wo.s.id && r.giorno === wo.g && r.esercizio_idx === i && r.data === oggiK());
+// ultima sessione precedente dello stesso esercizio (anche da altre schede)
+function ultimaVolta(x) {
+  const prima = wo.reg.filter((r) => r.data < oggiK() && (x.id ? r.esercizio_id === x.id : r.esercizio === x.nome));
+  if (!prima.length) return null;
+  const d = prima[0].data;   // già ordinate per data decrescente
+  return { data: d, serie: prima.filter((r) => r.data === d).sort((a, b) => a.serie - b.serie) };
+}
+function suggerimento(x, uv) {
+  if (!uv || !conCarico(x)) return "";
+  const obiettivo = Math.max(...String(x.rip || "").split(/[^0-9]+/).map(Number).filter(Boolean), 0);
+  const kg = Math.max(...uv.serie.map((r) => Number(r.kg) || 0));
+  if (!obiettivo || !kg || uv.serie.length < (Number(x.serie) || 1)) return "";
+  return uv.serie.every((r) => (r.rip || 0) >= obiettivo) ? `Ultima volta hai completato tutte le ripetizioni: prova ${fmtKg(kg + (kg >= 40 ? 2.5 : 1))} kg.` : "";
+}
 function etichette(L) {
   let gr = 0, pos = 0;
   return L.map((x, k) => { if (k === 0 || !L[k - 1].ss) { gr++; pos = 1; } else pos++; return x.ss || (k > 0 && L[k - 1].ss) ? `${"ABCDEFGHIJ"[(gr - 1) % 10]}${pos}` : String(k + 1); });
@@ -543,48 +562,90 @@ function disegnaScheda() {
     $("shBody").innerHTML = testa + `${s.descrizione ? `<p class="sdesc">${esc(s.descrizione)}</p>` : ""}<div class="schtxt">${esc(s.contenuto || "")}</div><div class="btns"><button class="btn ghost" id="shNo">Chiudi</button></div>`;
     $("shNo").onclick = () => sheet.close(); return;
   }
-  const g = G[wo.g], L = g.esercizi || [], et = etichette(L), k = chiaveWo(s, wo.g), fatto = leggiWo(k);
-  const totSerie = L.reduce((t, x) => t + (Number(x.serie) || 1), 0), fatte = L.reduce((t, x, i) => t + (fatto[i] || []).filter(Boolean).length, 0);
+  const g = G[wo.g], L = g.esercizi || [], et = etichette(L);
+  const totSerie = L.reduce((t, x) => t + (Number(x.serie) || 1), 0), fatte = L.reduce((t, x, i) => t + fatteOggi(i).length, 0);
   $("shBody").innerHTML = testa
     + (s.descrizione && !wo.attivo ? `<p class="sdesc">${esc(s.descrizione)}</p>` : "")
     + (G.length > 1 ? `<div class="seg sm wseg">${G.map((d, i) => `<button type="button" data-wg="${i}" aria-selected="${i === wo.g}">${esc(d.nome)}</button>`).join("")}</div>` : "")
-    + (wo.attivo ? `<div class="wprog"><span>${fatte} di ${totSerie} serie</span><i><b style="width:${Math.round((100 * fatte) / Math.max(1, totSerie))}%"></b></i></div>` : "")
+    + (wo.attivo || fatte ? `<div class="wprog"><span>${fatte} di ${totSerie} serie oggi</span><i><b style="width:${Math.round((100 * fatte) / Math.max(1, totSerie))}%"></b></i></div>` : "")
     + (g.note ? `<p class="wnote">${esc(g.note)}</p>` : "")
-    + `<div class="wl">${L.map((x, i) => {
-        const c = cues.get(x.id), n = Number(x.serie) || 1, d = fatto[i] || [];
-        const param = [`${n} × ${esc(x.rip || "")}`, x.carico ? esc(x.carico) : "", x.rec ? `rec ${fmtRec(x.rec)}` : ""].filter(Boolean).join(" · ");
-        const completo = d.filter(Boolean).length >= n;
-        return `<div class="wx${x.ss ? " ss" : ""}${wo.attivo && completo ? " ok" : ""}">
-          <span class="wn">${et[i]}</span>
-          <div class="wb"><b>${esc(x.nome)}</b><small>${esc(x.gruppo || "")}${c?.attrezzo ? ` · ${esc(c.attrezzo)}` : ""}</small>
-            <p class="wp">${param}</p>${x.ss ? '<p class="wss">in superserie con il successivo: niente recupero in mezzo</p>' : ""}
-            ${x.note ? `<p class="wnn">${esc(x.note)}</p>` : ""}
-            ${c?.descrizione ? `<details><summary>Come si esegue</summary><p>${esc(c.descrizione)}</p></details>` : ""}
-            ${wo.attivo ? `<div class="sets">${Array.from({ length: n }, (_, j) => `<button type="button" data-set="${i}:${j}" aria-pressed="${!!d[j]}" aria-label="Serie ${j + 1}">${d[j] ? "✓" : j + 1}</button>`).join("")}</div>` : ""}
-          </div></div>`;
-      }).join("")}</div>`
+    + `<div class="wl">${L.map((x, i) => cardEsercizio(x, i, et[i])).join("")}</div>`
     + (st.note && !wo.attivo ? `<p class="wnote">${esc(st.note)}</p>` : "")
-    + `<div class="btns">${wo.attivo ? `<button class="btn" id="woFine">Termina allenamento</button>` : `<button class="btn" id="woVia">▶ Inizia allenamento</button>`}<button class="btn ghost" id="shNo">Chiudi</button></div>`
+    + `<div class="btns">${wo.attivo ? `<button class="btn" id="woFine">Termina allenamento</button>` : `<button class="btn" id="woVia">▶ ${fatte ? "Continua" : "Inizia"} allenamento</button>`}<button class="btn ghost" id="shNo">Chiudi</button></div>`
     + '<div class="wtimer" id="wTimer" hidden><span id="wTxt"></span><button type="button" id="wSkip">Salta</button></div>';
   $("shNo").onclick = () => sheet.close();
   $("woVia")?.addEventListener("click", () => { wo.attivo = true; disegnaScheda(); });
   $("woFine")?.addEventListener("click", () => {
-    const tot = Object.values(leggiWo(k)).reduce((t, a) => t + a.filter(Boolean).length, 0);
-    toast(tot ? `Allenamento completato: ${tot} serie. Ottimo lavoro!` : "Allenamento chiuso.");
+    const n = L.reduce((t, x, i) => t + fatteOggi(i).length, 0);
+    const vol = L.reduce((t, x, i) => t + fatteOggi(i).reduce((a, r) => a + (Number(r.kg) || 0) * (r.rip || 0), 0), 0);
+    toast(n ? `Allenamento completato: ${n} serie${vol ? ` · ${Math.round(vol).toLocaleString("it-IT")} kg sollevati` : ""}. Ottimo lavoro!` : "Allenamento chiuso.");
     wo.attivo = false; fermaTimer(); disegnaScheda();
   });
   $("wSkip").onclick = fermaTimer;
 }
-document.addEventListener("click", (e) => {
+function cardEsercizio(x, i, etichetta) {
+  const c = cues.get(x.id), n = Number(x.serie) || 1, oggi = fatteOggi(i), uv = ultimaVolta(x), sug = suggerimento(x, uv);
+  const param = [`${n} × ${esc(x.rip || "")}`, x.carico ? esc(x.carico) : "", x.rec ? `rec ${fmtRec(x.rec)}` : ""].filter(Boolean).join(" · ");
+  const ultima = uv && conCarico(x) ? `<p class="wlast">Ultima volta (${esc(fDataBreve.format(new Date(uv.data + "T12:00:00Z")))}): ${uv.serie.map((r) => `${r.kg != null ? fmtKg(r.kg) + " kg" : "—"}${r.rip != null ? ` × ${r.rip}` : ""}`).join(" · ")}</p>` : "";
+  let serie = "";
+  if (wo.attivo && conCarico(x)) {
+    const pianificati = numero(x.carico), obiettivo = (String(x.rip || "").match(/\d+/g) || []).map(Number).pop() ?? "";
+    serie = `<div class="srows">${Array.from({ length: n }, (_, j) => {
+      const fatta = oggi.find((r) => r.serie === j + 1), b = wo.bozza[`${i}:${j}`] || {}, prec = uv?.serie[Math.min(j, uv.serie.length - 1)];
+      const kg = fatta ? fmtKg(fatta.kg) : b.kg ?? fmtKg(prec?.kg ?? pianificati ?? ""), rip = fatta ? fatta.rip ?? "" : b.rip ?? (prec?.rip ?? obiettivo);
+      return `<div class="srow${fatta ? " fatta" : ""}"><span class="sn">${j + 1}</span>
+        <label><input inputmode="decimal" data-kg="${i}:${j}" value="${esc(kg)}" placeholder="kg" aria-label="Chili serie ${j + 1}" ${fatta ? "disabled" : ""}><small>kg</small></label><span class="sx">×</span>
+        <label><input inputmode="numeric" data-rp="${i}:${j}" value="${esc(rip)}" placeholder="rip" aria-label="Ripetizioni serie ${j + 1}" ${fatta ? "disabled" : ""}><small>rip</small></label>
+        <button type="button" class="sok" data-ok="${i}:${j}" aria-pressed="${!!fatta}" aria-label="${fatta ? "Annulla serie" : "Serie fatta"} ${j + 1}">✓</button></div>`;
+    }).join("")}</div>`;
+  } else if (wo.attivo) {
+    serie = `<div class="sets">${Array.from({ length: n }, (_, j) => { const f = oggi.some((r) => r.serie === j + 1); return `<button type="button" data-set="${i}:${j}" aria-pressed="${f}" aria-label="Serie ${j + 1}">${f ? "✓" : j + 1}</button>`; }).join("")}</div>`;
+  }
+  return `<div class="wx${x.ss ? " ss" : ""}${oggi.length >= n ? " ok" : ""}">
+    <span class="wn">${etichetta}</span>
+    <div class="wb"><b>${esc(x.nome)}</b><small>${esc(x.gruppo || "")}${c?.attrezzo ? ` · ${esc(c.attrezzo)}` : ""}</small>
+      <p class="wp">${param}</p>${x.ss ? '<p class="wss">in superserie con il successivo: niente recupero in mezzo</p>' : ""}
+      ${x.note ? `<p class="wnn">${esc(x.note)}</p>` : ""}${ultima}${sug && wo.attivo ? `<p class="wsug">${esc(sug)}</p>` : ""}
+      ${c?.descrizione ? `<details><summary>Come si esegue</summary><p>${esc(c.descrizione)}</p></details>` : ""}${serie}
+    </div></div>`;
+}
+// valori scritti ma non ancora confermati: non si perdono quando la scheda si ridisegna
+document.addEventListener("input", (e) => {
+  if (!wo) return;
+  const k = e.target.dataset.kg || e.target.dataset.rp; if (!k) return;
+  wo.bozza[k] = wo.bozza[k] || {}; wo.bozza[k][e.target.dataset.kg ? "kg" : "rip"] = e.target.value;
+});
+async function registraSerie(i, j, fatta, kg, rip) {
+  const x = wo.s.struttura.giorni[wo.g].esercizi[i];
+  const args = { p_scheda_id: wo.s.id, p_giorno: wo.g, p_idx: i, p_serie: j + 1 };
+  const { error } = fatta
+    ? await sb.rpc("salva_carico", { ...args, p_esercizio_id: x.id || null, p_esercizio: x.nome, p_kg: kg, p_rip: rip })
+    : await sb.rpc("togli_carico", args);
+  if (error) { toast(error.message, false); return false; }
+  wo.reg = wo.reg.filter((r) => !(r.scheda_id === wo.s.id && r.giorno === wo.g && r.esercizio_idx === i && r.serie === j + 1 && r.data === oggiK()));
+  if (fatta) wo.reg.unshift({ scheda_id: wo.s.id, giorno: wo.g, esercizio_idx: i, esercizio_id: x.id || null, esercizio: x.nome, data: oggiK(), serie: j + 1, kg, rip });
+  return true;
+}
+document.addEventListener("click", async (e) => {
   if (!wo) return;
   const t = e.target.closest("[data-wg]"); if (t) { wo.g = Number(t.dataset.wg); fermaTimer(); disegnaScheda(); return; }
-  const b = e.target.closest("[data-set]"); if (!b) return;
-  const [i, j] = b.dataset.set.split(":").map(Number), k = chiaveWo(wo.s, wo.g), stato = leggiWo(k);
-  stato[i] = stato[i] || []; stato[i][j] = !stato[i][j]; scriviWo(k, stato);
+  const ok = e.target.closest("[data-ok]"), bub = e.target.closest("[data-set]");
+  if (!ok && !bub) return;
+  const [i, j] = (ok || bub).dataset[ok ? "ok" : "set"].split(":").map(Number);
   const x = wo.s.struttura.giorni[wo.g].esercizi[i];
+  const gia = fatteOggi(i).some((r) => r.serie === j + 1);
+  let kg = null, rip = null;
+  if (ok && !gia) {
+    kg = numero(document.querySelector(`[data-kg="${i}:${j}"]`)?.value);
+    rip = numero(document.querySelector(`[data-rp="${i}:${j}"]`)?.value);
+    if (kg != null && (kg < 0 || kg > 1000)) return toast("Controlla i chili: valore non valido.", false);
+    if (rip != null) rip = Math.round(rip);
+  }
+  (ok || bub).disabled = true;
+  if (!(await registraSerie(i, j, !gia, kg, rip))) { (ok || bub).disabled = false; return; }
+  delete wo.bozza[`${i}:${j}`];
   disegnaScheda();
-  // recupero: dopo una serie fatta, se l'esercizio ha un recupero e non è in superserie con il successivo
-  if (stato[i][j] && x.rec && !x.ss) avviaTimer(x.rec);
+  if (!gia && x.rec && !x.ss) avviaTimer(x.rec);
 });
 function avviaTimer(sec) {
   fermaTimer();
@@ -593,6 +654,7 @@ function avviaTimer(sec) {
   box.hidden = false;
   const tick = () => {
     const r = Math.max(0, Math.round((fine - Date.now()) / 1000));
+    if (!$("wTxt")) return fermaTimer();
     $("wTxt").textContent = r ? `Recupero ${Math.floor(r / 60)}:${String(r % 60).padStart(2, "0")}` : "Recupero finito: vai!";
     if (!r) { clearInterval(timer); timer = null; try { navigator.vibrate?.([200, 100, 200]); } catch {} setTimeout(() => { if (!timer && $("wTimer")) $("wTimer").hidden = true; }, 2500); }
   };
