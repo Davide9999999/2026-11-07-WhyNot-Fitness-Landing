@@ -1,0 +1,46 @@
+# Backup giornaliero del database WHY NOT (Supabase Free non fa backup).
+# Scarica i dati con la funzione backup_dati, li comprime e li cifra (AES-256) con il secret BACKUP_SEGRETO,
+# e li conserva come artifact per 90 giorni. Il repository è pubblico: senza il segreto il file è illeggibile.
+# Ripristino: vedi docs/2026-11-09-WhyNot-Admin-README.md, sezione "Backup".
+name: Backup database
+
+on:
+  schedule:
+    - cron: "30 2 * * *"   # ogni notte alle 02:30 UTC
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Scarica, comprimi e cifra
+        id: b
+        env:
+          SEGRETO: ${{ secrets.BACKUP_SEGRETO }}
+          SB_URL: https://fnyvsawkdiloyujoiumx.supabase.co
+          SB_KEY: sb_publishable_AoAkme4i4S0AAG1q4jW-SQ_roh-_ke_
+        run: |
+          set -euo pipefail
+          if [ -z "$SEGRETO" ]; then echo "::error::Manca il secret BACKUP_SEGRETO nelle impostazioni del repository"; exit 1; fi
+          curl -sSf --retry 3 -X POST "$SB_URL/rest/v1/rpc/backup_dati" \
+            -H "apikey: $SB_KEY" -H "Authorization: Bearer $SB_KEY" -H "Content-Type: application/json" \
+            --data "{\"p_segreto\":\"$SEGRETO\"}" -o backup.json
+          # controllo: JSON valido e conteggio righe per tabella (nessun dato personale nei log)
+          python3 -c "import json; d=json.load(open('backup.json')); print({k: len(v) for k, v in d['tabelle'].items()})"
+          NOME="whynot-backup-$(date -u +%Y-%m-%d)"
+          gzip -9 backup.json
+          openssl enc -aes-256-cbc -pbkdf2 -iter 200000 -salt -pass env:SEGRETO -in backup.json.gz -out "$NOME.json.gz.enc"
+          rm backup.json.gz
+          echo "nome=$NOME" >> "$GITHUB_OUTPUT"
+
+      - name: Conserva 90 giorni
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.b.outputs.nome }}
+          path: ${{ steps.b.outputs.nome }}.json.gz.enc
+          retention-days: 90
+          if-no-files-found: error

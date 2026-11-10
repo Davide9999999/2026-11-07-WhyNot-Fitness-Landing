@@ -117,3 +117,26 @@ Pagine: `/prenota/` (ora pubblica, in sitemap e nel menu) e `/area-personale/` (
 - **Carichi** (`supabase/2026-11-10-WhyNot-carichi.sql`, eseguito): in modalità allenamento kg e ripetizioni per ogni serie, salvati nel database; «Ultima volta» e suggerimento di aumento (+2,5 kg da 40 kg in su, +1 kg sotto) quando l'ultima sessione ha completato tutte le ripetizioni. Lo staff li vede nella scheda dell'iscritto (ultimi 90 giorni).
 - **Scadenza schede**: inizio (campo «Inizio», di default il giorno della prima pubblicazione) + numero di settimane. Filtri «In scadenza (7 gg)» e «Scadute» in Schede, etichetta sulle schede, avviso in Panoramica. Le schede senza settimane non scadono.
 - Le vecchie schede di solo testo restano leggibili; aprendole nell'editor il testo finisce nelle note del primo giorno.
+
+## 12. Backup e ripristino (2026-11-10) — `supabase/2026-11-10-WhyNot-backup.sql` (eseguito)
+Il piano Supabase Free non fa backup. Ogni notte alle 02:30 UTC il workflow GitHub `.github/workflows/backup.yml`:
+1. chiama `backup_dati` (protetta dal segreto `BACKUP_SEGRETO`; nel database c'è solo il suo hash);
+2. comprime e **cifra** (AES-256) tutte le tabelle applicative più la corrispondenza id utente → email (senza password);
+3. conserva il file `whynot-backup-AAAA-MM-GG.json.gz.enc` come artifact per **90 giorni** (GitHub → Actions → Backup database → esecuzione → Artifacts). Si può lanciare anche a mano con «Run workflow».
+
+**Configurazione (una volta):** GitHub → Settings → Secrets and variables → Actions → New repository secret → nome `BACKUP_SEGRETO`, valore = il segreto consegnato. **Conservalo in un password manager: senza, i backup sono illeggibili.**
+
+**Attenzione:** nei repository pubblici GitHub disattiva i workflow programmati dopo 60 giorni senza attività sul repository (arriva un'email): riattivalo con «Enable workflow».
+
+### Ripristino (in Git Bash, nella cartella del progetto)
+1. Scarica l'artifact della data voluta ed estrai lo zip.
+2. Decifra (chiede il segreto):
+   `openssl enc -d -aes-256-cbc -pbkdf2 -iter 200000 -in whynot-backup-AAAA-MM-GG.json.gz.enc | gunzip > backup.json`
+3. Genera lo script SQL:
+   - **Anteprima, non tocca nulla** (consigliato come primo passo): `perl tools/ripristino-backup.pl backup.json > ripristino.sql` → copia i dati nello schema `ripristino`, dove si confrontano con quelli attuali e si recupera solo il necessario (es. `insert into public.prenotazioni select * from ripristino.prenotazioni where id = '…'`). A fine lavoro: `drop schema ripristino cascade;`
+   - **Sovrascrivere tabelle**: `perl tools/ripristino-backup.pl backup.json --sovrascrivi prenotazioni,schede > ripristino.sql` (oppure `--sovrascrivi tutte`). Tutto o niente; durante il caricamento i trigger sono sospesi, quindi non parte nessuna notifica.
+4. Supabase → SQL Editor → incolla il contenuto di `ripristino.sql` → Run.
+
+**Progetto perso:** nuovo progetto Supabase → eseguire in ordine i file `supabase/*.sql` → `--sovrascrivi tutte` → aggiornare URL e chiave in `assets/supabase-config.js` e nelle variabili del Worker → reinserire i segreti (push, backup). Le password non sono nel backup: gli iscritti si riattivano con un nuovo codice e i loro dati vanno ricollegati ai nuovi id utente tramite la tabella `_utenti` (email) dell'anteprima.
+
+Collaudo del 2026-11-10: anteprima e sovrascrittura (completa e di una sola tabella) su schemi di prova, confronto riga per riga con i dati reali: 17 tabelle identiche, contatori id corretti.
