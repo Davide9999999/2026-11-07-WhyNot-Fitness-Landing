@@ -356,7 +356,7 @@ export default {
       if (request.method !== "POST") return json({ error: "Metodo non consentito" }, 405);
       // giro di invio notifiche a richiesta (diagnosi): serve lo stesso PUSH_SECRET del Worker
       if (url.pathname === "/api/push/giro") {
-        const conf = { PUSH_SECRET: !!env.PUSH_SECRET, VAPID_PRIVATE_KEY: !!env.VAPID_PRIVATE_KEY, VAPID_PUBLIC_KEY: !!env.VAPID_PUBLIC_KEY, lunghezzaChiavePrivata: pulisci(env.VAPID_PRIVATE_KEY, "VAPID_PRIVATE_KEY").length, attesa: 43 };
+        const conf = { PUSH_SECRET: !!env.PUSH_SECRET, VAPID_PRIVATE_KEY: !!env.VAPID_PRIVATE_KEY, VAPID_PUBLIC_KEY: !!env.VAPID_PUBLIC_KEY, lunghezzaChiavePrivata: pulisci(env.VAPID_PRIVATE_KEY, "VAPID_PRIVATE_KEY").length, attesa: 43, versione: "2026-11-10-lotto45" };
         if (!env.PUSH_SECRET || request.headers.get("x-push-secret") !== env.PUSH_SECRET) return json({ error: "Non autorizzato", configurato: conf }, 401);
         try { return json({ configurato: conf, esito: await giroNotifiche(env) }); } catch (e) { return json({ configurato: conf, error: String(e.message || e) }, 500); }
       }
