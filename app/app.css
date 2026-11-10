@@ -194,9 +194,6 @@ select{font:inherit;font-size:16px;color:var(--txt);background:#0d0d0d;border:1p
 .chips.wrap{flex-wrap:wrap;overflow:visible;margin:0;padding:0}
 .chip.on{background:rgba(224,34,51,.18);border-color:rgba(224,34,51,.6);color:#fff}
 .stars{color:#f0b33c;letter-spacing:1px;font-size:14px}
-.rate{display:inline-flex;gap:0}
-.rate button{font-size:20px;line-height:1;color:#f0b33c;padding:2px 3px;border:0!important;border-radius:6px!important}
-.rate:hover button{color:#f0b33c}.rate button:hover~button{color:#666}
 .sch{display:flex;flex-direction:column;gap:4px;width:100%;text-align:left;padding:16px;border-radius:18px;background:var(--card);border:1px solid var(--line)}
 .sch b{font-size:16px}.sch small{color:var(--mut);font-size:12.5px}.sch p{font-size:13.5px;color:#cfcfcf;margin-top:4px}
 .sch .tag{align-self:flex-start}
@@ -205,4 +202,13 @@ select{font:inherit;font-size:16px;color:var(--txt);background:#0d0d0d;border:1p
 .avv.nuovo{border-color:rgba(224,34,51,.55)}
 .avv small{color:var(--mut);font-size:12px}.avv.nuovo small{color:#ffc2c6}
 .avv h3{font-size:16px;margin:2px 0 6px}.avv p{font-size:14px;color:#d4d4d4;white-space:pre-wrap}
-.rate.big{display:flex;justify-content:center;gap:6px;margin:6px 0 14px}.rate.big button{font-size:38px;padding:4px}
+/* valutazione: pulsante nell'elenco e popup con stelle grandi */
+.valbtn{display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:6px 14px!important;border-radius:999px!important;border:1px solid rgba(240,179,60,.55)!important;background:rgba(240,179,60,.12);color:#ffe2a6!important;font-weight:800!important;font-size:13px!important}
+.valbtn.fatto{background:transparent;color:#ddd!important;border-color:var(--line2)!important}
+.rate.big{display:flex;justify-content:center;gap:8px;margin:10px 0 4px}
+.rate.big button{width:54px;height:54px;border-radius:14px;border:1px solid var(--line2);background:#141414;font-size:34px;line-height:1;color:#555;transition:transform .1s,color .1s,background .1s}
+.rate.big button.on{color:#f0b33c;background:rgba(240,179,60,.12);border-color:rgba(240,179,60,.5)}
+.rate.big button:active{transform:scale(.92)}
+.giudizio{text-align:center;font-size:14px;font-weight:700;color:#ffe2a6;min-height:22px;margin-bottom:12px}
+.btn:disabled{opacity:.45;cursor:default}
+@media(max-width:360px){.rate.big{gap:5px}.rate.big button{width:48px;height:48px;font-size:30px}}

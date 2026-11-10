@@ -322,7 +322,10 @@ function disegnaMie() {
     const tag = x.lezione_stato === "annullata" ? '<span class="tag x">Lezione annullata</span>' : x.stato === "annullata" ? '<span class="tag x">Annullata</span>'
       : x.stato === "attesa" ? `<span class="tag wait">${fut ? `In attesa${x.posizione_attesa ? ` ${x.posizione_attesa}°` : ""}` : "Non confermata"}</span>` : x.presenza === false && !fut ? '<span class="tag x">Assente</span>' : `<span class="tag ok">${fut ? "Confermata" : "Frequentata"}</span>`;
     const valutabile = !fut && x.stato === "confermata" && x.presenza !== false && x.lezione_stato !== "annullata" && x.f <= now && now - x.f < 14 * 86400000;
-    const stelle = x.voto ? `<span class="stars" title="Il tuo voto">${"★".repeat(x.voto)}${"☆".repeat(5 - x.voto)}</span>` : valutabile ? `<span class="rate" aria-label="Valuta la lezione">${[1, 2, 3, 4, 5].map((v) => `<button data-voto="${v}" data-pid="${x.id}" aria-label="${v} stelle">☆</button>`).join("")}</span>` : "";
+    // un solo pulsante grande che apre il popup (niente stelle piccole cliccabili nell'elenco)
+    const stelle = valutabile
+      ? `<button class="valbtn${x.voto ? " fatto" : ""}" data-val="${x.id}">${x.voto ? `<span class="stars">${"★".repeat(x.voto)}${"☆".repeat(5 - x.voto)}</span> Modifica` : "★ Valuta la lezione"}</button>`
+      : x.voto ? `<span class="stars" title="Il tuo voto">${"★".repeat(x.voto)}${"☆".repeat(5 - x.voto)}</span>` : "";
     html += `<div class="bk${fut ? "" : " past"}${ann ? " x" : ""}" style="--c:${x.col}"><div class="d"><small>${esc(fmt.monthShort.format(x.d).replace(".", ""))}</small><b>${esc(fmt.dayNum.format(x.d))}</b></div>
       <div><h3>${esc(x.corso)}</h3><p>${esc(cap(fmt.dayShort.format(x.d)))} · ${fmt.time.format(x.d)} · ${esc(x.sala)}${fut ? ` · ${esc(relTime(x.d))}` : ""}</p>
       <div class="row">${tag}${stelle}${fut ? `<button data-ics="${x.id}">Calendario</button><button data-ges="${x.id}">Gestisci</button>` : ""}</div></div></div>`;
@@ -334,7 +337,7 @@ $("pMie").addEventListener("click", (e) => {
   const g = e.target.closest("[data-goto]"); if (g) return vai(g.dataset.goto);
   const i = e.target.closest("[data-ics]"); if (i) { const x = mie.find((p) => p.id === i.dataset.ics); if (x) scaricaIcs({ id: x.id, corso: x.corso, sala: x.sala, inizio: x.d, fine: x.f }); return; }
   const s = e.target.closest("[data-ges]"); if (s) { const x = mie.find((p) => p.id === s.dataset.ges); if (x) gestisci(x); }
-  const v = e.target.closest("[data-voto]"); if (v) valuta(v.dataset.pid, Number(v.dataset.voto));
+  const v = e.target.closest("[data-val]"); if (v) valuta(v.dataset.val);
 });
 
 // ------------------------------------------------------------------ profilo
@@ -461,23 +464,34 @@ async function cambiaPreferito(id) {
 document.addEventListener("click", (e) => { const b = e.target.closest("[data-fav]"); if (b) cambiaPreferito(Number(b.dataset.fav)); });
 
 // ------------------------------------------------------------------ valutazione lezione
-// tocco sulle stelle -> scheda con le stelle scelte e un commento facoltativo
-function valuta(pid, voto) {
+// popup di valutazione: stelle grandi, voto scelto con calma e confermato con "Invia"; si può modificare entro 14 giorni
+const GIUDIZI = ["", "Pessima", "Scarsa", "Nella media", "Buona", "Ottima"];
+function valuta(pid) {
   const x = mie.find((p) => p.id === pid); if (!x) return;
-  let v = voto;
-  const disegnaStelle = () => [1, 2, 3, 4, 5].map((s) => `<button type="button" data-s="${s}" aria-label="${s} stelle">${s <= v ? "★" : "☆"}</button>`).join("");
-  $("shBody").innerHTML = `<span class="k" style="color:${x.col}">Valuta la lezione</span><h2>${esc(x.corso)}</h2>
+  let v = x.voto || 0;
+  const disegna = () => {
+    $("vStelle").innerHTML = [1, 2, 3, 4, 5].map((s) => `<button type="button" data-s="${s}" aria-label="${s} ${s === 1 ? "stella" : "stelle"}: ${GIUDIZI[s]}" aria-pressed="${s === v}" class="${s <= v ? "on" : ""}">★</button>`).join("");
+    $("vGiudizio").textContent = v ? `${v} ${v === 1 ? "stella" : "stelle"} · ${GIUDIZI[v]}` : "Tocca una stella per scegliere il voto";
+    $("vOk").disabled = !v;
+  };
+  $("shBody").innerHTML = `<span class="k" style="color:${x.col}">${x.voto ? "Modifica la valutazione" : "Valuta la lezione"}</span><h2>${esc(x.corso)}</h2>
     <div class="kv"><span>${esc(cap(fmt.day.format(x.d)))}</span><span>${fmt.time.format(x.d)}</span></div>
-    <div class="rate big" id="vStelle">${disegnaStelle()}</div>
+    <div class="rate big" id="vStelle" role="radiogroup" aria-label="Voto da 1 a 5"></div>
+    <p class="giudizio" id="vGiudizio" aria-live="polite"></p>
     <label>Commento <small>(facoltativo, lo legge la palestra)</small><textarea id="vComm" maxlength="300" placeholder="Cosa ti è piaciuto? Cosa miglioreresti?"></textarea></label>
-    <div class="btns"><button class="btn" id="vOk">Invia valutazione</button><button class="btn ghost" id="shNo">Annulla</button></div><p class="msg" id="shMsg"></p>`;
-  $("vStelle").onclick = (e) => { const b = e.target.closest("[data-s]"); if (b) { v = Number(b.dataset.s); $("vStelle").innerHTML = disegnaStelle(); } };
+    <div class="btns"><button class="btn" id="vOk">${x.voto ? "Salva la modifica" : "Invia valutazione"}</button><button class="btn ghost" id="shNo">Annulla</button></div><p class="msg" id="shMsg"></p>`;
+  $("vComm").value = x.commento || "";
+  disegna();
+  $("vStelle").onclick = (e) => { const b = e.target.closest("[data-s]"); if (b) { v = Number(b.dataset.s); disegna(); } };
   $("shNo").onclick = () => sheet.close();
   $("vOk").onclick = async (ev) => {
+    if (!v) return;
     const b = ev.currentTarget; busy(b, true, "Invio...");
-    const { error } = await sb.rpc("valuta_lezione", { p_prenotazione_id: pid, p_voto: v, p_commento: $("vComm").value.trim() || null });
+    const comm = $("vComm").value.trim() || null;
+    const { error } = await sb.rpc("valuta_lezione", { p_prenotazione_id: pid, p_voto: v, p_commento: comm });
     if (error) { busy(b, false); return msg($("shMsg"), error.message); }
-    x.voto = v; sheet.close(); toast("Grazie per la valutazione!"); disegnaMie();
+    const nuovo = !x.voto; x.voto = v; x.commento = comm;
+    sheet.close(); toast(nuovo ? "Grazie per la valutazione!" : "Valutazione aggiornata."); disegnaMie();
   };
   sheet.showModal();
 }
