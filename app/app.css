@@ -212,3 +212,26 @@ select{font:inherit;font-size:16px;color:var(--txt);background:#0d0d0d;border:1p
 .giudizio{text-align:center;font-size:14px;font-weight:700;color:#ffe2a6;min-height:22px;margin-bottom:12px}
 .btn:disabled{opacity:.45;cursor:default}
 @media(max-width:360px){.rate.big{gap:5px}.rate.big button{width:48px;height:48px;font-size:30px}}
+/* schede: lettura e modalità allenamento */
+dialog.sheet.tall .sh{min-height:88vh}
+.sdesc{color:#cfcfcf;font-size:14px;margin-bottom:12px}
+.wseg{margin:0 0 12px}
+.wprog{display:flex;align-items:center;gap:10px;font-size:13px;font-weight:700;margin-bottom:12px}
+.wprog i{flex:1;height:8px;border-radius:9px;background:rgba(255,255,255,.08);overflow:hidden}.wprog b{display:block;height:100%;background:var(--ok);border-radius:9px}
+.wnote{font-size:13.5px;color:#ffe2a6;background:rgba(240,179,60,.08);border:1px solid rgba(240,179,60,.25);border-radius:12px;padding:10px 12px;margin-bottom:12px}
+.wl{display:flex;flex-direction:column;gap:8px;margin-bottom:6px}
+.wx{display:grid;grid-template-columns:36px minmax(0,1fr);gap:10px;padding:12px;border-radius:16px;background:var(--card);border:1px solid var(--line)}
+.wx.ss{border-bottom-left-radius:4px;border-bottom-right-radius:4px;margin-bottom:-6px;border-bottom-color:rgba(240,179,60,.35)}
+.wx.ss+.wx{border-top-left-radius:4px;border-top-right-radius:4px;border-top-color:rgba(240,179,60,.35)}
+.wx.ok{border-color:rgba(111,211,90,.55);background:rgba(111,211,90,.06)}
+.wn{display:grid;place-items:center;width:34px;height:34px;border-radius:10px;background:var(--card2);font-weight:800;font-size:13px}
+.wb b{display:block;font-size:15.5px;line-height:1.25}.wb small{color:var(--mut);font-size:12px}
+.wp{font-size:15px;font-weight:800;color:#fff;margin-top:6px}
+.wss{font-size:12px;color:#ffe2a6;margin-top:2px}
+.wnn{font-size:13px;color:#cfcfcf;margin-top:4px}
+.wb details{margin-top:6px}.wb summary{font-size:12.5px;color:#bbb;cursor:pointer}.wb details p{font-size:13.5px;color:#d4d4d4;margin-top:6px;line-height:1.5}
+.sets{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.sets button{width:44px;height:44px;border-radius:12px;border:1px solid var(--line2);background:#141414;font-weight:800;font-size:15px;color:#ddd}
+.sets button[aria-pressed="true"]{background:var(--ok);border-color:var(--ok);color:#0b2a07}
+.wtimer{position:sticky;bottom:calc(8px + var(--sb));margin-top:12px;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 16px;border-radius:16px;background:var(--red);color:#fff;font-size:18px;font-weight:800;box-shadow:0 14px 40px -10px #000;font-variant-numeric:tabular-nums}
+.wtimer button{padding:8px 14px;border-radius:999px;background:rgba(0,0,0,.25);font-weight:700;font-size:13px}

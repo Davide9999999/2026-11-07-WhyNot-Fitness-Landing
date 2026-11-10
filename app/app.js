@@ -496,26 +496,109 @@ function valuta(pid) {
   sheet.showModal();
 }
 
-// ------------------------------------------------------------------ schede
+// ------------------------------------------------------------------ schede: elenco
+let schede = [], cues = new Map();
 async function caricaSchede() {
   const { data, error } = await sb.rpc("mie_schede");
   if (error) { $("schedeList").innerHTML = `<p class="empty"><b>Impossibile caricare le schede</b>${esc(error.message)}</p>`; return; }
   schede = data || [];
-  $("schedeList").innerHTML = schede.map((s, k) => `<button class="sch" data-sch="${k}"><span class="tag${s.personale ? " ok" : ""}">${s.personale ? "Per te" : "Per tutti"}</span>
-    <b>${esc(s.titolo)}</b><small>${esc([s.obiettivo, s.livello].filter(Boolean).join(" · ") || "Scheda di allenamento")}</small>${s.descrizione ? `<p>${esc(s.descrizione)}</p>` : ""}</button>`).join("")
-    || '<div class="empty"><b>Ancora nessuna scheda</b>Quando la palestra pubblica una scheda di allenamento per te o per tutti la trovi qui.</div>';
+  $("schedeList").innerHTML = schede.map((s, k) => {
+    const g = s.struttura?.giorni || [], nEs = g.reduce((t, d) => t + (d.esercizi || []).length, 0);
+    const info = [g.length ? `${g.length} ${g.length === 1 ? "allenamento" : "allenamenti"}` : "", nEs ? `${nEs} esercizi` : "", s.struttura?.frequenza ? `${s.struttura.frequenza} volte a settimana` : "", s.struttura?.settimane ? `${s.struttura.settimane} settimane` : ""].filter(Boolean).join(" · ");
+    return `<button class="sch" data-sch="${k}"><span class="tag${s.personale ? " ok" : ""}">${s.personale ? "Per te" : "Per tutti"}</span>
+      <b>${esc(s.titolo)}</b><small>${esc([s.obiettivo, s.livello].filter(Boolean).join(" · ") || "Scheda di allenamento")}</small>${info ? `<small>${esc(info)}</small>` : ""}${s.descrizione ? `<p>${esc(s.descrizione)}</p>` : ""}</button>`;
+  }).join("") || '<div class="empty"><b>Ancora nessuna scheda</b>Quando la palestra pubblica una scheda di allenamento per te o per tutti la trovi qui.</div>';
 }
-let schede = [];
-$("schedeList").addEventListener("click", (e) => {
-  const b = e.target.closest("[data-sch]"); if (!b) return;
-  const s = schede[Number(b.dataset.sch)];
-  $("shBody").innerHTML = `<span class="k" style="color:var(--red-hi)">${s.personale ? "Scheda per te" : "Scheda"}</span><h2>${esc(s.titolo)}</h2>
-    <div class="kv">${s.obiettivo ? `<span>${esc(s.obiettivo)}</span>` : ""}${s.livello ? `<span>${esc(s.livello)}</span>` : ""}<span>${esc(fmt.date.format(new Date(s.pubblicata_il)))}</span></div>
-    ${s.descrizione ? `<p style="color:#cfcfcf;margin-bottom:12px">${esc(s.descrizione)}</p>` : ""}<div class="schtxt">${esc(s.contenuto || "")}</div>
-    <div class="btns"><button class="btn ghost" id="shNo">Chiudi</button></div>`;
+$("schedeList").addEventListener("click", (e) => { const b = e.target.closest("[data-sch]"); if (b) apriSchedaApp(schede[Number(b.dataset.sch)]); });
+
+// ------------------------------------------------------------------ schede: lettura e modalità allenamento
+let wo = null, timer = null;
+const fmtRec = (s) => (!s ? "" : s >= 60 ? `${Math.floor(s / 60)}'${s % 60 ? String(s % 60).padStart(2, "0") + '"' : ""}` : `${s}"`);
+const chiaveWo = (s, g) => `whynot-wo-${s.id}-${g}-${dayKey(new Date())}`;
+function leggiWo(k) { try { return JSON.parse(localStorage.getItem(k)) || {}; } catch { return {}; } }
+function scriviWo(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }
+
+async function apriSchedaApp(s) {
+  wo = { s, g: 0, attivo: false };
+  const ids = [...new Set((s.struttura?.giorni || []).flatMap((g) => (g.esercizi || []).map((x) => x.id)).filter((id) => id && !cues.has(id)))];
+  if (ids.length) {
+    const { data } = await sb.from("esercizi").select("id,descrizione,attrezzo").in("id", ids);
+    (data || []).forEach((x) => cues.set(x.id, x));
+  }
+  sheet.classList.add("tall");
+  disegnaScheda();
+  if (!sheet.open) sheet.showModal();
+}
+sheet.addEventListener("close", () => { sheet.classList.remove("tall"); fermaTimer(); wo = null; });
+
+function etichette(L) {
+  let gr = 0, pos = 0;
+  return L.map((x, k) => { if (k === 0 || !L[k - 1].ss) { gr++; pos = 1; } else pos++; return x.ss || (k > 0 && L[k - 1].ss) ? `${"ABCDEFGHIJ"[(gr - 1) % 10]}${pos}` : String(k + 1); });
+}
+function disegnaScheda() {
+  const s = wo.s, st = s.struttura, G = st?.giorni || [];
+  const testa = `<span class="k" style="color:var(--red-hi)">${s.personale ? "Scheda per te" : "Scheda"}</span><h2>${esc(s.titolo)}</h2>
+    <div class="kv">${[s.obiettivo, s.livello, st?.frequenza ? `${st.frequenza}× a settimana` : "", st?.settimane ? `${st.settimane} settimane` : ""].filter(Boolean).map((t) => `<span>${esc(t)}</span>`).join("")}</div>`;
+  if (!G.length) {   // vecchia scheda di solo testo
+    $("shBody").innerHTML = testa + `${s.descrizione ? `<p class="sdesc">${esc(s.descrizione)}</p>` : ""}<div class="schtxt">${esc(s.contenuto || "")}</div><div class="btns"><button class="btn ghost" id="shNo">Chiudi</button></div>`;
+    $("shNo").onclick = () => sheet.close(); return;
+  }
+  const g = G[wo.g], L = g.esercizi || [], et = etichette(L), k = chiaveWo(s, wo.g), fatto = leggiWo(k);
+  const totSerie = L.reduce((t, x) => t + (Number(x.serie) || 1), 0), fatte = L.reduce((t, x, i) => t + (fatto[i] || []).filter(Boolean).length, 0);
+  $("shBody").innerHTML = testa
+    + (s.descrizione && !wo.attivo ? `<p class="sdesc">${esc(s.descrizione)}</p>` : "")
+    + (G.length > 1 ? `<div class="seg sm wseg">${G.map((d, i) => `<button type="button" data-wg="${i}" aria-selected="${i === wo.g}">${esc(d.nome)}</button>`).join("")}</div>` : "")
+    + (wo.attivo ? `<div class="wprog"><span>${fatte} di ${totSerie} serie</span><i><b style="width:${Math.round((100 * fatte) / Math.max(1, totSerie))}%"></b></i></div>` : "")
+    + (g.note ? `<p class="wnote">${esc(g.note)}</p>` : "")
+    + `<div class="wl">${L.map((x, i) => {
+        const c = cues.get(x.id), n = Number(x.serie) || 1, d = fatto[i] || [];
+        const param = [`${n} × ${esc(x.rip || "")}`, x.carico ? esc(x.carico) : "", x.rec ? `rec ${fmtRec(x.rec)}` : ""].filter(Boolean).join(" · ");
+        const completo = d.filter(Boolean).length >= n;
+        return `<div class="wx${x.ss ? " ss" : ""}${wo.attivo && completo ? " ok" : ""}">
+          <span class="wn">${et[i]}</span>
+          <div class="wb"><b>${esc(x.nome)}</b><small>${esc(x.gruppo || "")}${c?.attrezzo ? ` · ${esc(c.attrezzo)}` : ""}</small>
+            <p class="wp">${param}</p>${x.ss ? '<p class="wss">in superserie con il successivo: niente recupero in mezzo</p>' : ""}
+            ${x.note ? `<p class="wnn">${esc(x.note)}</p>` : ""}
+            ${c?.descrizione ? `<details><summary>Come si esegue</summary><p>${esc(c.descrizione)}</p></details>` : ""}
+            ${wo.attivo ? `<div class="sets">${Array.from({ length: n }, (_, j) => `<button type="button" data-set="${i}:${j}" aria-pressed="${!!d[j]}" aria-label="Serie ${j + 1}">${d[j] ? "✓" : j + 1}</button>`).join("")}</div>` : ""}
+          </div></div>`;
+      }).join("")}</div>`
+    + (st.note && !wo.attivo ? `<p class="wnote">${esc(st.note)}</p>` : "")
+    + `<div class="btns">${wo.attivo ? `<button class="btn" id="woFine">Termina allenamento</button>` : `<button class="btn" id="woVia">▶ Inizia allenamento</button>`}<button class="btn ghost" id="shNo">Chiudi</button></div>`
+    + '<div class="wtimer" id="wTimer" hidden><span id="wTxt"></span><button type="button" id="wSkip">Salta</button></div>';
   $("shNo").onclick = () => sheet.close();
-  sheet.showModal();
+  $("woVia")?.addEventListener("click", () => { wo.attivo = true; disegnaScheda(); });
+  $("woFine")?.addEventListener("click", () => {
+    const tot = Object.values(leggiWo(k)).reduce((t, a) => t + a.filter(Boolean).length, 0);
+    toast(tot ? `Allenamento completato: ${tot} serie. Ottimo lavoro!` : "Allenamento chiuso.");
+    wo.attivo = false; fermaTimer(); disegnaScheda();
+  });
+  $("wSkip").onclick = fermaTimer;
+}
+document.addEventListener("click", (e) => {
+  if (!wo) return;
+  const t = e.target.closest("[data-wg]"); if (t) { wo.g = Number(t.dataset.wg); fermaTimer(); disegnaScheda(); return; }
+  const b = e.target.closest("[data-set]"); if (!b) return;
+  const [i, j] = b.dataset.set.split(":").map(Number), k = chiaveWo(wo.s, wo.g), stato = leggiWo(k);
+  stato[i] = stato[i] || []; stato[i][j] = !stato[i][j]; scriviWo(k, stato);
+  const x = wo.s.struttura.giorni[wo.g].esercizi[i];
+  disegnaScheda();
+  // recupero: dopo una serie fatta, se l'esercizio ha un recupero e non è in superserie con il successivo
+  if (stato[i][j] && x.rec && !x.ss) avviaTimer(x.rec);
 });
+function avviaTimer(sec) {
+  fermaTimer();
+  const fine = Date.now() + sec * 1000, box = $("wTimer");
+  if (!box) return;
+  box.hidden = false;
+  const tick = () => {
+    const r = Math.max(0, Math.round((fine - Date.now()) / 1000));
+    $("wTxt").textContent = r ? `Recupero ${Math.floor(r / 60)}:${String(r % 60).padStart(2, "0")}` : "Recupero finito: vai!";
+    if (!r) { clearInterval(timer); timer = null; try { navigator.vibrate?.([200, 100, 200]); } catch {} setTimeout(() => { if (!timer && $("wTimer")) $("wTimer").hidden = true; }, 2500); }
+  };
+  tick(); timer = setInterval(tick, 250);
+}
+function fermaTimer() { if (timer) clearInterval(timer); timer = null; if ($("wTimer")) $("wTimer").hidden = true; }
 
 // ------------------------------------------------------------------ bacheca
 const LETTO = "whynot-bacheca-letto";

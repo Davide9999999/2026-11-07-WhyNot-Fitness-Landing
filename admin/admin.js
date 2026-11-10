@@ -479,15 +479,20 @@ $("iscForm").addEventListener("submit", async (e) => {
   caricaIscritti(tab !== "iscritti");
 });
 
-// ------------------------------------------------------------------ schede
+// ------------------------------------------------------------------ schede: elenco
 async function caricaSchede() {
-  let q = sb.from("schede").select("id,titolo,obiettivo,livello,stato,updated_at").order("updated_at", { ascending: false });
+  let q = sb.from("schede").select("id,titolo,obiettivo,livello,stato,updated_at,member_id,struttura,contenuto").order("updated_at", { ascending: false });
   if (schFiltro) q = q.eq("stato", schFiltro);
-  const { data, error } = await q;
+  const [{ data, error }] = await Promise.all([q, iscritti ? null : caricaIscritti(true)]);
   if (error) { $("schede").innerHTML = `<p class="msg ko">${esc(error.message)}</p>`; return; }
-  $("schede").innerHTML = (data || []).map((s) => `<button class="sc" data-id="${s.id}"><span class="st ${s.stato}">${s.stato}</span><h3>${esc(s.titolo)}</h3>
-    <span class="mut">${esc([s.obiettivo, s.livello].filter(Boolean).join(" · ") || "—")}</span><span class="mut">Aggiornata ${fa(s.updated_at)}</span></button>`).join("")
-    || `<p class="empty" style="grid-column:1/-1">Nessuna scheda${schFiltro ? " in questo stato" : ""}. Creane una con «Nuova scheda».</p>`;
+  const nomeDi = (uid) => (iscritti || []).find((i) => i.user_id === uid)?.nome || "un iscritto";
+  $("schede").innerHTML = (data || []).map((s) => {
+    const g = s.struttura?.giorni || [], nEs = g.reduce((t, d) => t + (d.esercizi || []).length, 0);
+    return `<button class="sc" data-id="${s.id}"><span class="st ${s.stato}">${s.stato}</span><h3>${esc(s.titolo)}</h3>
+      <span class="mut">${esc([s.obiettivo, s.livello].filter(Boolean).join(" · ") || "—")}</span>
+      <span class="mut">${g.length ? `${g.length} ${g.length === 1 ? "giorno" : "giorni"} · ${nEs} esercizi` : s.contenuto ? "scheda di solo testo" : "vuota"} · ${s.member_id ? `per ${esc(nomeDi(s.member_id))}` : "per tutti"}</span>
+      <span class="mut">Aggiornata ${fa(s.updated_at)}</span></button>`;
+  }).join("") || `<p class="empty" style="grid-column:1/-1">Nessuna scheda${schFiltro ? " in questo stato" : ""}. Creane una con «Nuova scheda»: puoi partire da un modello.</p>`;
 }
 $("schFilter").addEventListener("click", (e) => {
   const b = e.target.closest(".chip"); if (!b) return;
@@ -495,26 +500,250 @@ $("schFilter").addEventListener("click", (e) => {
 });
 $("newScheda").onclick = () => apriScheda(null);
 $("schede").addEventListener("click", (e) => { const b = e.target.closest(".sc"); if (b) apriScheda(b.dataset.id); });
+
+// ------------------------------------------------------------------ schede: editor con libreria esercizi
+const GRUPPI = ["Petto", "Dorso", "Spalle", "Bicipiti", "Tricipiti", "Quadricipiti", "Femorali", "Glutei", "Polpacci", "Addome", "Cardio", "Total body", "Mobilità"];
+const RECUPERI = [0, 15, 30, 45, 60, 75, 90, 120, 150, 180, 240];
+let catalogo = [], ed = null, gSel = 0, libGruppo = "";
+const norm = (s) => String(s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+async function caricaCatalogo(forza) {
+  if (catalogo.length && !forza) return;
+  const { data, error } = await sb.from("esercizi").select("id,nome,gruppo,attrezzo,tipo,livello,descrizione,attivo").order("nome");
+  if (error) return toast("Catalogo esercizi non disponibile: " + error.message, false);
+  catalogo = (data || []).filter((x) => x.attivo);
+  const attr = [...new Set(catalogo.map((x) => x.attrezzo))].sort();
+  $("libAttr").innerHTML = '<option value="">Tutti gli attrezzi</option>' + attr.map((a) => `<option>${esc(a)}</option>`).join("");
+  $("attrList").innerHTML = attr.map((a) => `<option>${esc(a)}</option>`).join("");
+  $("nuGruppo").innerHTML = GRUPPI.map((g) => `<option>${g}</option>`).join("");
+}
+// parametri di partenza: dipendono dal tipo di esercizio e dall'obiettivo della scheda
+function parametri(tipo) {
+  const ob = norm($("schForm").obiettivo.value);
+  if (tipo === "cardio") return { serie: 1, rip: "10 min", rec: 0 };
+  if (tipo === "mobilita") return { serie: 2, rip: "30 s", rec: 15 };
+  if (tipo === "isometrico") return { serie: 3, rip: "30 s", rec: 45 };
+  if (ob.includes("forza")) return { serie: 4, rip: "5-6", rec: 150 };
+  if (ob.includes("ipertrofia")) return { serie: 4, rip: "8-10", rec: 90 };
+  if (ob.includes("resistenza")) return { serie: 3, rip: "15-20", rec: 45 };
+  if (ob.includes("dimagr") || ob.includes("tonific")) return { serie: 3, rip: "12-15", rec: 60 };
+  return { serie: 3, rip: "10-12", rec: 75 };
+}
+const daCatalogo = (e) => ({ id: e.id, nome: e.nome, gruppo: e.gruppo, tipo: e.tipo, ...parametri(e.tipo), carico: "", note: "", ss: false });
+
+// ---- modelli pronti
+const MODELLI = [
+  { nome: "Full body principiante", ob: "Tonificazione", liv: "principiante", sett: 6, freq: 3, giorni: [
+    ["Giorno A", ["Leg press", "Chest press alla macchina", "Lat machine avanti", "Shoulder press alla macchina", "Leg curl sdraiato", "Plank frontale", "Cyclette"]],
+    ["Giorno B", ["Goblet squat", "Panca piana con manubri", "Pulley basso", "Ponte glutei", "Alzate laterali con manubri", "Dead bug", "Tapis roulant"]]] },
+  { nome: "Upper / Lower", ob: "Ipertrofia", liv: "intermedio", sett: 8, freq: 4, giorni: [
+    ["Upper", ["Panca piana con bilanciere", "Rematore con bilanciere", "Lento con manubri da seduto", "Lat machine avanti", "Curl con manubri alternato", "Push-down ai cavi"]],
+    ["Lower", ["Squat con bilanciere", "Stacco rumeno con bilanciere", "Leg press", "Leg curl sdraiato", "Calf raise in piedi", "Plank frontale"]]] },
+  { nome: "Push / Pull / Legs", ob: "Ipertrofia", liv: "intermedio", sett: 8, freq: 3, giorni: [
+    ["Push", ["Panca piana con bilanciere", "Panca inclinata con manubri", "Lento con manubri da seduto", "Alzate laterali con manubri", "Push-down ai cavi", "French press con bilanciere EZ"]],
+    ["Pull", ["Trazioni assistite", "Rematore con manubrio a un braccio", "Pulley basso", "Face pull ai cavi", "Curl con bilanciere", "Curl a martello"]],
+    ["Legs", ["Squat con bilanciere", "Stacco rumeno con bilanciere", "Affondi in camminata", "Leg extension", "Leg curl da seduto", "Calf raise da seduto"]]] },
+  { nome: "Circuito funzionale", ob: "Dimagrimento", liv: "intermedio", sett: 6, freq: 3, circuito: true, giorni: [
+    ["Circuito (3 giri)", ["Kettlebell swing", "Goblet squat", "Piegamenti sulle braccia", "Rematore inverso", "Affondi indietro", "Mountain climber", "Plank frontale", "Burpee"]]] },
+  { nome: "Mobilità e postura", ob: "Mobilità e postura", liv: "principiante", sett: 4, freq: 3, giorni: [
+    ["Sessione", ["Gatto-mucca", "Rotazioni toraciche", "Mobilità anche 90/90", "Il miglior stretching del mondo", "Bird dog", "Dead bug", "Ponte glutei", "Stretching flessori dell'anca", "Posizione del bambino"]]] },
+];
+$("edModelli").insertAdjacentHTML("beforeend", MODELLI.map((m, k) => `<button type="button" class="chip" data-mod="${k}">${esc(m.nome)}</button>`).join(""));
+$("edModelli").addEventListener("click", async (e) => {
+  const b = e.target.closest("[data-mod]"); if (!b) return;
+  const m = MODELLI[Number(b.dataset.mod)], pieno = ed.giorni.some((g) => g.esercizi.length);
+  if (pieno && !(await ask("Sostituire il contenuto?", `Il modello «${m.nome}» sostituisce i giorni e gli esercizi attuali.`, "Sostituisci"))) return;
+  const f = $("schForm");
+  if (!f.obiettivo.value) f.obiettivo.value = m.ob;
+  if (!f.livello.value) f.livello.value = m.liv;
+  f.settimane.value = m.sett; f.frequenza.value = m.freq;
+  if (!f.titolo.value.trim()) f.titolo.value = m.nome;
+  const mancanti = [];
+  ed.giorni = m.giorni.map(([nome, lista]) => ({ nome, note: "", esercizi: lista.map((n) => {
+    const e2 = catalogo.find((x) => x.nome === n); if (!e2) { mancanti.push(n); return null; }
+    const r = daCatalogo(e2);
+    if (m.circuito) { r.serie = 3; r.rec = 15; r.ss = true; if (e2.tipo === "forza") r.rip = "12"; if (e2.tipo === "cardio") r.rip = "30 s"; }
+    return r;
+  }).filter(Boolean) }));
+  if (m.circuito) { const l = ed.giorni[0].esercizi; if (l.length) { l[l.length - 1].ss = false; l[l.length - 1].rec = 90; } ed.giorni[0].note = "Esegui gli esercizi uno dopo l'altro; recupera solo a fine giro."; }
+  gSel = 0; disegnaEditor();
+  toast(mancanti.length ? `Modello applicato; non trovati nel catalogo: ${mancanti.join(", ")}` : "Modello applicato: adatta serie e carichi alla persona.", !mancanti.length);
+});
+
+// ---- apertura e salvataggio
 async function apriScheda(id) {
+  await Promise.all([caricaCatalogo(), iscritti ? null : caricaIscritti(true)]);
   const f = $("schForm"); f.reset(); msg($("schMsg"), "");
   $("schDest").innerHTML = '<option value="">Tutti gli iscritti</option>' + (iscritti || []).filter((i) => i.user_id && i.attivo).map((i) => `<option value="${i.user_id}">Solo ${esc(i.nome)}</option>`).join("");
+  ed = { giorni: [{ nome: "Giorno A", note: "", esercizi: [] }] };
+  f.elements.id.value = ""; $("schStato").textContent = "nuova"; $("schStato").className = "st";
   if (id) {
-    const { data } = await sb.from("schede").select("*").eq("id", id).single();
-    Object.entries(data || {}).forEach(([k, v]) => { if (f.elements[k]) f.elements[k].value = v ?? ""; });
-    $("schTitle").textContent = "Modifica scheda"; $("schStato").textContent = `Stato attuale: ${data.stato}`;
-  } else { f.elements.id.value = ""; $("schTitle").textContent = "Nuova scheda"; $("schStato").textContent = ""; }
+    const { data, error } = await sb.from("schede").select("*").eq("id", id).single();
+    if (error) return toast(error.message, false);
+    ["titolo", "obiettivo", "livello", "descrizione", "member_id"].forEach((k) => (f.elements[k].value = data[k] ?? ""));
+    f.elements.id.value = data.id; $("schStato").textContent = data.stato; $("schStato").className = "st " + data.stato;
+    const s = data.struttura;
+    if (s?.giorni?.length) ed = { giorni: s.giorni.map((g) => ({ nome: g.nome || "Giorno", note: g.note || "", esercizi: (g.esercizi || []).map((x) => ({ ...x })) })) };
+    else if (data.contenuto) ed.giorni[0].note = data.contenuto;   // vecchia scheda di solo testo: il testo finisce nelle note
+    f.settimane.value = s?.settimane || ""; f.frequenza.value = s?.frequenza || ""; f.note.value = s?.note || "";
+  }
+  gSel = 0; libGruppo = ""; $("libQ").value = ""; $("libAttr").value = "";
+  disegnaEditor(); disegnaLibreria();
   $("dSch").showModal();
+  if (!id) f.titolo.focus();
+}
+const lettere = "ABCDEFGHIJ";
+function testoScheda() {
+  return ed.giorni.map((g) => [g.nome + (g.note ? ` — ${g.note}` : ""), ...g.esercizi.map((x, k) =>
+    `- ${x.nome}: ${x.serie} x ${x.rip}${x.carico ? ` · ${x.carico}` : ""}${x.rec ? ` · rec ${x.rec}s` : ""}${x.ss ? " · superserie con il successivo" : ""}${x.note ? ` (${x.note})` : ""}`)].join("\n")).join("\n\n");
 }
 $("schForm").addEventListener("submit", async (e) => {
   e.preventDefault(); const f = e.target; const stato = e.submitter?.dataset.stato || "bozza";
-  const row = { titolo: f.titolo.value.trim(), obiettivo: f.obiettivo.value.trim() || null, livello: f.livello.value || null,
-    descrizione: f.descrizione.value.trim() || null, contenuto: f.contenuto.value, stato, member_id: f.member_id.value || null };
+  if (f.titolo.value.trim().length < 2) { f.titolo.focus(); return msg($("schMsg"), "Scrivi il titolo della scheda."); }
+  const vuoti = ed.giorni.filter((g) => !g.esercizi.length).length;
+  if (stato === "pubblicata" && vuoti === ed.giorni.length && !ed.giorni.some((g) => g.note)) return msg($("schMsg"), "Aggiungi almeno un esercizio prima di pubblicare.");
+  const struttura = { settimane: Number(f.settimane.value) || null, frequenza: Number(f.frequenza.value) || null, note: f.note.value.trim() || null,
+    giorni: ed.giorni.map((g) => ({ nome: g.nome.trim() || "Giorno", note: g.note.trim() || null, esercizi: g.esercizi.map(({ id, nome, gruppo, tipo, serie, rip, carico, rec, note, ss }) =>
+      ({ id, nome, gruppo, tipo, serie: Number(serie) || 1, rip: String(rip || "").trim(), carico: String(carico || "").trim() || null, rec: Number(rec) || 0, note: String(note || "").trim() || null, ss: !!ss })) })) };
+  const row = { titolo: f.titolo.value.trim(), obiettivo: f.obiettivo.value.trim() || null, livello: f.livello.value || null, descrizione: f.descrizione.value.trim() || null,
+    member_id: f.member_id.value || null, stato, struttura, contenuto: testoScheda() };
   if (stato === "pubblicata") row.pubblicata_il = new Date().toISOString();
   const res = f.elements.id.value ? await sb.from("schede").update(row).eq("id", f.elements.id.value).select("id").single() : await sb.from("schede").insert(row).select("id").single();
   if (res.error) return msg($("schMsg"), res.error.message);
-  f.elements.id.value = res.data.id; $("schStato").textContent = `Stato attuale: ${stato}`;
-  toast(stato === "pubblicata" ? "Scheda pubblicata." : stato === "archiviata" ? "Scheda archiviata." : "Bozza salvata."); caricaSchede();
+  f.elements.id.value = res.data.id; $("schStato").textContent = stato; $("schStato").className = "st " + stato; msg($("schMsg"), "");
+  toast(stato === "pubblicata" ? `Scheda pubblicata: la vede ${row.member_id ? "l'iscritto scelto" : "ogni iscritto"} nell'app.` : stato === "archiviata" ? "Scheda archiviata." : "Bozza salvata.");
+  caricaSchede();
 });
+
+// ---- disegno dell'editor
+function disegnaEditor() {
+  if (gSel >= ed.giorni.length) gSel = ed.giorni.length - 1;
+  $("edDays").innerHTML = ed.giorni.map((g, k) => `<button type="button" role="tab" data-g="${k}" aria-selected="${k === gSel}">${esc(g.nome || "Giorno")} <small>${g.esercizi.length}</small></button>`).join("")
+    + '<button type="button" class="add" data-g="+" title="Aggiungi giorno">+ Giorno</button>';
+  const g = ed.giorni[gSel];
+  $("edDayNome").value = g.nome; $("edDayNote").value = g.note || "";
+  $("edDayDel").disabled = ed.giorni.length < 2;
+  disegnaEsercizi(); riepilogo();
+}
+function disegnaEsercizi() {
+  const L = ed.giorni[gSel].esercizi;
+  // lettere delle superserie: esercizi collegati condividono la lettera (A1, A2...)
+  let gruppo = 0, pos = 0; const etichette = L.map((x, k) => { const inizio = k === 0 || !L[k - 1].ss; if (inizio) { gruppo++; pos = 1; } else pos++;
+    const conSuper = x.ss || (k > 0 && L[k - 1].ss); return conSuper ? `${lettere[(gruppo - 1) % 10]}${pos}` : String(k + 1); });
+  $("edList").innerHTML = L.length ? L.map((x, k) => `<div class="er${x.ss ? " ss" : ""}" data-i="${k}">
+      <span class="en">${etichette[k]}</span>
+      <div class="eb"><div class="et"><b>${esc(x.nome)}</b><span class="eg">${esc(x.gruppo || "")}</span></div>
+        <div class="ef">
+          <label>Serie<input type="number" min="1" max="20" data-k="serie" value="${x.serie}"></label>
+          <label>${x.tipo === "cardio" || x.tipo === "mobilita" || x.tipo === "isometrico" ? "Durata/rip." : "Ripetizioni"}<input data-k="rip" maxlength="20" value="${esc(x.rip)}" placeholder="10 / 8-12 / 30 s"></label>
+          <label>Carico<input data-k="carico" maxlength="30" value="${esc(x.carico || "")}" placeholder="kg, %, RPE"></label>
+          <label>Recupero<select data-k="rec">${RECUPERI.map((r) => `<option value="${r}"${Number(x.rec) === r ? " selected" : ""}>${r ? (r >= 60 ? `${Math.floor(r / 60)}'${r % 60 ? String(r % 60).padStart(2, "0") + '"' : ""}` : `${r}"`) : "—"}</option>`).join("")}</select></label>
+          <label class="wide">Note<input data-k="note" maxlength="120" value="${esc(x.note || "")}" placeholder="es. fermo 1 s in basso"></label>
+        </div></div>
+      <div class="ea">
+        <button type="button" class="icon" data-a="su" title="Sposta su" ${k === 0 ? "disabled" : ""}>↑</button>
+        <button type="button" class="icon" data-a="giu" title="Sposta giù" ${k === L.length - 1 ? "disabled" : ""}>↓</button>
+        <button type="button" class="icon${x.ss ? " on" : ""}" data-a="ss" title="${x.ss ? "Togli la superserie" : "Superserie con il successivo"}" ${k === L.length - 1 ? "disabled" : ""}>⛓</button>
+        <button type="button" class="icon danger" data-a="del" title="Rimuovi">✕</button>
+      </div></div>`).join("")
+    : '<p class="empty">Nessun esercizio in questo giorno. Aggiungili dalla libreria a destra (su telefono: «+ Aggiungi esercizio») oppure parti da un modello.</p>';
+}
+// stima durata: serie x (40 s di lavoro o durata indicata) + recuperi; superserie: recupero solo a fine gruppo
+function secondiDi(rip) {
+  const m = String(rip).match(/(\d+(?:[.,]\d+)?)\s*(min|'|m\b)/i); if (m) return parseFloat(m[1].replace(",", ".")) * 60;
+  const s = String(rip).match(/(\d+)\s*(s|sec|")/i); if (s) return Number(s[1]);
+  return 40;
+}
+function riepilogo() {
+  const L = ed.giorni[gSel].esercizi;
+  let sec = 0, serie = 0; const perGruppo = {};
+  L.forEach((x) => { const n = Number(x.serie) || 1; serie += n; sec += n * secondiDi(x.rip) + (x.ss ? 0 : Math.max(0, n - (x.tipo === "cardio" ? 1 : 0)) * (Number(x.rec) || 0)); perGruppo[x.gruppo || "Altro"] = (perGruppo[x.gruppo || "Altro"] || 0) + n; });
+  const min = Math.round(sec / 60);
+  // bilanciamento sull'intera scheda
+  const tot = {}; ed.giorni.forEach((g) => g.esercizi.forEach((x) => (tot[x.gruppo] = (tot[x.gruppo] || 0) + (Number(x.serie) || 1))));
+  const spinta = (tot.Petto || 0) + (tot.Spalle || 0) + (tot.Tricipiti || 0), tirata = (tot.Dorso || 0) + (tot.Bicipiti || 0);
+  const gambe = (tot.Quadricipiti || 0) + (tot.Femorali || 0) + (tot.Glutei || 0) + (tot.Polpacci || 0), busto = spinta + tirata;
+  const consigli = [];
+  if (spinta && tirata && spinta > tirata * 1.5) consigli.push("più serie di spinta che di tirata: valuta qualche esercizio per il dorso");
+  if (tirata && spinta && tirata > spinta * 1.5) consigli.push("più serie di tirata che di spinta");
+  if (busto >= 12 && gambe < busto * 0.4) consigli.push("le gambe sono poco allenate rispetto alla parte alta");
+  if ((tot.Quadricipiti || 0) >= 6 && !(tot.Femorali || 0) && !(tot.Glutei || 0)) consigli.push("mancano femorali e glutei");
+  if (min > 90) consigli.push("seduta lunga: oltre 90 minuti stimati");
+  $("edSum").innerHTML = L.length ? `<span><b>${L.length}</b> esercizi</span><span><b>${serie}</b> serie</span><span>durata stimata <b>≈ ${min} min</b></span>
+      <span class="eg-list">${Object.entries(perGruppo).sort((a, b) => b[1] - a[1]).map(([g, n]) => `<i title="${n} serie">${esc(g)} ${n}</i>`).join("")}</span>
+      ${consigli.length ? `<span class="hint">Suggerimento: ${esc(consigli.join("; "))}.</span>` : ""}` : "";
+}
+
+// ---- interazioni editor
+$("edDays").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-g]"); if (!b) return;
+  if (b.dataset.g === "+") { if (ed.giorni.length >= 7) return toast("Massimo 7 giorni per scheda.", false); ed.giorni.push({ nome: `Giorno ${lettere[ed.giorni.length]}`, note: "", esercizi: [] }); gSel = ed.giorni.length - 1; }
+  else gSel = Number(b.dataset.g);
+  disegnaEditor();
+});
+$("edDayNome").addEventListener("input", (e) => { ed.giorni[gSel].nome = e.target.value; const t = $("edDays").querySelector(`[data-g="${gSel}"]`); if (t) t.firstChild.textContent = (e.target.value || "Giorno") + " "; });
+$("edDayNote").addEventListener("input", (e) => (ed.giorni[gSel].note = e.target.value));
+$("edDayDup").onclick = () => { if (ed.giorni.length >= 7) return toast("Massimo 7 giorni per scheda.", false); const g = ed.giorni[gSel]; ed.giorni.splice(gSel + 1, 0, { nome: g.nome + " (copia)", note: g.note, esercizi: g.esercizi.map((x) => ({ ...x })) }); gSel++; disegnaEditor(); };
+$("edDayDel").onclick = async () => {
+  if (ed.giorni.length < 2) return;
+  if (ed.giorni[gSel].esercizi.length && !(await ask("Eliminare il giorno?", `«${ed.giorni[gSel].nome}» e i suoi ${ed.giorni[gSel].esercizi.length} esercizi.`, "Elimina"))) return;
+  ed.giorni.splice(gSel, 1); gSel = Math.max(0, gSel - 1); disegnaEditor();
+};
+$("edList").addEventListener("input", (e) => {
+  const el = e.target.closest("[data-k]"), r = e.target.closest("[data-i]"); if (!el || !r) return;
+  ed.giorni[gSel].esercizi[Number(r.dataset.i)][el.dataset.k] = el.dataset.k === "rec" || el.dataset.k === "serie" ? Number(el.value) : el.value;
+  riepilogo();
+});
+$("edList").addEventListener("change", (e) => { if (e.target.matches("select[data-k]")) riepilogo(); });
+$("edList").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-a]"), r = e.target.closest("[data-i]"); if (!b || !r) return;
+  const L = ed.giorni[gSel].esercizi, i = Number(r.dataset.i);
+  if (b.dataset.a === "su" && i > 0) [L[i - 1], L[i]] = [L[i], L[i - 1]];
+  if (b.dataset.a === "giu" && i < L.length - 1) [L[i + 1], L[i]] = [L[i], L[i + 1]];
+  if (b.dataset.a === "ss") L[i].ss = !L[i].ss;
+  if (b.dataset.a === "del") L.splice(i, 1);
+  if (L.length) L[L.length - 1].ss = false;
+  disegnaEditor();
+});
+
+// ---- libreria
+function disegnaLibreria() {
+  $("libGruppi").innerHTML = `<button type="button" class="chip" data-lg="" aria-pressed="${!libGruppo}">Tutti</button>` + GRUPPI.map((g) => `<button type="button" class="chip" data-lg="${g}" aria-pressed="${libGruppo === g}">${g}</button>`).join("");
+  filtraLibreria();
+}
+function filtraLibreria() {
+  const q = norm($("libQ").value).split(/\s+/).filter(Boolean), a = $("libAttr").value;
+  const presenti = new Set((ed?.giorni[gSel]?.esercizi || []).map((x) => x.id));
+  const L = catalogo.filter((x) => (!libGruppo || x.gruppo === libGruppo) && (!a || x.attrezzo === a) && q.every((t) => norm(`${x.nome} ${x.gruppo} ${x.attrezzo}`).includes(t)));
+  $("libN").textContent = `${L.length} di ${catalogo.length}`;
+  $("libItems").innerHTML = L.map((x) => `<div class="li${presenti.has(x.id) ? " gia" : ""}"><div><b>${esc(x.nome)}</b><small>${esc(x.gruppo)} · ${esc(x.attrezzo)} · ${esc(x.livello)}</small>
+      ${x.descrizione ? `<details><summary>Come si esegue</summary><p>${esc(x.descrizione)}</p></details>` : ""}</div>
+      <button type="button" class="btn sm" data-add="${x.id}" title="Aggiungi a ${esc(ed?.giorni[gSel]?.nome || "")}">${presenti.has(x.id) ? "+ ancora" : "+"}</button></div>`).join("")
+    || '<p class="empty">Nessun esercizio trovato. Puoi aggiungerlo al catalogo qui sotto.</p>';
+}
+$("libQ").addEventListener("input", filtraLibreria);
+$("libAttr").addEventListener("change", filtraLibreria);
+$("libGruppi").addEventListener("click", (e) => { const b = e.target.closest("[data-lg]"); if (!b) return; libGruppo = b.dataset.lg; disegnaLibreria(); });
+$("libItems").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-add]"); if (!b) return;
+  const x = catalogo.find((c) => c.id === Number(b.dataset.add)); if (!x) return;
+  ed.giorni[gSel].esercizi.push(daCatalogo(x));
+  disegnaEditor(); filtraLibreria();
+  toast(`${x.nome} aggiunto a ${ed.giorni[gSel].nome}.`);
+  const ultimo = $("edList").lastElementChild; if (ultimo && window.innerWidth > 900) ultimo.scrollIntoView({ block: "nearest" });
+});
+$("edApriLib").onclick = () => { $("edLib").classList.add("aperta"); $("libQ").focus(); };
+$("edChiudiLib").onclick = () => $("edLib").classList.remove("aperta");
+$("nuSalva").onclick = async () => {
+  const nome = $("nuNome").value.trim();
+  if (nome.length < 2) return toast("Scrivi il nome dell'esercizio.", false);
+  const row = { nome, gruppo: $("nuGruppo").value, attrezzo: $("nuAttr").value.trim() || "Corpo libero", tipo: $("nuTipo").value, livello: $("nuLiv").value, descrizione: $("nuDesc").value.trim() || null };
+  const { data, error } = await sb.from("esercizi").insert(row).select("*").single();
+  if (error) return toast(/duplicate|unique/i.test(error.message) ? "Esiste già un esercizio con questo nome." : error.message, false);
+  await caricaCatalogo(true);
+  ed.giorni[gSel].esercizi.push(daCatalogo(data));
+  ["nuNome", "nuAttr", "nuDesc"].forEach((k) => ($(k).value = ""));
+  disegnaEditor(); disegnaLibreria(); toast(`«${nome}» aggiunto al catalogo e alla scheda.`);
+};
 
 // ------------------------------------------------------------------ assistente AI
 let chat = [];

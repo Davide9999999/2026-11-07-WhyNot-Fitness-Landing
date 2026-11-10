@@ -108,3 +108,9 @@ Pagine: `/prenota/` (ora pubblica, in sitemap e nel menu) e `/area-personale/` (
 - **Statistiche**: riempimento per corso e per fascia, andamento mensile, voto medio, iscritti inattivi da 3 settimane con richiamo via notifica.
 - **Esportazione CSV** (separatore `;`, si apre in Excel): iscritti (Iscritti) e prenotazioni (Statistiche).
 - **Statistiche v2** (`supabase/2026-11-10-WhyNot-statistiche-v2.sql`, eseguito): periodo a scelta (Oggi, Ieri, 7 giorni, 4 settimane, 3 mesi, 12 mesi o date libere fino a 400 giorni, frecce per scorrere), grafico e tabella giorno per giorno (clic su una barra = solo quel giorno), valutazioni per corso (più e meno apprezzati, distribuzione delle stelle, ultimi commenti). L'esportazione CSV usa il periodo scelto. Nell'app la valutazione ha anche un commento facoltativo.
+
+## 11. Schede strutturate e catalogo esercizi (2026-11-10) — `supabase/2026-11-10-WhyNot-esercizi.sql` (eseguito)
+- **Catalogo**: 118 esercizi base (13 gruppi muscolari) con attrezzo, tipo, livello e indicazioni di esecuzione — testi generici da far rivedere a un istruttore. Nuovi esercizi dall'editor («+ Nuovo esercizio nel catalogo»).
+- **Editor** (Schede → Nuova scheda): a tutto schermo; giorni (A/B/C… o nomi liberi, duplica/elimina); per ogni esercizio serie, ripetizioni o durata, carico, recupero, note, superserie (⛓), ordine ↑↓. Libreria con ricerca, filtri per gruppo e attrezzo. Parametri di partenza in base a tipo di esercizio e obiettivo. Modelli: Full body principiante, Upper/Lower, Push/Pull/Legs, Circuito funzionale, Mobilità e postura. Riepilogo: serie, durata stimata, serie per gruppo e suggerimenti di bilanciamento.
+- **App**: scheda per giorni con «Come si esegue»; **Inizia allenamento**: spunta delle serie, timer di recupero con vibrazione, avanzamento (salvato sul telefono per la giornata).
+- Le vecchie schede di solo testo restano leggibili; aprendole nell'editor il testo finisce nelle note del primo giorno.

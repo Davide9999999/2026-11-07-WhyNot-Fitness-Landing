@@ -186,23 +186,67 @@
   </form>
 </dialog>
 
-<!-- SCHEDA -->
-<dialog id="dSch" class="sheet wide">
-  <form id="schForm" class="sheet-body">
-    <button class="close" type="button" data-close aria-label="Chiudi">&times;</button>
-    <h2 id="schTitle">Nuova scheda</h2>
+<!-- SCHEDA: editor a tutto schermo con libreria esercizi -->
+<dialog id="dSch" class="editor" aria-label="Editor scheda">
+  <form id="schForm" class="ed" novalidate>
     <input type="hidden" name="id">
-    <label>Titolo<input name="titolo" required minlength="2" maxlength="120"></label>
-    <div class="row"><label>Obiettivo<input name="obiettivo" placeholder="es. tonificazione"></label>
-      <label>Livello<select name="livello"><option value="">—</option><option>principiante</option><option>intermedio</option><option>avanzato</option></select></label></div>
-    <label>Destinatario<select name="member_id" id="schDest"><option value="">Tutti gli iscritti</option></select></label>
-    <label>Descrizione breve<input name="descrizione" maxlength="300"></label>
-    <label>Contenuto<textarea name="contenuto" rows="12" placeholder="Esercizi, serie, ripetizioni, recuperi..."></textarea></label>
-    <div class="acts end"><span class="mut" id="schStato"></span>
-      <button class="ghost" type="submit" data-stato="bozza">Salva bozza</button>
-      <button class="ghost" type="submit" data-stato="archiviata">Archivia</button>
-      <button class="btn" type="submit" data-stato="pubblicata">Pubblica</button></div>
-    <p class="msg" id="schMsg" role="status"></p>
+    <header class="ed-top">
+      <button class="icon" type="button" data-close aria-label="Chiudi">&times;</button>
+      <input class="ed-titolo" name="titolo" maxlength="120" placeholder="Titolo della scheda (es. Tonificazione 3 giorni)" required>
+      <span class="st" id="schStato">bozza</span>
+      <div class="ed-acts">
+        <button class="ghost sm" type="submit" data-stato="archiviata">Archivia</button>
+        <button class="ghost sm" type="submit" data-stato="bozza">Salva bozza</button>
+        <button class="btn sm" type="submit" data-stato="pubblicata">Pubblica</button>
+      </div>
+    </header>
+    <div class="ed-body">
+      <section class="ed-main">
+        <div class="ed-meta">
+          <label>Obiettivo<input name="obiettivo" list="obList" maxlength="60" placeholder="es. tonificazione"></label>
+          <datalist id="obList"><option>Tonificazione</option><option>Forza</option><option>Ipertrofia</option><option>Dimagrimento</option><option>Resistenza</option><option>Mobilità e postura</option><option>Ricondizionamento</option></datalist>
+          <label>Livello<select name="livello"><option value="">—</option><option>principiante</option><option>intermedio</option><option>avanzato</option></select></label>
+          <label>Destinatario<select name="member_id" id="schDest"><option value="">Tutti gli iscritti</option></select></label>
+          <label>Settimane<input name="settimane" type="number" min="1" max="52" placeholder="es. 6"></label>
+          <label>Allenamenti a settimana<input name="frequenza" type="number" min="1" max="7" placeholder="es. 3"></label>
+          <label class="full">Descrizione breve (la vede l'iscritto)<input name="descrizione" maxlength="300" placeholder="es. Scheda base per riprendere ad allenarsi in sala"></label>
+        </div>
+
+        <div class="ed-modelli" id="edModelli"><span class="mut">Parti da un modello:</span></div>
+
+        <div class="ed-days" id="edDays" role="tablist"></div>
+        <div class="ed-daybar">
+          <input id="edDayNome" maxlength="40" aria-label="Nome del giorno">
+          <button class="ghost sm" type="button" id="edDayDup">Duplica giorno</button>
+          <button class="ghost sm danger" type="button" id="edDayDel">Elimina giorno</button>
+        </div>
+        <div class="ed-sum" id="edSum"></div>
+        <div class="ed-list" id="edList"></div>
+        <button class="btn sm ed-addmob" type="button" id="edApriLib">+ Aggiungi esercizio</button>
+        <label>Note del giorno<textarea id="edDayNote" rows="2" maxlength="300" placeholder="es. riscaldamento 10 minuti di cyclette"></textarea></label>
+        <label>Note generali della scheda<textarea name="note" rows="2" maxlength="600" placeholder="es. aumenta il carico quando completi tutte le ripetizioni con facilità"></textarea></label>
+        <p class="msg" id="schMsg" role="status"></p>
+      </section>
+
+      <aside class="ed-lib" id="edLib">
+        <div class="ed-libhead"><b>Libreria esercizi</b><span class="mut" id="libN"></span><button class="icon ed-libclose" type="button" id="edChiudiLib" aria-label="Chiudi libreria">&times;</button></div>
+        <label class="search" aria-label="Cerca esercizio"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg><input id="libQ" type="search" placeholder="Cerca (es. squat, panca, cavi)"></label>
+        <div class="chips" id="libGruppi"></div>
+        <select id="libAttr" aria-label="Attrezzo"><option value="">Tutti gli attrezzi</option></select>
+        <div class="ed-libitems" id="libItems"></div>
+        <details class="ed-nuovo"><summary>+ Nuovo esercizio nel catalogo</summary>
+          <div class="form2" id="libNuovo">
+            <input class="full" id="nuNome" placeholder="Nome" maxlength="80">
+            <select id="nuGruppo"></select><input id="nuAttr" placeholder="Attrezzo" maxlength="40" list="attrList">
+            <select id="nuTipo"><option value="forza">Forza</option><option value="isometrico">Isometrico (a tempo)</option><option value="cardio">Cardio</option><option value="mobilita">Mobilità</option></select>
+            <select id="nuLiv"><option>principiante</option><option selected>intermedio</option><option>avanzato</option></select>
+            <textarea class="full" id="nuDesc" rows="2" maxlength="600" placeholder="Come si esegue (facoltativo)"></textarea>
+            <button class="btn sm full" type="button" id="nuSalva">Aggiungi al catalogo</button>
+          </div>
+          <datalist id="attrList"></datalist>
+        </details>
+      </aside>
+    </div>
   </form>
 </dialog>
 
