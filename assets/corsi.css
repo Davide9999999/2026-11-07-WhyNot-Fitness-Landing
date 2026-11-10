@@ -158,6 +158,5 @@ address{font-style:normal}
 .ig-note strong{color:#fff}
 .ig-note a{color:#fff;font-weight:700;text-decoration:underline;text-underline-offset:3px}
 @media(max-width:420px){.sched th,.sched td{padding:11px 9px;font-size:14px}.sched td small{display:block}}
-.top-app{display:none}@media(max-width:860px){.top-app{display:grid;place-items:center;width:42px;height:42px;margin-left:auto;margin-right:-6px;border-radius:50%;border:1.5px solid rgba(255,255,255,.3)}.top-app svg{width:19px;height:19px;stroke:#fff;fill:none;stroke-width:2;stroke-linecap:round}}
 /* iPhone: sotto i 16px Safari ingrandisce la pagina quando si tocca un campo e non torna indietro */
 @media(max-width:820px){.field input,.field select,.field textarea{font-size:16px}}

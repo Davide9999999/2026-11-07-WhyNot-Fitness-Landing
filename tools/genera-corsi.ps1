@@ -74,8 +74,7 @@ function Header([string]$pre, [bool]$hub) {
   return @"
 <header class="top"><div class="wrap">
   <a class="logo" href="$pre"><img src="$pre$($CFG.logo)" alt="Logo WHY NOT Fitness Club" width="44" height="44"><b>WHY NOT<small>FITNESS CLUB</small></b></a>
-  <nav class="toplinks" aria-label="Menu principale"><a href="$($pre)corsi/"$cur>Corsi</a><a href="$($pre)#prezzi">Prezzi</a><a href="$($pre)#orari">Orari</a><a href="$($pre)#faq">FAQ</a><a href="$($pre)#contatti">Contatti</a><a href="$($pre)app/">App iscritti</a></nav>
-  <a class="top-app" href="$($pre)app/" aria-label="App iscritti" title="App iscritti"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg></a>
+  <nav class="toplinks" aria-label="Menu principale"><a href="$($pre)corsi/"$cur>Corsi</a><a href="$($pre)#prezzi">Prezzi</a><a href="$($pre)#orari">Orari</a><a href="$($pre)#faq">FAQ</a><a href="$($pre)#contatti">Contatti</a></nav>
   <a class="btn" href="tel:$($CFG.telHref)">Chiama</a>
 </div></header>
 "@
