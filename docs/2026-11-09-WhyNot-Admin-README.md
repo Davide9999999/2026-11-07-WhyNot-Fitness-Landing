@@ -107,3 +107,4 @@ Pagine: `/prenota/` (ora pubblica, in sitemap e nel menu) e `/area-personale/` (
 - **Valutazioni**: 1–5 stelle entro 14 giorni dalle lezioni frequentate (Le mie → Storico).
 - **Statistiche**: riempimento per corso e per fascia, andamento mensile, voto medio, iscritti inattivi da 3 settimane con richiamo via notifica.
 - **Esportazione CSV** (separatore `;`, si apre in Excel): iscritti (Iscritti) e prenotazioni (Statistiche).
+- **Statistiche v2** (`supabase/2026-11-10-WhyNot-statistiche-v2.sql`, eseguito): periodo a scelta (Oggi, Ieri, 7 giorni, 4 settimane, 3 mesi, 12 mesi o date libere fino a 400 giorni, frecce per scorrere), grafico e tabella giorno per giorno (clic su una barra = solo quel giorno), valutazioni per corso (più e meno apprezzati, distribuzione delle stelle, ultimi commenti). L'esportazione CSV usa il periodo scelto. Nell'app la valutazione ha anche un commento facoltativo.

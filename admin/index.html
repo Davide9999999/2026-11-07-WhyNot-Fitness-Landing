@@ -126,12 +126,18 @@
 
     <!-- STATISTICHE -->
     <section id="tab-stat" class="page" hidden>
-      <div class="chips" id="statPer" style="margin-bottom:14px"><button class="chip" data-g="28" aria-pressed="true">Ultime 4 settimane</button><button class="chip" data-g="91" aria-pressed="false">Ultimi 3 mesi</button><button class="chip" data-g="365" aria-pressed="false">Ultimo anno</button></div>
+      <div class="statbar">
+        <div class="chips" id="statPer"><button class="chip" data-p="oggi" aria-pressed="false">Oggi</button><button class="chip" data-p="ieri" aria-pressed="false">Ieri</button><button class="chip" data-p="7" aria-pressed="false">7 giorni</button><button class="chip" data-p="28" aria-pressed="true">4 settimane</button><button class="chip" data-p="91" aria-pressed="false">3 mesi</button><button class="chip" data-p="365" aria-pressed="false">12 mesi</button></div>
+        <form class="range" id="statRange"><button class="icon" type="button" id="stPrev" aria-label="Periodo precedente">&lsaquo;</button><label>Dal<input type="date" name="da" required></label><label>Al<input type="date" name="a" required></label><button class="icon" type="button" id="stNext" aria-label="Periodo successivo">&rsaquo;</button><button class="btn sm" type="submit">Applica</button></form>
+      </div>
+      <p class="mut" id="statLbl" style="margin:-4px 0 12px"></p>
       <div class="kpis" id="statKpi"></div>
       <div class="grid2">
         <div class="panel"><h2>Riempimento per corso</h2><div id="statCorsi"></div></div>
         <div class="panel"><h2>Riempimento per giorno e ora</h2><div id="statHeat"></div></div>
       </div>
+      <div class="panel" style="margin-top:16px"><h2>Andamento giorno per giorno <span class="mut">prenotati confermati per giorno · passa sopra una barra per i dettagli</span></h2><div id="statGiorni"></div></div>
+      <div class="panel" style="margin-top:16px"><h2>Valutazioni dei corsi <span class="mut">stelle date dagli iscritti alle lezioni del periodo</span></h2><div id="statVal"></div></div>
       <div class="panel" style="margin-top:16px"><h2>Andamento mese per mese</h2><div id="statMesi" class="mesi"></div></div>
       <div class="panel" style="margin-top:16px"><h2>Iscritti che non vengono da 3 settimane <button class="btn sm" id="richiamoBtn" disabled>Invia richiamo</button></h2><div id="statInatt"></div></div>
     </section>

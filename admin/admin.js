@@ -632,12 +632,12 @@ $("expIsc").onclick = async () => {
     (iscritti || []).map((i) => [i.nome, i.email, i.telefono, i.stato, i.ruolo_staff || "", fDate.format(new Date(i.iscritto_dal)), i.prenotazioni, i.frequentate, i.assenze ?? 0, i.prossime, i.ultima ? fDate.format(new Date(i.ultima)) : "", i.note || ""]));
 };
 $("expPren").onclick = async () => {
-  const a = oggiYmd(), da = addDays(a, -statGiorni);
-  const { data, error } = await sb.rpc("admin_export_prenotazioni", { p_da: da, p_a: addDays(a, 42) });
+  const da = statDa, a = statA;
+  const { data, error } = await sb.rpc("admin_export_prenotazioni", { p_da: da, p_a: a });
   if (error) return toast(error.message, false);
   scaricaCsv(`${oggiYmd()}-WhyNot-Prenotazioni.csv`, ["Data", "Ora", "Corso", "Sala", "Istruttore", "Nome", "Telefono", "Email", "Stato", "Presenza", "Origine", "Prenotata il", "Voto"],
     (data || []).map((r) => [r.data, r.ora, r.corso, r.sala, r.istruttore, r.nome, r.telefono, r.email, r.stato, r.presenza, r.origine, r.prenotata_il, r.voto]));
-  toast(`Esportate ${data.length} prenotazioni (dal ${fDate.format(noon(da))} alle prossime 6 settimane).`);
+  toast(`Esportate ${data.length} prenotazioni (${periodoTesto()}).`);
 };
 
 // ------------------------------------------------------------------ istruttore: le mie lezioni e appello
@@ -794,10 +794,22 @@ $("avvisiList").addEventListener("click", async (e) => {
 
 // ------------------------------------------------------------------ statistiche
 // Una sola serie per grafico (niente doppi assi), un solo colore per la grandezza, valori al passaggio e in tabella.
-let statGiorni = 28;
+// periodo delle statistiche: date di inizio e fine incluse (ora italiana)
+let statDa = addDays(ymdRome(new Date()), -27), statA = ymdRome(new Date());
+const nGiorni = () => Math.round((noon(statA) - noon(statDa)) / 86400000) + 1;
+const periodoTesto = () => (statDa === statA ? cap1(fFull.format(noon(statDa))) : `dal ${fDate.format(noon(statDa))} al ${fDate.format(noon(statA))} · ${nGiorni()} giorni`);
+function impostaPeriodo(da, a, chip) {
+  if (a < da) [da, a] = [a, da];
+  if (Math.round((noon(a) - noon(da)) / 86400000) > 400) da = addDays(a, -400);
+  statDa = da; statA = a;
+  $("statRange").da.value = da; $("statRange").a.value = a;
+  $("statPer").querySelectorAll(".chip").forEach((x) => x.setAttribute("aria-pressed", x.dataset.p === chip));
+  caricaStat();
+}
 const pct = (v) => (v == null ? "—" : `${v}%`);
 async function caricaStat() {
-  const a = oggiYmd(), da = addDays(a, -statGiorni);
+  const da = statDa, a = statA;
+  $("statLbl").textContent = periodoTesto(); $("statRange").da.value = da; $("statRange").a.value = a;
   $("statKpi").innerHTML = '<div class="skel"></div><div class="skel"></div><div class="skel"></div><div class="skel"></div>';
   const [s, ina] = await Promise.all([sb.rpc("admin_statistiche", { p_da: da, p_a: a }), sb.rpc("admin_inattivi", { p_giorni: 21 })]);
   if (s.error) { $("statKpi").innerHTML = `<p class="empty">${esc(s.error.message)}</p>`; return; }
@@ -805,7 +817,7 @@ async function caricaStat() {
   const riemp = t.posti ? Math.round((100 * t.prenotati) / t.posti) : 0;
   $("statKpi").innerHTML = `
     <div class="kpi"><span>Riempimento medio</span><b>${riemp}%</b><small>${t.prenotati} prenotati su ${t.posti} posti</small><div class="meter"><i style="width:${riemp}%"></i></div></div>
-    <div class="kpi"><span>Lezioni</span><b>${t.lezioni}</b><small>dal ${fDate.format(noon(da))}</small></div>
+    <div class="kpi"><span>Lezioni</span><b>${t.lezioni}</b><small>${statDa === statA ? "nel giorno" : `in ${nGiorni()} giorni`}</small></div>
     <div class="kpi"><span>Assenze segnate</span><b>${t.prenotati ? Math.round((100 * t.assenti) / t.prenotati) : 0}%</b><small>${t.assenti} su ${t.prenotati} prenotati · ${t.annullate} annullate</small></div>
     <div class="kpi"><span>Voto medio lezioni</span><b>${t.voto_medio != null ? Number(t.voto_medio).toFixed(1).replace(".", ",") : "—"}</b><small>${t.voti} valutazioni</small></div>`;
   const pc = d.per_corso || [];
@@ -821,6 +833,7 @@ async function caricaStat() {
       return c ? `<span class="hc" style="--a:${(0.12 + (0.88 * Math.min(100, v)) / 100).toFixed(2)}" title="${GIORNI[g - 1]} ${String(o).padStart(2, "0")}:00 · riempimento ${v}% su ${c.lezioni} ${c.lezioni === 1 ? "lezione" : "lezioni"}">${v}</span>` : '<span class="hc vuota"></span>'; }).join("")}`).join("")}</div>
     <div class="legend" style="margin-top:10px"><span><i style="background:rgba(224,34,51,.15)"></i>poco pieno</span><span><i style="background:rgba(224,34,51,1)"></i>pieno</span><span>valori in % · celle vuote = nessuna lezione</span></div>`
     : '<p class="empty">Nessuna lezione nel periodo.</p>';
+  disegnaGiorni(d.giornaliero || []); disegnaValutazioni(d.valutazioni || {});
   const ms = d.mensile || [], fM = F({ month: "short" });
   const mini = (titolo, campo) => { const max = Math.max(1, ...ms.map((m) => m[campo] || 0));
     return `<div class="mini"><span class="mt">${titolo}</span><div class="mb">${ms.map((m) => `<span class="mc" title="${esc(fM.format(noon(m.mese + "-15")))} ${m.mese.slice(0, 4)}: ${m[campo]}"><i style="height:${Math.max(2, Math.round((100 * (m[campo] || 0)) / max))}%"></i></span>`).join("")}</div>
@@ -838,9 +851,16 @@ async function caricaStat() {
   document.querySelectorAll(".inaSel").forEach((c) => c.addEventListener("change", agg)); agg();
 }
 $("statPer").addEventListener("click", (e) => {
-  const b = e.target.closest("[data-g]"); if (!b) return;
-  statGiorni = Number(b.dataset.g); $("statPer").querySelectorAll(".chip").forEach((x) => x.setAttribute("aria-pressed", x === b)); caricaStat();
+  const b = e.target.closest("[data-p]"); if (!b) return;
+  const oggi = ymdRome(new Date()), p = b.dataset.p;
+  if (p === "oggi") impostaPeriodo(oggi, oggi, p);
+  else if (p === "ieri") impostaPeriodo(addDays(oggi, -1), addDays(oggi, -1), p);
+  else impostaPeriodo(addDays(oggi, -(Number(p) - 1)), oggi, p);
 });
+$("statRange").addEventListener("submit", (e) => { e.preventDefault(); const f = e.target; if (f.da.value && f.a.value) impostaPeriodo(f.da.value, f.a.value, null); });
+// frecce: spostano il periodo della sua stessa lunghezza (un giorno alla volta se è un giorno solo)
+$("stPrev").onclick = () => { const n = nGiorni(); impostaPeriodo(addDays(statDa, -n), addDays(statA, -n), null); };
+$("stNext").onclick = () => { const n = nGiorni(); impostaPeriodo(addDays(statDa, n), addDays(statA, n), null); };
 $("richiamoBtn").onclick = async () => {
   const ids = [...document.querySelectorAll(".inaSel:checked")].map((c) => c.value);
   if (!ids.length) return;
@@ -848,3 +868,48 @@ $("richiamoBtn").onclick = async () => {
   const { data, error } = await sb.rpc("admin_richiamo", { p_utenti: ids, p_titolo: "Ci manchi!", p_testo: "Dai un'occhiata ai corsi di questa settimana e prenota il prossimo allenamento. Ti aspettiamo!" });
   toast(error ? error.message : `Richiamo inviato a ${data} ${data === 1 ? "iscritto" : "iscritti"}.`, !error);
 };
+
+// ------------------------------------------------------------------ statistiche: giorno per giorno e valutazioni
+// Una serie per grafico; colore unico per la grandezza; valori al passaggio, nell'asse e in tabella.
+const fGg = F({ weekday: "short", day: "numeric", month: "short" });
+function disegnaGiorni(G) {
+  const box = $("statGiorni");
+  if (!G.length) { box.innerHTML = '<p class="empty">Nessun dato nel periodo.</p>'; return; }
+  const max = Math.max(1, ...G.map((g) => g.prenotati || 0)), tot = G.reduce((s, g) => s + (g.prenotati || 0), 0);
+  const conLez = G.filter((g) => g.lezioni), media = conLez.length ? Math.round(tot / conLez.length) : 0;
+  const top = [...G].sort((a, b) => (b.prenotati || 0) - (a.prenotati || 0))[0];
+  const oggi = ymdRome(new Date());
+  const passo = G.length > 60 ? 7 : G.length > 21 ? 3 : 1;   // etichette dell'asse leggibili
+  box.innerHTML = `<p class="mut" style="margin-bottom:8px">${tot} prenotati in ${conLez.length} ${conLez.length === 1 ? "giorno" : "giorni"} con lezioni · media ${media} al giorno${top && top.prenotati ? ` · giorno più pieno: ${esc(fGg.format(noon(top.giorno)))} (${top.prenotati})` : ""}</p>
+    <div class="days-ch" style="--n:${G.length}">${G.map((g) => {
+      const h = g.prenotati ? Math.max(3, Math.round((100 * g.prenotati) / max)) : 0, futuro = g.giorno > oggi;
+      return `<button type="button" class="dc${futuro ? " fut" : ""}${g.lezioni ? "" : " vuoto"}" data-giorno="${g.giorno}" title="${esc(cap1(fGg.format(noon(g.giorno))))}: ${g.lezioni ? `${g.prenotati} prenotati su ${g.posti} posti (${g.riempimento ?? 0}%) · ${g.lezioni} lezioni${futuro ? "" : ` · ${g.presenze} presenze`}` : "nessuna lezione"}${G.length > 1 ? " · clic per vedere solo questo giorno" : ""}"><i style="height:${h}%"></i></button>`;
+    }).join("")}</div>
+    <div class="dx" style="--n:${G.length}">${G.map((g, k) => `<span>${k % passo === 0 ? esc(fGg.format(noon(g.giorno)).replace(/\.$/, "")) : ""}</span>`).join("")}</div>
+    <div class="legend"><span><i style="background:var(--red-hi)"></i>prenotati (giorni passati e oggi)</span><span><i style="background:rgba(224,34,51,.45)"></i>prenotati per giorni futuri</span></div>
+    <details style="margin-top:10px"><summary class="mut">Tabella giorno per giorno</summary><div class="wrap-tbl" style="margin-top:8px;max-height:360px"><table class="tbl"><thead><tr><th>Giorno</th><th class="num">Lezioni</th><th class="num">Posti</th><th class="num">Prenotati</th><th class="num">Riemp.</th><th class="num">Presenze</th></tr></thead><tbody>${
+      G.map((g) => `<tr><td>${esc(cap1(fGg.format(noon(g.giorno))))}</td><td class="num">${g.lezioni}</td><td class="num">${g.posti}</td><td class="num">${g.prenotati}</td><td class="num">${g.lezioni ? `${g.riempimento ?? 0}%` : "—"}</td><td class="num">${g.giorno > oggi ? "—" : g.presenze}</td></tr>`).join("")}</tbody></table></div></details>`;
+  box.querySelectorAll("[data-giorno]").forEach((b) => (b.onclick = () => { if (G.length > 1) impostaPeriodo(b.dataset.giorno, b.dataset.giorno, null); }));
+}
+
+const stelle = (m) => { const r = Math.round(Number(m)); return "★".repeat(r) + "☆".repeat(5 - r); };
+function disegnaValutazioni(V) {
+  const box = $("statVal"), P = V.per_corso || [], C = V.commenti || [];
+  if (!P.length) { box.innerHTML = '<p class="empty">Nessuna valutazione nel periodo. Gli iscritti possono dare da 1 a 5 stelle alle lezioni frequentate, nella sezione «Le mie» dell\'app.</p>'; return; }
+  const totVoti = P.reduce((s, r) => s + r.voti, 0);
+  const ord = [...P].sort((a, b) => b.media - a.media || b.voti - a.voti);
+  const migliori = ord.slice(0, 5), peggiori = [...P].sort((a, b) => a.media - b.media || b.voti - a.voti).slice(0, 5);
+  const riga = (r) => `<div class="vr" title="${esc(r.corso)}: media ${String(r.media).replace(".", ",")} su ${r.voti} ${r.voti === 1 ? "voto" : "voti"}">
+    <span class="vn"><span class="dotc" style="background:${catColor(r.categoria)}"></span>${esc(r.corso)}</span><span class="vs">${stelle(r.media)}</span>
+    <span class="vm">${Number(r.media).toFixed(1).replace(".", ",")}</span><span class="vc">${r.voti} ${r.voti === 1 ? "voto" : "voti"}</span></div>`;
+  const distr = (r) => { const t = r.voti || 1; return `<span class="dist" title="5★ ${r.d5} · 4★ ${r.d4} · 3★ ${r.d3} · 2★ ${r.d2} · 1★ ${r.d1}">${[5, 4, 3, 2, 1].map((s) => `<i style="width:${(100 * r["d" + s]) / t}%;--s:${s}"></i>`).join("")}</span>`; };
+  box.innerHTML = `<p class="mut" style="margin-bottom:10px">${totVoti} ${totVoti === 1 ? "valutazione" : "valutazioni"} su ${P.length} ${P.length === 1 ? "corso" : "corsi"}. Con pochi voti la media è poco affidabile: guarda anche la colonna dei voti.</p>
+    <div class="grid2v">
+      <div><h3 class="vh">Più apprezzati</h3>${migliori.map(riga).join("")}</div>
+      <div><h3 class="vh">Meno apprezzati</h3>${peggiori.map(riga).join("")}</div>
+    </div>
+    <details style="margin-top:12px"><summary class="mut">Tutti i corsi con distribuzione delle stelle</summary><div class="wrap-tbl" style="margin-top:8px"><table class="tbl"><thead><tr><th>Corso</th><th class="num">Media</th><th class="num">Voti</th><th>Distribuzione (5★ → 1★)</th></tr></thead><tbody>${
+      ord.map((r) => `<tr><td>${esc(r.corso)}</td><td class="num">${Number(r.media).toFixed(2).replace(".", ",")}</td><td class="num">${r.voti}</td><td>${distr(r)}</td></tr>`).join("")}</tbody></table></div>
+      <div class="legend" style="margin-top:8px">${[5, 4, 3, 2, 1].map((s) => `<span><i class="ds" style="--s:${s}"></i>${s}★</span>`).join("")}</div></details>
+    ${C.length ? `<h3 class="vh" style="margin-top:16px">Ultimi commenti</h3><div class="feed">${C.map((c) => `<div class="fi"><div><b>${esc(c.corso)}</b> <span class="stars-a">${"★".repeat(c.voto)}</span><small style="white-space:normal">«${esc(c.commento)}»</small><small>${esc(c.autore)} · ${esc(fDate.format(new Date(c.quando)))}</small></div></div>`).join("")}</div>` : ""}`;
+}

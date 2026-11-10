@@ -205,3 +205,4 @@ select{font:inherit;font-size:16px;color:var(--txt);background:#0d0d0d;border:1p
 .avv.nuovo{border-color:rgba(224,34,51,.55)}
 .avv small{color:var(--mut);font-size:12px}.avv.nuovo small{color:#ffc2c6}
 .avv h3{font-size:16px;margin:2px 0 6px}.avv p{font-size:14px;color:#d4d4d4;white-space:pre-wrap}
+.rate.big{display:flex;justify-content:center;gap:6px;margin:6px 0 14px}.rate.big button{font-size:38px;padding:4px}

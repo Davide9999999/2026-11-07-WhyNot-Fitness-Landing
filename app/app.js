@@ -461,11 +461,25 @@ async function cambiaPreferito(id) {
 document.addEventListener("click", (e) => { const b = e.target.closest("[data-fav]"); if (b) cambiaPreferito(Number(b.dataset.fav)); });
 
 // ------------------------------------------------------------------ valutazione lezione
-async function valuta(pid, voto) {
-  const { error } = await sb.rpc("valuta_lezione", { p_prenotazione_id: pid, p_voto: voto, p_commento: null });
-  if (error) return toast(error.message, false);
-  const x = mie.find((p) => p.id === pid); if (x) x.voto = voto;
-  toast("Grazie per la valutazione!"); disegnaMie();
+// tocco sulle stelle -> scheda con le stelle scelte e un commento facoltativo
+function valuta(pid, voto) {
+  const x = mie.find((p) => p.id === pid); if (!x) return;
+  let v = voto;
+  const disegnaStelle = () => [1, 2, 3, 4, 5].map((s) => `<button type="button" data-s="${s}" aria-label="${s} stelle">${s <= v ? "★" : "☆"}</button>`).join("");
+  $("shBody").innerHTML = `<span class="k" style="color:${x.col}">Valuta la lezione</span><h2>${esc(x.corso)}</h2>
+    <div class="kv"><span>${esc(cap(fmt.day.format(x.d)))}</span><span>${fmt.time.format(x.d)}</span></div>
+    <div class="rate big" id="vStelle">${disegnaStelle()}</div>
+    <label>Commento <small>(facoltativo, lo legge la palestra)</small><textarea id="vComm" maxlength="300" placeholder="Cosa ti è piaciuto? Cosa miglioreresti?"></textarea></label>
+    <div class="btns"><button class="btn" id="vOk">Invia valutazione</button><button class="btn ghost" id="shNo">Annulla</button></div><p class="msg" id="shMsg"></p>`;
+  $("vStelle").onclick = (e) => { const b = e.target.closest("[data-s]"); if (b) { v = Number(b.dataset.s); $("vStelle").innerHTML = disegnaStelle(); } };
+  $("shNo").onclick = () => sheet.close();
+  $("vOk").onclick = async (ev) => {
+    const b = ev.currentTarget; busy(b, true, "Invio...");
+    const { error } = await sb.rpc("valuta_lezione", { p_prenotazione_id: pid, p_voto: v, p_commento: $("vComm").value.trim() || null });
+    if (error) { busy(b, false); return msg($("shMsg"), error.message); }
+    x.voto = v; sheet.close(); toast("Grazie per la valutazione!"); disegnaMie();
+  };
+  sheet.showModal();
 }
 
 // ------------------------------------------------------------------ schede
