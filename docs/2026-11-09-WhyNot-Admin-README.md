@@ -115,4 +115,5 @@ Pagine: `/prenota/` (ora pubblica, in sitemap e nel menu) e `/area-personale/` (
 - **Destinatari**: una o più email (anche incollate separate da virgola), vuoto = tutti; `supabase/2026-11-10-WhyNot-schede-destinatari.sql` (eseguito).
 - **App**: scheda per giorni con «Come si esegue»; **Inizia allenamento**: spunta delle serie, timer di recupero con vibrazione, avanzamento (salvato sul telefono per la giornata).
 - **Carichi** (`supabase/2026-11-10-WhyNot-carichi.sql`, eseguito): in modalità allenamento kg e ripetizioni per ogni serie, salvati nel database; «Ultima volta» e suggerimento di aumento (+2,5 kg da 40 kg in su, +1 kg sotto) quando l'ultima sessione ha completato tutte le ripetizioni. Lo staff li vede nella scheda dell'iscritto (ultimi 90 giorni).
+- **Scadenza schede**: inizio (campo «Inizio», di default il giorno della prima pubblicazione) + numero di settimane. Filtri «In scadenza (7 gg)» e «Scadute» in Schede, etichetta sulle schede, avviso in Panoramica. Le schede senza settimane non scadono.
 - Le vecchie schede di solo testo restano leggibili; aprendole nell'editor il testo finisce nelle note del primo giorno.

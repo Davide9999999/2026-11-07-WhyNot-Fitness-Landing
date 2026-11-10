@@ -98,7 +98,7 @@
     <section id="tab-schede" class="page" hidden>
       <div class="chips" id="schFilter">
         <button class="chip" data-f="" aria-pressed="true">Tutte</button><button class="chip" data-f="bozza" aria-pressed="false">Bozze</button>
-        <button class="chip" data-f="pubblicata" aria-pressed="false">Pubblicate</button><button class="chip" data-f="archiviata" aria-pressed="false">Archiviate</button>
+        <button class="chip" data-f="pubblicata" aria-pressed="false">Pubblicate</button><button class="chip" data-f="archiviata" aria-pressed="false">Archiviate</button><button class="chip" data-f="scadenza" aria-pressed="false">In scadenza (7 gg)</button><button class="chip" data-f="scadute" aria-pressed="false">Scadute</button>
       </div>
       <div id="schede" class="list"></div>
     </section>
@@ -211,6 +211,7 @@
             <datalist id="schDestList"></datalist></div>
           <label>Settimane<input name="settimane" type="number" min="1" max="52" placeholder="es. 6"></label>
           <label>Allenamenti a settimana<input name="frequenza" type="number" min="1" max="7" placeholder="es. 3"></label>
+          <label>Inizio<input name="inizio" type="date"><small class="mut" id="schScad"></small></label>
           <label class="full">Descrizione breve (la vede l'iscritto)<input name="descrizione" maxlength="300" placeholder="es. Scheda base per riprendere ad allenarsi in sala"></label>
         </div>
 

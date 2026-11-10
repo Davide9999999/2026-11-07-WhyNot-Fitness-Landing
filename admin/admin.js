@@ -155,6 +155,10 @@ async function caricaHome() {
   let alert = "";
   if (!sett.length) alert = avviso(`Questa settimana non ha ancora lezioni.`, lun);
   else if (!(nw.data || []).length) alert = avviso(`La settimana dal ${fDay.format(noon(next))} non ha ancora lezioni: generale entro sabato: le prenotazioni si aprono domenica alle 00:00.`, next);
+  const { data: schPub } = await sb.from("schede").select("id,titolo,pubblicata_il,struttura,stato").eq("stato", "pubblicata");
+  const inScad = (schPub || []).map(scadenzaScheda).filter((x) => x && x.giorni >= 0 && x.giorni <= 7).length;
+  const scadute = (schPub || []).map(scadenzaScheda).filter((x) => x && x.giorni < 0).length;
+  if (inScad || scadute) alert += `<div class="alert"><svg viewBox="0 0 24 24"><rect x="5" y="4" width="14" height="18" rx="2"/><path d="M9 10h6M9 14h6"/></svg><div>${inScad ? `${inScad} ${inScad === 1 ? "scheda scade" : "schede scadono"} entro 7 giorni` : ""}${inScad && scadute ? " · " : ""}${scadute ? `${scadute} ${scadute === 1 ? "scheda è scaduta ma ancora pubblicata" : "schede sono scadute ma ancora pubblicate"}` : ""}: preparane una nuova o archiviale.</div><button class="btn sm" data-scad="${inScad ? "scadenza" : "scadute"}">Vedi</button></div>`;
   $("homeAlert").innerHTML = alert;
 
   const prossima = oggiAttive.find((l) => new Date(l.inizio).getTime() > now);
@@ -493,18 +497,22 @@ $("iscForm").addEventListener("submit", async (e) => {
 
 // ------------------------------------------------------------------ schede: elenco
 async function caricaSchede() {
-  let q = sb.from("schede").select("id,titolo,obiettivo,livello,stato,updated_at,member_id,destinatari,struttura,contenuto").order("updated_at", { ascending: false });
-  if (schFiltro) q = q.eq("stato", schFiltro);
+  let q = sb.from("schede").select("id,titolo,obiettivo,livello,stato,updated_at,pubblicata_il,member_id,destinatari,struttura,contenuto").order("updated_at", { ascending: false });
+  const filtroScad = schFiltro === "scadenza" || schFiltro === "scadute";
+  if (filtroScad) q = q.eq("stato", "pubblicata"); else if (schFiltro) q = q.eq("stato", schFiltro);
   const [{ data, error }] = await Promise.all([q, iscritti ? null : caricaIscritti(true)]);
   if (error) { $("schede").innerHTML = `<p class="msg ko">${esc(error.message)}</p>`; return; }
   const nomeDi = (uid) => (iscritti || []).find((i) => i.user_id === uid)?.email || "un iscritto";
-  $("schede").innerHTML = (data || []).map((s) => {
+  let lista = data || [];
+  if (filtroScad) lista = lista.map((s) => ({ s, sc: scadenzaScheda(s) })).filter((x) => x.sc && (schFiltro === "scadute" ? x.sc.giorni < 0 : x.sc.giorni >= 0 && x.sc.giorni <= 7)).sort((a, b) => a.sc.giorni - b.sc.giorni).map((x) => x.s);
+  $("schede").innerHTML = lista.map((s) => {
     const g = s.struttura?.giorni || [], nEs = g.reduce((t, d) => t + (d.esercizi || []).length, 0);
     return `<button class="sc" data-id="${s.id}"><span class="st ${s.stato}">${s.stato}</span><h3>${esc(s.titolo)}</h3>
       <span class="mut">${esc([s.obiettivo, s.livello].filter(Boolean).join(" · ") || "—")}</span>
       <span class="mut">${g.length ? `${g.length} ${g.length === 1 ? "giorno" : "giorni"} · ${nEs} esercizi` : s.contenuto ? "scheda di solo testo" : "vuota"} · ${destTesto(s)}</span>
+      ${etichettaScad(s)}
       <span class="mut">Aggiornata ${fa(s.updated_at)}</span></button>`;
-  }).join("") || `<p class="empty" style="grid-column:1/-1">Nessuna scheda${schFiltro ? " in questo stato" : ""}. Creane una con «Nuova scheda»: puoi partire da un modello.</p>`;
+  }).join("") || `<p class="empty" style="grid-column:1/-1">${schFiltro === "scadenza" ? "Nessuna scheda scade nei prossimi 7 giorni" : schFiltro === "scadute" ? "Nessuna scheda scaduta" : `Nessuna scheda${schFiltro ? " in questo stato" : ""}`}. Creane una con «Nuova scheda»: puoi partire da un modello.</p>`;
 }
 $("schFilter").addEventListener("click", (e) => {
   const b = e.target.closest(".chip"); if (!b) return;
@@ -599,8 +607,10 @@ async function apriScheda(id) {
     if (s?.giorni?.length) ed = { giorni: s.giorni.map((g) => ({ nome: g.nome || "Giorno", note: g.note || "", esercizi: (g.esercizi || []).map((x) => ({ ...x })) })) };
     else if (data.contenuto) ed.giorni[0].note = data.contenuto;   // vecchia scheda di solo testo: il testo finisce nelle note
     f.settimane.value = s?.settimane || ""; f.frequenza.value = s?.frequenza || ""; f.note.value = s?.note || "";
+    f.inizio.value = s?.inizio || (data.pubblicata_il ? ymdRome(new Date(data.pubblicata_il)) : ""); ed.pubblicata_il = data.pubblicata_il;
   }
   gSel = 0; libGruppo = ""; $("libQ").value = ""; $("libAttr").value = "";
+  aggiornaScad();
   disegnaDest();
   disegnaEditor(); disegnaLibreria();
   $("dSch").showModal();
@@ -617,12 +627,13 @@ $("schForm").addEventListener("submit", async (e) => {
   if ($("schDest").value.trim() && !aggiungiDest()) return;   // email scritta ma non ancora aggiunta
   const vuoti = ed.giorni.filter((g) => !g.esercizi.length).length;
   if (stato === "pubblicata" && vuoti === ed.giorni.length && !ed.giorni.some((g) => g.note)) return msg($("schMsg"), "Aggiungi almeno un esercizio prima di pubblicare.");
-  const struttura = { settimane: Number(f.settimane.value) || null, frequenza: Number(f.frequenza.value) || null, note: f.note.value.trim() || null,
+  if (stato === "pubblicata" && !f.inizio.value) f.inizio.value = ymdRome(new Date());
+  const struttura = { settimane: Number(f.settimane.value) || null, inizio: f.inizio.value || null, frequenza: Number(f.frequenza.value) || null, note: f.note.value.trim() || null,
     giorni: ed.giorni.map((g) => ({ nome: g.nome.trim() || "Giorno", note: g.note.trim() || null, esercizi: g.esercizi.map(({ id, nome, gruppo, tipo, serie, rip, carico, rec, note, ss }) =>
       ({ id, nome, gruppo, tipo, serie: Number(serie) || 1, rip: String(rip || "").trim(), carico: String(carico || "").trim() || null, rec: Number(rec) || 0, note: String(note || "").trim() || null, ss: !!ss })) })) };
   const row = { titolo: f.titolo.value.trim(), obiettivo: f.obiettivo.value.trim() || null, livello: f.livello.value || null, descrizione: f.descrizione.value.trim() || null,
     member_id: null, destinatari: destSel.length ? destSel : null, stato, struttura, contenuto: testoScheda() };
-  if (stato === "pubblicata") row.pubblicata_il = new Date().toISOString();
+  if (stato === "pubblicata" && !ed.pubblicata_il) row.pubblicata_il = ed.pubblicata_il = new Date().toISOString();   // la prima pubblicazione resta
   const res = f.elements.id.value ? await sb.from("schede").update(row).eq("id", f.elements.id.value).select("id").single() : await sb.from("schede").insert(row).select("id").single();
   if (res.error) return msg($("schMsg"), res.error.message);
   f.elements.id.value = res.data.id; $("schStato").textContent = stato; $("schStato").className = "st " + stato; msg($("schMsg"), "");
@@ -1194,3 +1205,29 @@ $("schDest").addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key
 // scelta dai suggerimenti: aggiunge subito
 $("schDest").addEventListener("input", (e) => { const v = e.target.value.trim().toLowerCase(); if ((iscritti || []).some((i) => i.email === v && i.user_id) && e.inputType !== "insertText") aggiungiDest(); });
 $("destChips").addEventListener("click", (e) => { const b = e.target.closest("[data-rmd]"); if (b) { destSel = destSel.filter((u) => u !== b.dataset.rmd); disegnaDest(); } });
+
+// ------------------------------------------------------------------ schede: scadenza (inizio + settimane)
+function scadenzaScheda(s) {
+  const sett = Number(s?.struttura?.settimane), inizio = s?.struttura?.inizio || (s?.pubblicata_il ? ymdRome(new Date(s.pubblicata_il)) : null);
+  if (!sett || !inizio || s.stato !== "pubblicata") return null;
+  const fine = addDays(inizio, sett * 7 - 1);   // ultimo giorno di validità
+  return { inizio, fine, giorni: Math.round((noon(fine) - noon(ymdRome(new Date()))) / 86400000) };
+}
+function etichettaScad(s) {
+  const sc = scadenzaScheda(s);
+  if (!sc) return s.stato === "pubblicata" && !Number(s.struttura?.settimane) ? '<span class="mut">senza scadenza (settimane non indicate)</span>' : "";
+  if (sc.giorni < 0) return `<span class="pill x">Scaduta il ${esc(fDate.format(noon(sc.fine)))}</span>`;
+  if (sc.giorni <= 7) return `<span class="pill w">${sc.giorni === 0 ? "Scade oggi" : sc.giorni === 1 ? "Scade domani" : `Scade tra ${sc.giorni} giorni`}</span>`;
+  return `<span class="mut">Valida fino al ${esc(fDate.format(noon(sc.fine)))}</span>`;
+}
+function aggiornaScad() {
+  const f = $("schForm"), sett = Number(f.settimane.value), ini = f.inizio.value;
+  $("schScad").textContent = sett && ini ? `scade il ${fDate.format(noon(addDays(ini, sett * 7 - 1)))}` : sett ? "parte alla pubblicazione" : "";
+}
+$("schForm").settimane.addEventListener("input", aggiornaScad);
+$("schForm").inizio.addEventListener("input", aggiornaScad);
+document.addEventListener("click", (e) => {
+  const b = e.target.closest("[data-scad]"); if (!b) return;
+  schFiltro = b.dataset.scad; vai("schede");
+  $("schFilter").querySelectorAll(".chip").forEach((x) => x.setAttribute("aria-pressed", x.dataset.f === schFiltro));
+});
