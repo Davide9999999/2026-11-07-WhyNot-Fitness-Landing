@@ -1050,58 +1050,106 @@ $("avvisiList").addEventListener("click", async (e) => {
 
 // ------------------------------------------------------------------ statistiche
 // Una sola serie per grafico (niente doppi assi), un solo colore per la grandezza, valori al passaggio e in tabella.
-// periodo delle statistiche: date di inizio e fine incluse (ora italiana)
-let statDa = addDays(ymdRome(new Date()), -27), statA = ymdRome(new Date());
-const nGiorni = () => Math.round((noon(statA) - noon(statDa)) / 86400000) + 1;
-const periodoTesto = () => (statDa === statA ? cap1(fFull.format(noon(statDa))) : `dal ${fDate.format(noon(statDa))} al ${fDate.format(noon(statA))} · ${nGiorni()} giorni`);
-function impostaPeriodo(da, a, chip) {
+// periodo delle statistiche: date di inizio e fine incluse (ora italiana). Periodi a calendario:
+// giorno, settimana (lunedì-domenica), mese, anno; oppure date libere (statUnita = null).
+const giorniTra = (x, y) => Math.round((noon(y) - noon(x)) / 86400000) + 1;
+const fineMese = (ymd) => { const [y, m] = ymd.split("-").map(Number); return new Date(Date.UTC(y, m, 0)).toISOString().slice(0, 10); };
+// stesso giorno k mesi dopo (o prima); se il giorno non esiste (31 → 30 novembre) si ferma all'ultimo del mese
+const addMesi = (ymd, k) => { const [y, m, d] = ymd.split("-").map(Number); const t = new Date(Date.UTC(y, m - 1 + k, 1)), ult = new Date(Date.UTC(t.getUTCFullYear(), t.getUTCMonth() + 1, 0)).getUTCDate();
+  return `${t.getUTCFullYear()}-${String(t.getUTCMonth() + 1).padStart(2, "0")}-${String(Math.min(d, ult)).padStart(2, "0")}`; };
+function periodoDi(unita, ymd) {
+  if (unita === "settimana") { const l = lunediDi(ymd); return [l, addDays(l, 6)]; }
+  if (unita === "mese") return [ymd.slice(0, 8) + "01", fineMese(ymd)];
+  if (unita === "anno") return [ymd.slice(0, 4) + "-01-01", ymd.slice(0, 4) + "-12-31"];
+  return [ymd, ymd];
+}
+let statUnita = "mese", [statDa, statA] = periodoDi("mese", ymdRome(new Date()));
+const nGiorni = () => giorniTra(statDa, statA);
+const fMeseA = F({ month: "long", year: "numeric" });
+function testoPeriodo(da, a, unita) {
+  if (unita === "giorno" || da === a) return cap1(fFull.format(noon(da))) + " " + da.slice(0, 4);
+  if (unita === "mese") return cap1(fMeseA.format(noon(da)));
+  if (unita === "anno") return "Anno " + da.slice(0, 4);
+  return `${unita === "settimana" ? "Settimana " : ""}dal ${fDate.format(noon(da))} al ${fDate.format(noon(a))} · ${giorniTra(da, a)} giorni`;
+}
+const periodoTesto = () => testoPeriodo(statDa, statA, statUnita);
+function impostaPeriodo(da, a, unita) {
   if (a < da) [da, a] = [a, da];
-  if (Math.round((noon(a) - noon(da)) / 86400000) > 400) da = addDays(a, -400);
-  statDa = da; statA = a;
+  if (giorniTra(da, a) > 400) da = addDays(a, -399);
+  statDa = da; statA = a; statUnita = unita || null;
   $("statRange").da.value = da; $("statRange").a.value = a;
+  const oggi = ymdRome(new Date());
+  const chip = unita === "giorno" ? (da === oggi ? "oggi" : da === addDays(oggi, -1) ? "ieri" : null) : unita;
   $("statPer").querySelectorAll(".chip").forEach((x) => x.setAttribute("aria-pressed", x.dataset.p === chip));
   caricaStat();
 }
 const pct = (v) => (v == null ? "—" : `${v}%`);
 
 // --- confronto tra periodi (benchmark): tutto calcolato qui dai dati di admin_statistiche, nessuna funzione nuova nel database
+// Riferimenti (si possono attivare insieme):
+//   settimana = stesse date 7 giorni prima · mese = stesse date un mese prima (mese intero se il periodo è un mese)
+//   anno = stesso periodo un anno prima (per giorno e settimana 364 giorni prima, così coincidono i giorni della settimana)
+//   scelta = periodo libero indicato a mano
 const CONFR = {
-  prec: { nome: "Periodo precedente", breve: "periodo precedente" },
-  anno: { nome: "Anno scorso", breve: "anno scorso" },
-  media3: { nome: "Media 3 periodi", breve: "media 3 periodi" },
+  settimana: { nome: "Settimana prima", breve: "settimana prima" },
+  mese: { nome: "Mese prima", breve: "mese prima" },
+  anno: { nome: "Anno prima", breve: "anno prima" },
+  scelta: { nome: "Periodo a scelta", breve: "periodo a scelta" },
 };
-let confSel = ["prec"];
-try { const v = JSON.parse(localStorage.getItem("wn-stat-confronto") || "null"); if (Array.isArray(v)) confSel = v.filter((k) => CONFR[k]); } catch (e) { /* preferenza non disponibile */ }
-const segnaConf = () => $("statConfSel").querySelectorAll("[data-c]").forEach((b) => b.setAttribute("aria-pressed", confSel.includes(b.dataset.c)));
-segnaConf();
-$("statConfSel").addEventListener("click", (e) => {
-  const b = e.target.closest("[data-c]"); if (!b) return;
-  const k = b.dataset.c;
-  confSel = confSel.includes(k) ? confSel.filter((x) => x !== k) : Object.keys(CONFR).filter((x) => x === k || confSel.includes(x));
-  try { localStorage.setItem("wn-stat-confronto", JSON.stringify(confSel)); } catch (e2) { /* ignora */ }
-  segnaConf(); caricaStat();
-});
-// periodi di riferimento: stessa durata subito prima; anno scorso = 364 giorni prima (stessi giorni della settimana); media dei 3 periodi precedenti
-function periodiRif(da, a) {
-  const n = Math.round((noon(a) - noon(da)) / 86400000) + 1;
-  return confSel.map((k) => ({ k, ...CONFR[k],
-    parti: k === "anno" ? [[addDays(da, -364), addDays(a, -364)]] : k === "prec" ? [[addDays(da, -n), addDays(a, -n)]] : [1, 2, 3].map((i) => [addDays(da, -n * i), addDays(a, -n * i)]) }));
+let confSel = ["mese", "anno"], confDa = null, confA = null;
+try { const v = JSON.parse(localStorage.getItem("wn-stat-confronto2") || "null"); if (Array.isArray(v)) confSel = v.filter((k) => CONFR[k]); } catch (e) { /* preferenza non disponibile */ }
+// un confronto che si sovrappone al periodo scelto non ha senso: "settimana prima" solo fino a 7 giorni, "mese prima" fino a 31
+const confUsabile = (k) => (k === "settimana" ? nGiorni() <= 7 : k === "mese" ? nGiorni() <= 31 : true);
+function segnaConf() {
+  $("statConfSel").querySelectorAll("[data-c]").forEach((b) => {
+    const k = b.dataset.c, ok = confUsabile(k);
+    b.setAttribute("aria-pressed", ok && confSel.includes(k)); b.disabled = !ok;
+    b.title = ok ? b.dataset.t : k === "settimana" ? "Il periodo scelto è più lungo di una settimana" : "Il periodo scelto è più lungo di un mese";
+  });
+  const f = $("confRange"); f.hidden = !confSel.includes("scelta");
+  if (!confDa) { const n = nGiorni(); confDa = addDays(statDa, -n); confA = addDays(statA, -n); }
+  f.cda.value = confDa; f.ca.value = confA;
 }
-const testoParte = ([x, y]) => (x === y ? fDate.format(noon(x)) : `${fDate.format(noon(x))} – ${fDate.format(noon(y))}`);
-// riduce una o più risposte di admin_statistiche agli indicatori confrontabili (con più periodi: media; le percentuali sono ricalcolate sui totali)
-function sintesi(L) {
-  // i periodi senza lezioni (es. prima dell'avvio dell'app) non entrano nella media, altrimenti abbasserebbero il riferimento
-  L = L.filter((d) => (d.totali || {}).lezioni > 0);
-  if (!L.length) return { vuoto: true, n: 0, corsi: {} };
-  const k = L.length, S = (f) => L.reduce((s, d) => s + f(d), 0), T = (d) => d.totali || {};
-  const posti = S((d) => T(d).posti || 0), pren = S((d) => T(d).prenotati || 0), lez = S((d) => T(d).lezioni || 0), ass = S((d) => T(d).assenti || 0);
-  const voti = S((d) => T(d).voti || 0), sv = S((d) => (T(d).voto_medio || 0) * (T(d).voti || 0));
-  const pres = S((d) => (d.giornaliero || []).reduce((s, g) => s + (g.presenze || 0), 0));
+$("statConfSel").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-c]"); if (!b || b.disabled) return;
+  const k = b.dataset.c;
+  // all'attivazione propone il periodo di uguale durata subito prima di quello scelto (poi si cambiano le date a piacere)
+  if (k === "scelta" && !confSel.includes(k)) { const n = nGiorni(); confDa = addDays(statDa, -n); confA = addDays(statA, -n); }
+  confSel = confSel.includes(k) ? confSel.filter((x) => x !== k) : Object.keys(CONFR).filter((x) => x === k || confSel.includes(x));
+  try { localStorage.setItem("wn-stat-confronto2", JSON.stringify(confSel)); } catch (e2) { /* ignora */ }
+  caricaStat();
+});
+$("confRange").addEventListener("submit", (e) => {
+  e.preventDefault(); const f = e.target; if (!f.cda.value || !f.ca.value) return;
+  [confDa, confA] = f.cda.value <= f.ca.value ? [f.cda.value, f.ca.value] : [f.ca.value, f.cda.value];
+  if (giorniTra(confDa, confA) > 400) confDa = addDays(confA, -399);
+  caricaStat();
+});
+// date dei riferimenti; se il periodo scelto è in corso, ogni riferimento si taglia agli stessi giorni trascorsi ("a pari giorni")
+function periodiRif(da, a, giorniTrascorsi) {
+  const u = statUnita;
+  return confSel.filter(confUsabile).map((k) => {
+    let p;
+    if (k === "settimana") p = [addDays(da, -7), addDays(a, -7)];
+    else if (k === "mese") p = u === "mese" ? periodoDi("mese", addMesi(da, -1)) : [addMesi(da, -1), addMesi(a, -1)];
+    else if (k === "anno") p = u === "giorno" || u === "settimana" ? [addDays(da, -364), addDays(a, -364)] : u === "anno" ? periodoDi("anno", addMesi(da, -12)) : u === "mese" ? periodoDi("mese", addMesi(da, -12)) : [addMesi(da, -12), addMesi(a, -12)];
+    else p = [confDa, confA];
+    const tagliato = giorniTrascorsi && k !== "scelta" && giorniTra(p[0], p[1]) > giorniTrascorsi;
+    if (tagliato) p = [p[0], addDays(p[0], giorniTrascorsi - 1)];
+    return { k, ...CONFR[k], da: p[0], a: p[1], tagliato };
+  });
+}
+const testoParte = (x, y) => (x === y ? fDate.format(noon(x)) : `${fDate.format(noon(x))} – ${fDate.format(noon(y))}`);
+// riduce una risposta di admin_statistiche agli indicatori confrontabili
+function sintesi(d, giorni) {
+  const T = d.totali || {};
+  if (!(T.lezioni > 0)) return { vuoto: true, corsi: {} };
+  const posti = T.posti || 0, pren = T.prenotati || 0, lez = T.lezioni || 0;
   const corsi = {};
-  L.forEach((d) => (d.per_corso || []).forEach((r) => { const c = (corsi[r.corso] ||= { posti: 0, pren: 0, lez: 0 }); c.posti += r.posti || 0; c.pren += r.prenotati || 0; c.lez += r.lezioni || 0; }));
-  Object.values(corsi).forEach((c) => { c.riemp = c.posti ? Math.round((100 * c.pren) / c.posti) : null; c.pren /= k; c.lez /= k; });
-  return { vuoto: false, n: k, lezioni: lez / k, posti: posti / k, prenotati: pren / k, riemp: posti ? (100 * pren) / posti : null, perLez: lez ? pren / lez : null,
-    presenze: pres / k, assPct: pren ? (100 * ass) / pren : null, annullate: S((d) => T(d).annullate || 0) / k, voto: voti ? sv / voti : null, voti: voti / k, corsi };
+  (d.per_corso || []).forEach((r) => { corsi[r.corso] = { riemp: r.posti ? Math.round((100 * (r.prenotati || 0)) / r.posti) : null }; });
+  return { vuoto: false, giorni, lezioni: lez, posti, prenotati: pren, riemp: posti ? (100 * pren) / posti : null, perLez: lez ? pren / lez : null, perGiorno: pren / giorni,
+    presenze: (d.giornaliero || []).reduce((s, g) => s + (g.presenze || 0), 0), assPct: pren ? (100 * (T.assenti || 0)) / pren : null,
+    annullate: T.annullate || 0, voto: T.voti ? Number(T.voto_medio) : null, voti: T.voti || 0, corsi };
 }
 // indicatori: come si scrive il valore, come si misura la differenza (punti % o variazione %), e se salire è un bene
 const num = (v, dec = 0) => (v == null ? "—" : Number(v).toLocaleString("it-IT", { minimumFractionDigits: dec, maximumFractionDigits: dec }));
@@ -1113,6 +1161,7 @@ const IND = [
   { id: "presenze", nome: "Presenze", f: (v) => num(v), d: "rel", meglio: 1 },
   { sez: "Qualità" },
   { id: "riemp", nome: "Riempimento", f: (v) => (v == null ? "—" : `${num(v)}%`), d: "pt", meglio: 1 },
+  { id: "perGiorno", nome: "Prenotati al giorno", f: (v) => num(v, 1), d: "abs1", meglio: 1 },
   { id: "perLez", nome: "Prenotati per lezione", f: (v) => num(v, 1), d: "abs1", meglio: 1 },
   { id: "assPct", nome: "Assenze segnate", f: (v) => (v == null ? "—" : `${num(v)}%`), d: "pt", meglio: -1 },
   { id: "annullate", nome: "Prenotazioni annullate", f: (v) => num(v), d: "rel", meglio: -1 },
@@ -1136,32 +1185,37 @@ async function caricaStat() {
   const da = statDa, a = statA, gen = ++statGen;
   $("statLbl").textContent = periodoTesto(); $("statRange").da.value = da; $("statRange").a.value = a;
   $("statKpi").innerHTML = '<div class="skel"></div><div class="skel"></div><div class="skel"></div><div class="skel"></div>';
-  // riferimenti: ogni intervallo si chiede una volta sola (periodo precedente e media 3 periodi ne condividono uno)
-  const rif = periodiRif(da, a), chiesti = {};
-  const chiedi = ([x, y]) => (chiesti[x + "|" + y] ||= sb.rpc("admin_statistiche", { p_da: x, p_a: y }));
-  const [s, ina, ...R] = await Promise.all([sb.rpc("admin_statistiche", { p_da: da, p_a: a }), sb.rpc("admin_inattivi", { p_giorni: 21 }),
-    ...rif.map((r) => Promise.all(r.parti.map(chiedi)))]);
+  segnaConf();
+  // periodo in corso (es. il mese corrente): il confronto si fa "a pari giorni", da inizio periodo fino a oggi, contro gli stessi giorni dei riferimenti
+  const oggi = ymdRome(new Date()), inCorso = da <= oggi && oggi < a;
+  const cDa = da, cA = inCorso ? oggi : a, trascorsi = inCorso ? giorniTra(da, oggi) : 0;
+  const rif = periodiRif(da, a, trascorsi), chiesti = {};
+  const chiedi = (x, y) => (chiesti[x + "|" + y] ||= sb.rpc("admin_statistiche", { p_da: x, p_a: y }));   // ogni intervallo una volta sola
+  const [s, ina, sc, ...R] = await Promise.all([chiedi(da, a), sb.rpc("admin_inattivi", { p_giorni: 21 }), rif.length ? chiedi(cDa, cA) : null, ...rif.map((r) => chiedi(r.da, r.a))]);
   if (gen !== statGen) return;   // nel frattempo è stato scelto un altro periodo
   if (s.error) { $("statKpi").innerHTML = `<p class="empty">${esc(s.error.message)}</p>`; $("statConfP").hidden = true; return; }
   const d = s.data, t = d.totali || {};
-  const cur = sintesi([d]);
-  rif.forEach((r, i) => { const e = R[i].find((x) => x.error); r.errore = e?.error?.message; r.s = e ? null : sintesi(R[i].map((x) => x.data)); });
+  const cur = sc && !sc.error ? sintesi(sc.data, giorniTra(cDa, cA)) : sintesi(d, nGiorni());
+  cur.da = cDa; cur.a = cA; cur.inCorso = inCorso;
+  rif.forEach((r, i) => { r.errore = R[i].error?.message; r.s = r.errore ? null : sintesi(R[i].data, giorniTra(r.da, r.a)); });
   const rifOk = rif.filter((r) => r.s && !r.s.vuoto), r0 = rifOk[0];
+  // nei riquadri: variazione contro il primo riferimento con dati (a pari giorni se il periodo è in corso)
   const kd = (id) => { if (!r0) return ""; const ind = IND.find((x) => x.id === id), x = delta(ind, cur[id], r0.s[id]);
-    return x ? `<em class="dlt ${x.verso}">${x.t} <span>vs ${esc(r0.breve)}</span></em>` : ""; };
+    return x ? `<em class="dlt ${x.verso}">${x.t} <span>vs ${esc(r0.breve)}${inCorso ? " (a pari giorni)" : ""}</span></em>` : ""; };
   const riemp = t.posti ? Math.round((100 * t.prenotati) / t.posti) : 0;
   $("statKpi").innerHTML = `
     <div class="kpi"><span>Riempimento medio</span><b>${riemp}%</b><small>${t.prenotati} prenotati su ${t.posti} posti</small><div class="meter"><i style="width:${riemp}%"></i></div>${kd("riemp")}</div>
     <div class="kpi"><span>Lezioni</span><b>${t.lezioni}</b><small>${statDa === statA ? "nel giorno" : `in ${nGiorni()} giorni`}</small>${kd("lezioni")}</div>
     <div class="kpi"><span>Assenze segnate</span><b>${t.prenotati ? Math.round((100 * t.assenti) / t.prenotati) : 0}%</b><small>${t.assenti} su ${t.prenotati} prenotati · ${t.annullate} annullate</small>${kd("assPct")}</div>
     <div class="kpi"><span>Voto medio lezioni</span><b>${t.voto_medio != null ? Number(t.voto_medio).toFixed(1).replace(".", ",") : "—"}</b><small>${t.voti} valutazioni</small>${kd("voto")}</div>`;
-  disegnaConfronto(cur, rif, a);
+  disegnaConfronto(cur, rif);
   const pc = d.per_corso || [];
-  const bm = (r) => { const c = r0?.s.corsi[r.corso]; return c && c.riemp != null ? `<b class="bm" style="left:${Math.min(100, c.riemp)}%"></b>` : ""; };
-  const bmT = (r) => { const c = r0?.s.corsi[r.corso]; return c && c.riemp != null ? ` · ${r0.breve}: ${c.riemp}%` : ""; };
+  const rB = inCorso ? null : r0;   // tacca di riferimento solo a periodo concluso (con periodo in corso vale la tabella a pari giorni)
+  const bm = (r) => { const c = rB?.s.corsi[r.corso]; return c && c.riemp != null ? `<b class="bm" style="left:${Math.min(100, c.riemp)}%"></b>` : ""; };
+  const bmT = (r) => { const c = rB?.s.corsi[r.corso]; return c && c.riemp != null ? ` · ${rB.breve}: ${c.riemp}%` : ""; };
   $("statCorsi").innerHTML = pc.length ? `<div class="hbars">${pc.map((r) => `<div class="hb" title="${esc(r.corso)}: ${r.prenotati} prenotati su ${r.posti} posti in ${r.lezioni} lezioni${r.voto ? ` · voto ${r.voto}` : ""}${esc(bmT(r))}">
       <span class="hl">${esc(r.corso)}</span><span class="ht"><i style="width:${Math.min(100, r.riempimento || 0)}%"></i>${bm(r)}</span><span class="hv">${pct(r.riempimento)}</span></div>`).join("")}</div>
-    ${r0 ? `<div class="legend" style="margin-top:10px"><span><i style="background:var(--red-hi)"></i>periodo scelto</span><span><i class="bmk"></i>${esc(r0.breve)}</span></div>` : ""}
+    ${rB ? `<div class="legend" style="margin-top:10px"><span><i style="background:var(--red-hi)"></i>periodo scelto</span><span><i class="bmk"></i>${esc(rB.breve)}</span></div>` : ""}
     <details style="margin-top:10px"><summary class="mut">Tabella</summary><div class="wrap-tbl" style="margin-top:8px"><table class="tbl"><thead><tr><th>Corso</th><th class="num">Lezioni</th><th class="num">Prenotati</th><th class="num">Posti</th><th class="num">Riemp.</th><th class="num">Assenti</th><th class="num">Voto</th></tr></thead><tbody>${
       pc.map((r) => `<tr><td>${esc(r.corso)}</td><td class="num">${r.lezioni}</td><td class="num">${r.prenotati}</td><td class="num">${r.posti}</td><td class="num">${pct(r.riempimento)}</td><td class="num">${r.assenti}</td><td class="num">${r.voto ?? "—"}${r.voti ? ` (${r.voti})` : ""}</td></tr>`).join("")}</tbody></table></div></details>`
     : '<p class="empty">Nessuna lezione nel periodo.</p>';
@@ -1192,14 +1246,19 @@ async function caricaStat() {
 $("statPer").addEventListener("click", (e) => {
   const b = e.target.closest("[data-p]"); if (!b) return;
   const oggi = ymdRome(new Date()), p = b.dataset.p;
-  if (p === "oggi") impostaPeriodo(oggi, oggi, p);
-  else if (p === "ieri") impostaPeriodo(addDays(oggi, -1), addDays(oggi, -1), p);
-  else impostaPeriodo(addDays(oggi, -(Number(p) - 1)), oggi, p);
+  if (p === "oggi") impostaPeriodo(oggi, oggi, "giorno");
+  else if (p === "ieri") impostaPeriodo(addDays(oggi, -1), addDays(oggi, -1), "giorno");
+  else impostaPeriodo(...periodoDi(p, oggi), p);
 });
-$("statRange").addEventListener("submit", (e) => { e.preventDefault(); const f = e.target; if (f.da.value && f.a.value) impostaPeriodo(f.da.value, f.a.value, null); });
-// frecce: spostano il periodo della sua stessa lunghezza (un giorno alla volta se è un giorno solo)
-$("stPrev").onclick = () => { const n = nGiorni(); impostaPeriodo(addDays(statDa, -n), addDays(statA, -n), null); };
-$("stNext").onclick = () => { const n = nGiorni(); impostaPeriodo(addDays(statDa, n), addDays(statA, n), null); };
+$("statRange").addEventListener("submit", (e) => { e.preventDefault(); const f = e.target; if (f.da.value && f.a.value) impostaPeriodo(f.da.value, f.a.value, f.da.value === f.a.value ? "giorno" : null); });
+// frecce: giorno, settimana, mese o anno precedente/successivo a calendario; con date libere, della stessa lunghezza
+function spostaPeriodo(v) {
+  const u = statUnita;
+  if (u === "mese" || u === "anno") impostaPeriodo(...periodoDi(u, addMesi(statDa, u === "mese" ? v : 12 * v)), u);
+  else { const n = u === "settimana" ? 7 : u === "giorno" ? 1 : nGiorni(); impostaPeriodo(addDays(statDa, v * n), addDays(statA, v * n), u); }
+}
+$("stPrev").onclick = () => spostaPeriodo(-1);
+$("stNext").onclick = () => spostaPeriodo(1);
 $("richiamoBtn").onclick = async () => {
   const ids = [...document.querySelectorAll(".inaSel:checked")].map((c) => c.value);
   if (!ids.length) return;
@@ -1209,14 +1268,14 @@ $("richiamoBtn").onclick = async () => {
 };
 
 // ------------------------------------------------------------------ statistiche: tabella di confronto tra periodi
-function disegnaConfronto(cur, rif, a) {
+function disegnaConfronto(cur, rif) {
   const P = $("statConfP"), box = $("statConf");
   P.hidden = !rif.length; if (!rif.length) { box.innerHTML = ""; return; }
   const oggi = ymdRome(new Date());
+  const gg = (n) => `${n} ${n === 1 ? "giorno" : "giorni"}`;
   const testa = (r) => {
-    const p = r.parti, date = p.length === 1 ? testoParte(p[0]) : `${fDate.format(noon(p[p.length - 1][0]))} – ${fDate.format(noon(p[0][1]))}`;
-    const nota = r.errore ? "errore" : r.s.vuoto ? "nessuna lezione" : p.length > 1 ? (r.s.n === 3 ? "media dei 3" : `media di ${r.s.n} su 3 (gli altri senza dati)`) : "";
-    return `<th class="num" colspan="2">${esc(r.nome)}<small>${esc(date)}</small>${nota ? `<small>${esc(nota)}</small>` : ""}</th>`;
+    const nota = r.errore ? "errore" : r.s.vuoto ? "nessuna lezione" : "";
+    return `<th class="num" colspan="2">${esc(r.nome)}<small>${esc(testoParte(r.da, r.a))}</small><small>${gg(giorniTra(r.da, r.a))}${nota ? ` · ${esc(nota)}` : ""}</small></th>`;
   };
   const cella = (ind, r, v) => {
     if (r.errore || r.s.vuoto) return '<td class="num mut">—</td><td></td>';
@@ -1234,12 +1293,17 @@ function disegnaConfronto(cur, rif, a) {
     if (r.errore || r.s.vuoto) return '<td class="num mut">—</td><td></td>';
     const v = r.s.corsi[n]?.riemp ?? null, x = delta(indR, cur.corsi[n]?.riemp ?? null, v);
     return `<td class="num">${pct(v)}</td><td class="num dlt ${x ? x.verso : ""}">${x ? x.t : ""}</td>`; }).join("")}</tr>`;
+  const nCur = giorniTra(cur.da, cur.a);
+  const diversi = rif.filter((r) => r.s && !r.s.vuoto && giorniTra(r.da, r.a) !== nCur).map((r) => `${r.breve} ${gg(giorniTra(r.da, r.a))}`);
   const errori = rif.filter((r) => r.errore).map((r) => `${r.nome}: ${r.errore}`);
-  const vuoti = rif.filter((r) => r.s?.vuoto).map((r) => r.nome.toLowerCase());
-  box.innerHTML = `<div class="wrap-tbl"><table class="tbl"><thead><tr><th>Indicatore</th><th class="num">Periodo scelto<small>${esc(periodoTesto())}</small></th>${rif.map(testa).join("")}</tr></thead><tbody>${righe}</tbody></table></div>
-    ${nomi.length ? `<details style="margin-top:12px"><summary class="mut">Riempimento corso per corso</summary><div class="wrap-tbl" style="margin-top:8px"><table class="tbl"><thead><tr><th>Corso</th><th class="num">Periodo scelto</th>${rif.map(testa).join("")}</tr></thead><tbody>${nomi.map(rc).join("")}</tbody></table></div></details>` : ""}
-    <p class="mut" style="margin-top:10px">▲▼ variazione del periodo scelto rispetto al riferimento: in verde se migliora, in rosso se peggiora (per assenze e annullate, scendere è un miglioramento). Le percentuali si confrontano in punti (pt), i conteggi in variazione %.
-    ${a > oggi ? " <b>Il periodo scelto comprende giorni futuri</b>: le prenotazioni sono ancora aperte e le presenze non ci sono ancora, quindi il confronto è parziale." : ""}
+  const vuoti = rif.filter((r) => r.s?.vuoto).map((r) => r.breve);
+  const testaCur = `<th class="num">${cur.inCorso ? "Periodo scelto, fino a oggi" : "Periodo scelto"}<small>${esc(testoParte(cur.da, cur.a))}</small><small>${gg(nCur)}</small></th>`;
+  box.innerHTML = `${cur.inCorso ? `<p class="mut" style="margin-bottom:10px"><b>Periodo in corso: confronto a pari giorni.</b> Si confrontano i primi ${gg(nCur)} del periodo scelto (fino a oggi) con i primi ${gg(nCur)} di ogni riferimento, così una parte di mese non viene confrontata con un mese intero. Il «periodo a scelta» resta con le date indicate.</p>` : ""}
+    <div class="wrap-tbl"><table class="tbl"><thead><tr><th>Indicatore</th>${testaCur}${rif.map(testa).join("")}</tr></thead><tbody>${righe}</tbody></table></div>
+    ${nomi.length ? `<details style="margin-top:12px"><summary class="mut">Riempimento corso per corso</summary><div class="wrap-tbl" style="margin-top:8px"><table class="tbl"><thead><tr><th>Corso</th>${testaCur}${rif.map(testa).join("")}</tr></thead><tbody>${nomi.map(rc).join("")}</tbody></table></div></details>` : ""}
+    <p class="mut" style="margin-top:10px">▲▼ variazione del periodo scelto rispetto al riferimento: in verde se migliora, in rosso se peggiora (per assenze e annullate scendere è un miglioramento). Le percentuali si confrontano in punti (pt), i conteggi in variazione %.
+    ${diversi.length ? ` <b>Durata diversa</b> (periodo scelto ${gg(nCur)}; ${esc(diversi.join("; "))}): i totali non sono direttamente confrontabili, guarda riempimento, prenotati al giorno e per lezione.` : ""}
+    ${cur.a > oggi ? " <b>Il periodo comprende giorni futuri</b>: prenotazioni ancora aperte e presenze non ancora registrate." : ""}
     ${vuoti.length ? ` Nessuna lezione registrata per: ${esc(vuoti.join(", "))} (i dati partono dall'avvio dell'app).` : ""}${errori.length ? ` Errore: ${esc(errori.join("; "))}` : ""}</p>`;
 }
 
@@ -1263,7 +1327,7 @@ function disegnaGiorni(G) {
     <div class="legend"><span><i style="background:var(--red-hi)"></i>prenotati (giorni passati e oggi)</span><span><i style="background:rgba(224,34,51,.45)"></i>prenotati per giorni futuri</span></div>
     <details style="margin-top:10px"><summary class="mut">Tabella giorno per giorno</summary><div class="wrap-tbl" style="margin-top:8px;max-height:360px"><table class="tbl"><thead><tr><th>Giorno</th><th class="num">Lezioni</th><th class="num">Posti</th><th class="num">Prenotati</th><th class="num">Riemp.</th><th class="num">Presenze</th></tr></thead><tbody>${
       G.map((g) => `<tr><td>${esc(cap1(fGg.format(noon(g.giorno))))}</td><td class="num">${g.lezioni}</td><td class="num">${g.posti}</td><td class="num">${g.prenotati}</td><td class="num">${g.lezioni ? `${g.riempimento ?? 0}%` : "—"}</td><td class="num">${g.giorno > oggi ? "—" : g.presenze}</td></tr>`).join("")}</tbody></table></div></details>`;
-  box.querySelectorAll("[data-giorno]").forEach((b) => (b.onclick = () => { if (G.length > 1) impostaPeriodo(b.dataset.giorno, b.dataset.giorno, null); }));
+  box.querySelectorAll("[data-giorno]").forEach((b) => (b.onclick = () => { if (G.length > 1) impostaPeriodo(b.dataset.giorno, b.dataset.giorno, "giorno"); }));
 }
 
 const stelle = (m) => { const r = Math.round(Number(m)); return "★".repeat(r) + "☆".repeat(5 - r); };

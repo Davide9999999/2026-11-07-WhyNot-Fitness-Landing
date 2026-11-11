@@ -347,6 +347,7 @@ body:not(.is-admin) .admin-only{display:none!important}
 .ds{width:12px;height:10px;border-radius:3px}
 /* statistiche: confronto tra periodi */
 .confbar{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;margin-bottom:14px;font-size:12.5px}
+.chip:disabled{opacity:.35;cursor:not-allowed}
 .confbar .chip{padding:5px 11px;font-size:12.5px}
 .dlt{display:block;font-style:normal;font-size:12px;font-weight:700;margin-top:4px;font-variant-numeric:tabular-nums}
 .dlt span,.kpi .dlt span{display:inline;font-size:12px;font-weight:500;color:var(--mut)}
