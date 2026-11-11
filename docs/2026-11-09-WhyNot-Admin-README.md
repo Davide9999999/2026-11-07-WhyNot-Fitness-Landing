@@ -153,3 +153,10 @@ Collaudo del 2026-11-11 (account): 3 account ripristinati con impronta password 
 - Canonical, sitemap, dati strutturati e robots puntano al .com (`data/corsi.json` → `base`, poi rigenerare).
 - Supabase → Authentication → URL Configuration: Site URL `https://whynotfitnessclub.com/app/`; i vecchi indirizzi restano tra i Redirect URLs per la transizione.
 - Iscritti: al primo accesso sul nuovo indirizzo vanno rifatti login, installazione dell'app sulla schermata Home e attivazione delle notifiche (ogni indirizzo ha la sua memoria nel browser).
+
+## 15. Statistiche: confronto tra periodi (2026-11-11)
+- In **Statistiche → Confronta con** si scelgono uno o più riferimenti (la scelta resta memorizzata nel browser):
+  **Periodo precedente** (stessa durata, subito prima), **Anno scorso** (364 giorni prima, stessi giorni della settimana), **Media ultimi 3 periodi**.
+- I riquadri in alto mostrano la variazione rispetto al primo riferimento con dati; il pannello **Confronto periodi** mette in tabella tutti gli indicatori e, sotto, il riempimento corso per corso. Nel grafico "Riempimento per corso" la tacca bianca è il valore di riferimento.
+- Percentuali confrontate in punti (pt), conteggi in variazione %. Verde = miglioramento, rosso = peggioramento (per assenze e annullate scendere è meglio); ogni variazione ha anche la freccia ▲▼, non solo il colore.
+- La media dei 3 periodi esclude i periodi senza lezioni (prima dell'avvio dell'app). Nessuna modifica al database: usa la stessa `admin_statistiche`.

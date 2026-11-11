@@ -1063,22 +1063,105 @@ function impostaPeriodo(da, a, chip) {
   caricaStat();
 }
 const pct = (v) => (v == null ? "—" : `${v}%`);
+
+// --- confronto tra periodi (benchmark): tutto calcolato qui dai dati di admin_statistiche, nessuna funzione nuova nel database
+const CONFR = {
+  prec: { nome: "Periodo precedente", breve: "periodo precedente" },
+  anno: { nome: "Anno scorso", breve: "anno scorso" },
+  media3: { nome: "Media 3 periodi", breve: "media 3 periodi" },
+};
+let confSel = ["prec"];
+try { const v = JSON.parse(localStorage.getItem("wn-stat-confronto") || "null"); if (Array.isArray(v)) confSel = v.filter((k) => CONFR[k]); } catch (e) { /* preferenza non disponibile */ }
+const segnaConf = () => $("statConfSel").querySelectorAll("[data-c]").forEach((b) => b.setAttribute("aria-pressed", confSel.includes(b.dataset.c)));
+segnaConf();
+$("statConfSel").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-c]"); if (!b) return;
+  const k = b.dataset.c;
+  confSel = confSel.includes(k) ? confSel.filter((x) => x !== k) : Object.keys(CONFR).filter((x) => x === k || confSel.includes(x));
+  try { localStorage.setItem("wn-stat-confronto", JSON.stringify(confSel)); } catch (e2) { /* ignora */ }
+  segnaConf(); caricaStat();
+});
+// periodi di riferimento: stessa durata subito prima; anno scorso = 364 giorni prima (stessi giorni della settimana); media dei 3 periodi precedenti
+function periodiRif(da, a) {
+  const n = Math.round((noon(a) - noon(da)) / 86400000) + 1;
+  return confSel.map((k) => ({ k, ...CONFR[k],
+    parti: k === "anno" ? [[addDays(da, -364), addDays(a, -364)]] : k === "prec" ? [[addDays(da, -n), addDays(a, -n)]] : [1, 2, 3].map((i) => [addDays(da, -n * i), addDays(a, -n * i)]) }));
+}
+const testoParte = ([x, y]) => (x === y ? fDate.format(noon(x)) : `${fDate.format(noon(x))} – ${fDate.format(noon(y))}`);
+// riduce una o più risposte di admin_statistiche agli indicatori confrontabili (con più periodi: media; le percentuali sono ricalcolate sui totali)
+function sintesi(L) {
+  // i periodi senza lezioni (es. prima dell'avvio dell'app) non entrano nella media, altrimenti abbasserebbero il riferimento
+  L = L.filter((d) => (d.totali || {}).lezioni > 0);
+  if (!L.length) return { vuoto: true, n: 0, corsi: {} };
+  const k = L.length, S = (f) => L.reduce((s, d) => s + f(d), 0), T = (d) => d.totali || {};
+  const posti = S((d) => T(d).posti || 0), pren = S((d) => T(d).prenotati || 0), lez = S((d) => T(d).lezioni || 0), ass = S((d) => T(d).assenti || 0);
+  const voti = S((d) => T(d).voti || 0), sv = S((d) => (T(d).voto_medio || 0) * (T(d).voti || 0));
+  const pres = S((d) => (d.giornaliero || []).reduce((s, g) => s + (g.presenze || 0), 0));
+  const corsi = {};
+  L.forEach((d) => (d.per_corso || []).forEach((r) => { const c = (corsi[r.corso] ||= { posti: 0, pren: 0, lez: 0 }); c.posti += r.posti || 0; c.pren += r.prenotati || 0; c.lez += r.lezioni || 0; }));
+  Object.values(corsi).forEach((c) => { c.riemp = c.posti ? Math.round((100 * c.pren) / c.posti) : null; c.pren /= k; c.lez /= k; });
+  return { vuoto: false, n: k, lezioni: lez / k, posti: posti / k, prenotati: pren / k, riemp: posti ? (100 * pren) / posti : null, perLez: lez ? pren / lez : null,
+    presenze: pres / k, assPct: pren ? (100 * ass) / pren : null, annullate: S((d) => T(d).annullate || 0) / k, voto: voti ? sv / voti : null, voti: voti / k, corsi };
+}
+// indicatori: come si scrive il valore, come si misura la differenza (punti % o variazione %), e se salire è un bene
+const num = (v, dec = 0) => (v == null ? "—" : Number(v).toLocaleString("it-IT", { minimumFractionDigits: dec, maximumFractionDigits: dec }));
+const IND = [
+  { sez: "Attività" },
+  { id: "lezioni", nome: "Lezioni", f: (v) => num(v), d: "rel", meglio: 0 },
+  { id: "posti", nome: "Posti offerti", f: (v) => num(v), d: "rel", meglio: 0 },
+  { id: "prenotati", nome: "Prenotati confermati", f: (v) => num(v), d: "rel", meglio: 1 },
+  { id: "presenze", nome: "Presenze", f: (v) => num(v), d: "rel", meglio: 1 },
+  { sez: "Qualità" },
+  { id: "riemp", nome: "Riempimento", f: (v) => (v == null ? "—" : `${num(v)}%`), d: "pt", meglio: 1 },
+  { id: "perLez", nome: "Prenotati per lezione", f: (v) => num(v, 1), d: "abs1", meglio: 1 },
+  { id: "assPct", nome: "Assenze segnate", f: (v) => (v == null ? "—" : `${num(v)}%`), d: "pt", meglio: -1 },
+  { id: "annullate", nome: "Prenotazioni annullate", f: (v) => num(v), d: "rel", meglio: -1 },
+  { id: "voto", nome: "Voto medio", f: (v) => num(v, 1), d: "abs1", meglio: 1 },
+  { id: "voti", nome: "Valutazioni ricevute", f: (v) => num(v), d: "rel", meglio: 1 },
+];
+// differenza tra attuale e riferimento: testo, verso (su/giu/neu) e spiegazione per il passaggio del mouse
+function delta(ind, cur, rif) {
+  if (cur == null || rif == null) return null;
+  let v, t;
+  if (ind.d === "rel") { if (!rif) return null; v = (100 * (cur - rif)) / rif; t = `${v > 0 ? "+" : ""}${num(v)}%`; }
+  else if (ind.d === "pt") { v = cur - rif; t = `${v > 0 ? "+" : ""}${num(v)} pt`; }
+  else { v = cur - rif; t = `${v > 0 ? "+" : ""}${num(v, 1)}`; }
+  const zero = Math.abs(v) < (ind.d === "abs1" ? 0.05 : 0.5);
+  const verso = zero || !ind.meglio ? "neu" : (v > 0) === (ind.meglio > 0) ? "su" : "giu";
+  return { t: zero ? "=" : `${v > 0 ? "▲" : "▼"} ${t}`, verso };
+}
+let statGen = 0;
+
 async function caricaStat() {
-  const da = statDa, a = statA;
+  const da = statDa, a = statA, gen = ++statGen;
   $("statLbl").textContent = periodoTesto(); $("statRange").da.value = da; $("statRange").a.value = a;
   $("statKpi").innerHTML = '<div class="skel"></div><div class="skel"></div><div class="skel"></div><div class="skel"></div>';
-  const [s, ina] = await Promise.all([sb.rpc("admin_statistiche", { p_da: da, p_a: a }), sb.rpc("admin_inattivi", { p_giorni: 21 })]);
-  if (s.error) { $("statKpi").innerHTML = `<p class="empty">${esc(s.error.message)}</p>`; return; }
+  // riferimenti: ogni intervallo si chiede una volta sola (periodo precedente e media 3 periodi ne condividono uno)
+  const rif = periodiRif(da, a), chiesti = {};
+  const chiedi = ([x, y]) => (chiesti[x + "|" + y] ||= sb.rpc("admin_statistiche", { p_da: x, p_a: y }));
+  const [s, ina, ...R] = await Promise.all([sb.rpc("admin_statistiche", { p_da: da, p_a: a }), sb.rpc("admin_inattivi", { p_giorni: 21 }),
+    ...rif.map((r) => Promise.all(r.parti.map(chiedi)))]);
+  if (gen !== statGen) return;   // nel frattempo è stato scelto un altro periodo
+  if (s.error) { $("statKpi").innerHTML = `<p class="empty">${esc(s.error.message)}</p>`; $("statConfP").hidden = true; return; }
   const d = s.data, t = d.totali || {};
+  const cur = sintesi([d]);
+  rif.forEach((r, i) => { const e = R[i].find((x) => x.error); r.errore = e?.error?.message; r.s = e ? null : sintesi(R[i].map((x) => x.data)); });
+  const rifOk = rif.filter((r) => r.s && !r.s.vuoto), r0 = rifOk[0];
+  const kd = (id) => { if (!r0) return ""; const ind = IND.find((x) => x.id === id), x = delta(ind, cur[id], r0.s[id]);
+    return x ? `<em class="dlt ${x.verso}">${x.t} <span>vs ${esc(r0.breve)}</span></em>` : ""; };
   const riemp = t.posti ? Math.round((100 * t.prenotati) / t.posti) : 0;
   $("statKpi").innerHTML = `
-    <div class="kpi"><span>Riempimento medio</span><b>${riemp}%</b><small>${t.prenotati} prenotati su ${t.posti} posti</small><div class="meter"><i style="width:${riemp}%"></i></div></div>
-    <div class="kpi"><span>Lezioni</span><b>${t.lezioni}</b><small>${statDa === statA ? "nel giorno" : `in ${nGiorni()} giorni`}</small></div>
-    <div class="kpi"><span>Assenze segnate</span><b>${t.prenotati ? Math.round((100 * t.assenti) / t.prenotati) : 0}%</b><small>${t.assenti} su ${t.prenotati} prenotati · ${t.annullate} annullate</small></div>
-    <div class="kpi"><span>Voto medio lezioni</span><b>${t.voto_medio != null ? Number(t.voto_medio).toFixed(1).replace(".", ",") : "—"}</b><small>${t.voti} valutazioni</small></div>`;
+    <div class="kpi"><span>Riempimento medio</span><b>${riemp}%</b><small>${t.prenotati} prenotati su ${t.posti} posti</small><div class="meter"><i style="width:${riemp}%"></i></div>${kd("riemp")}</div>
+    <div class="kpi"><span>Lezioni</span><b>${t.lezioni}</b><small>${statDa === statA ? "nel giorno" : `in ${nGiorni()} giorni`}</small>${kd("lezioni")}</div>
+    <div class="kpi"><span>Assenze segnate</span><b>${t.prenotati ? Math.round((100 * t.assenti) / t.prenotati) : 0}%</b><small>${t.assenti} su ${t.prenotati} prenotati · ${t.annullate} annullate</small>${kd("assPct")}</div>
+    <div class="kpi"><span>Voto medio lezioni</span><b>${t.voto_medio != null ? Number(t.voto_medio).toFixed(1).replace(".", ",") : "—"}</b><small>${t.voti} valutazioni</small>${kd("voto")}</div>`;
+  disegnaConfronto(cur, rif, a);
   const pc = d.per_corso || [];
-  $("statCorsi").innerHTML = pc.length ? `<div class="hbars">${pc.map((r) => `<div class="hb" title="${esc(r.corso)}: ${r.prenotati} prenotati su ${r.posti} posti in ${r.lezioni} lezioni${r.voto ? ` · voto ${r.voto}` : ""}">
-      <span class="hl">${esc(r.corso)}</span><span class="ht"><i style="width:${Math.min(100, r.riempimento || 0)}%"></i></span><span class="hv">${pct(r.riempimento)}</span></div>`).join("")}</div>
+  const bm = (r) => { const c = r0?.s.corsi[r.corso]; return c && c.riemp != null ? `<b class="bm" style="left:${Math.min(100, c.riemp)}%"></b>` : ""; };
+  const bmT = (r) => { const c = r0?.s.corsi[r.corso]; return c && c.riemp != null ? ` · ${r0.breve}: ${c.riemp}%` : ""; };
+  $("statCorsi").innerHTML = pc.length ? `<div class="hbars">${pc.map((r) => `<div class="hb" title="${esc(r.corso)}: ${r.prenotati} prenotati su ${r.posti} posti in ${r.lezioni} lezioni${r.voto ? ` · voto ${r.voto}` : ""}${esc(bmT(r))}">
+      <span class="hl">${esc(r.corso)}</span><span class="ht"><i style="width:${Math.min(100, r.riempimento || 0)}%"></i>${bm(r)}</span><span class="hv">${pct(r.riempimento)}</span></div>`).join("")}</div>
+    ${r0 ? `<div class="legend" style="margin-top:10px"><span><i style="background:var(--red-hi)"></i>periodo scelto</span><span><i class="bmk"></i>${esc(r0.breve)}</span></div>` : ""}
     <details style="margin-top:10px"><summary class="mut">Tabella</summary><div class="wrap-tbl" style="margin-top:8px"><table class="tbl"><thead><tr><th>Corso</th><th class="num">Lezioni</th><th class="num">Prenotati</th><th class="num">Posti</th><th class="num">Riemp.</th><th class="num">Assenti</th><th class="num">Voto</th></tr></thead><tbody>${
       pc.map((r) => `<tr><td>${esc(r.corso)}</td><td class="num">${r.lezioni}</td><td class="num">${r.prenotati}</td><td class="num">${r.posti}</td><td class="num">${pct(r.riempimento)}</td><td class="num">${r.assenti}</td><td class="num">${r.voto ?? "—"}${r.voti ? ` (${r.voti})` : ""}</td></tr>`).join("")}</tbody></table></div></details>`
     : '<p class="empty">Nessuna lezione nel periodo.</p>';
@@ -1124,6 +1207,41 @@ $("richiamoBtn").onclick = async () => {
   const { data, error } = await sb.rpc("admin_richiamo", { p_utenti: ids, p_titolo: "Ci manchi!", p_testo: "Dai un'occhiata ai corsi di questa settimana e prenota il prossimo allenamento. Ti aspettiamo!" });
   toast(error ? error.message : `Richiamo inviato a ${data} ${data === 1 ? "iscritto" : "iscritti"}.`, !error);
 };
+
+// ------------------------------------------------------------------ statistiche: tabella di confronto tra periodi
+function disegnaConfronto(cur, rif, a) {
+  const P = $("statConfP"), box = $("statConf");
+  P.hidden = !rif.length; if (!rif.length) { box.innerHTML = ""; return; }
+  const oggi = ymdRome(new Date());
+  const testa = (r) => {
+    const p = r.parti, date = p.length === 1 ? testoParte(p[0]) : `${fDate.format(noon(p[p.length - 1][0]))} – ${fDate.format(noon(p[0][1]))}`;
+    const nota = r.errore ? "errore" : r.s.vuoto ? "nessuna lezione" : p.length > 1 ? (r.s.n === 3 ? "media dei 3" : `media di ${r.s.n} su 3 (gli altri senza dati)`) : "";
+    return `<th class="num" colspan="2">${esc(r.nome)}<small>${esc(date)}</small>${nota ? `<small>${esc(nota)}</small>` : ""}</th>`;
+  };
+  const cella = (ind, r, v) => {
+    if (r.errore || r.s.vuoto) return '<td class="num mut">—</td><td></td>';
+    const x = delta(ind, cur[ind.id], v);
+    return `<td class="num">${ind.f(v)}</td><td class="num dlt ${x ? x.verso : ""}">${x ? x.t : ""}</td>`;
+  };
+  const righe = IND.map((ind) => ind.sez
+    ? `<tr class="sez"><td colspan="${2 + 2 * rif.length}">${ind.sez}</td></tr>`
+    : `<tr><td>${ind.nome}</td><td class="num"><b>${ind.f(cur[ind.id])}</b></td>${rif.map((r) => cella(ind, r, r.s?.[ind.id])).join("")}</tr>`).join("");
+  // per corso: riempimento del periodo scelto contro ciascun riferimento (in punti percentuali)
+  const nomi = [...new Set([...Object.keys(cur.corsi), ...rif.flatMap((r) => (r.s ? Object.keys(r.s.corsi) : []))])]
+    .sort((x, y) => (cur.corsi[y]?.riemp ?? -1) - (cur.corsi[x]?.riemp ?? -1) || x.localeCompare(y, "it"));
+  const indR = IND.find((x) => x.id === "riemp");
+  const rc = (n) => `<tr><td>${esc(n)}</td><td class="num"><b>${pct(cur.corsi[n]?.riemp ?? null)}</b></td>${rif.map((r) => {
+    if (r.errore || r.s.vuoto) return '<td class="num mut">—</td><td></td>';
+    const v = r.s.corsi[n]?.riemp ?? null, x = delta(indR, cur.corsi[n]?.riemp ?? null, v);
+    return `<td class="num">${pct(v)}</td><td class="num dlt ${x ? x.verso : ""}">${x ? x.t : ""}</td>`; }).join("")}</tr>`;
+  const errori = rif.filter((r) => r.errore).map((r) => `${r.nome}: ${r.errore}`);
+  const vuoti = rif.filter((r) => r.s?.vuoto).map((r) => r.nome.toLowerCase());
+  box.innerHTML = `<div class="wrap-tbl"><table class="tbl"><thead><tr><th>Indicatore</th><th class="num">Periodo scelto<small>${esc(periodoTesto())}</small></th>${rif.map(testa).join("")}</tr></thead><tbody>${righe}</tbody></table></div>
+    ${nomi.length ? `<details style="margin-top:12px"><summary class="mut">Riempimento corso per corso</summary><div class="wrap-tbl" style="margin-top:8px"><table class="tbl"><thead><tr><th>Corso</th><th class="num">Periodo scelto</th>${rif.map(testa).join("")}</tr></thead><tbody>${nomi.map(rc).join("")}</tbody></table></div></details>` : ""}
+    <p class="mut" style="margin-top:10px">▲▼ variazione del periodo scelto rispetto al riferimento: in verde se migliora, in rosso se peggiora (per assenze e annullate, scendere è un miglioramento). Le percentuali si confrontano in punti (pt), i conteggi in variazione %.
+    ${a > oggi ? " <b>Il periodo scelto comprende giorni futuri</b>: le prenotazioni sono ancora aperte e le presenze non ci sono ancora, quindi il confronto è parziale." : ""}
+    ${vuoti.length ? ` Nessuna lezione registrata per: ${esc(vuoti.join(", "))} (i dati partono dall'avvio dell'app).` : ""}${errori.length ? ` Errore: ${esc(errori.join("; "))}` : ""}</p>`;
+}
 
 // ------------------------------------------------------------------ statistiche: giorno per giorno e valutazioni
 // Una serie per grafico; colore unico per la grandezza; valori al passaggio, nell'asse e in tabella.

@@ -131,8 +131,10 @@
         <div class="chips" id="statPer"><button class="chip" data-p="oggi" aria-pressed="false">Oggi</button><button class="chip" data-p="ieri" aria-pressed="false">Ieri</button><button class="chip" data-p="7" aria-pressed="false">7 giorni</button><button class="chip" data-p="28" aria-pressed="true">4 settimane</button><button class="chip" data-p="91" aria-pressed="false">3 mesi</button><button class="chip" data-p="365" aria-pressed="false">12 mesi</button></div>
         <form class="range" id="statRange"><button class="icon" type="button" id="stPrev" aria-label="Periodo precedente">&lsaquo;</button><label>Dal<input type="date" name="da" required></label><label>Al<input type="date" name="a" required></label><button class="icon" type="button" id="stNext" aria-label="Periodo successivo">&rsaquo;</button><button class="btn sm" type="submit">Applica</button></form>
       </div>
-      <p class="mut" id="statLbl" style="margin:-4px 0 12px"></p>
+      <p class="mut" id="statLbl" style="margin:-4px 0 8px"></p>
+      <div class="confbar"><span class="mut">Confronta con</span><div class="chips" id="statConfSel"><button class="chip" data-c="prec" aria-pressed="false" title="Lo stesso numero di giorni subito prima">Periodo precedente</button><button class="chip" data-c="anno" aria-pressed="false" title="Stessi giorni della settimana, 52 settimane prima">Anno scorso</button><button class="chip" data-c="media3" aria-pressed="false" title="Media dei 3 periodi di uguale durata prima di quello scelto">Media ultimi 3 periodi</button></div></div>
       <div class="kpis" id="statKpi"></div>
+      <div class="panel" id="statConfP" style="margin-bottom:16px" hidden><h2>Confronto periodi <span class="mut">il periodo scelto contro i periodi di riferimento (benchmark)</span></h2><div id="statConf"></div></div>
       <div class="grid2">
         <div class="panel"><h2>Riempimento per corso</h2><div id="statCorsi"></div></div>
         <div class="panel"><h2>Riempimento per giorno e ora</h2><div id="statHeat"></div></div>

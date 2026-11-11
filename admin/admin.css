@@ -345,6 +345,18 @@ body:not(.is-admin) .admin-only{display:none!important}
 .dist{display:flex;height:10px;border-radius:4px;overflow:hidden;background:rgba(255,255,255,.06);min-width:160px;gap:2px}
 .dist i,.ds{display:block;height:100%;background:color-mix(in srgb,#f0b33c calc(var(--s) * 20%),#3a3a3d)}
 .ds{width:12px;height:10px;border-radius:3px}
+/* statistiche: confronto tra periodi */
+.confbar{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;margin-bottom:14px;font-size:12.5px}
+.confbar .chip{padding:5px 11px;font-size:12.5px}
+.dlt{display:block;font-style:normal;font-size:12px;font-weight:700;margin-top:4px;font-variant-numeric:tabular-nums}
+.dlt span,.kpi .dlt span{display:inline;font-size:12px;font-weight:500;color:var(--mut)}
+.dlt.su{color:var(--ok)}.dlt.giu{color:#ff6b78}.dlt.neu{color:#ccc}
+td.dlt{display:table-cell;margin:0}
+.tbl th small{display:block;font-weight:500;color:var(--mut);font-size:11px;white-space:nowrap}
+.tbl tr.sez td{font-weight:800;color:var(--mut);font-size:11.5px;letter-spacing:1px;text-transform:uppercase;padding-top:14px}
+.ht{position:relative}
+.ht .bm{position:absolute;top:-2px;bottom:-2px;width:2px;margin-left:-1px;background:#fff;border-radius:1px}
+.legend .bmk{width:2px;height:12px;background:#fff;border-radius:1px}
 
 /* editor schede a tutto schermo */
 dialog.editor{border:0;padding:0;margin:0;width:100vw;max-width:100vw;height:100vh;max-height:100vh;height:100dvh;max-height:100dvh;background:var(--bg);color:var(--txt)}
