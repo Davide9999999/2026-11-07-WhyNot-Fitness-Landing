@@ -10,7 +10,7 @@ html{scroll-behavior:smooth;overflow-x:hidden;-webkit-text-size-adjust:100%;text
 /* bagliore in alto a destra: disegnato come sfondo (prima era un cerchio di 760px che sporgeva e allargava la pagina su mobile) */
 body{color:var(--txt);font-family:Inter,system-ui,sans-serif;line-height:1.6;background-color:var(--bg);
   background-image:radial-gradient(circle 380px at calc(100% - 120px) 120px,color-mix(in srgb,var(--accent) 30%,transparent),transparent 62%);background-repeat:no-repeat}
-main,.foot{position:relative;z-index:1}
+main,footer{position:relative;z-index:1}
 a{color:inherit;text-decoration:none}
 img{max-width:100%;display:block}
 .wrap{width:100%;max-width:1240px;margin:0 auto;padding:0 clamp(16px,5vw,48px)}
@@ -135,17 +135,47 @@ address{font-style:normal}
 .hub-cat{padding:40px 0 10px}
 .hub-cat>p{color:var(--mut);margin:-14px 0 22px;max-width:70ch}
 
-/* footer */
-.foot{background:#0c0c0c;border-top:1px solid var(--line);color:var(--mut);font-size:15px;position:relative}
-.foot::before{content:"";position:absolute;top:-1px;left:0;right:0;height:3px;background:linear-gradient(90deg,transparent,var(--red-hi) 30%,var(--red-hi) 70%,transparent)}
-.foot-grid{display:grid;grid-template-columns:1.3fr 1fr 1.2fr;gap:40px;padding:56px 0 40px}
-@media(max-width:800px){.foot-grid{grid-template-columns:1fr;gap:30px}}
-.foot h4{font-size:12px;font-weight:800;letter-spacing:3px;text-transform:uppercase;color:#fff;margin-bottom:16px}
-.foot p{max-width:340px}
-.foot ul{list-style:none;display:flex;flex-direction:column;gap:9px}
-.foot a:hover{color:#fff}
-.foot-bottom{display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px;padding:20px 0;border-top:1px solid var(--line);font-size:13px}
-.foot-bottom b{color:#d6d6d6;font-weight:600}
+/* footer (identico alla home, index.html) */
+/* FOOTER */
+footer{position:relative;overflow:hidden;background:#0c0c0c;border-top:1px solid var(--line);padding:0 clamp(16px,6vw,90px);color:var(--mut);font-size:15px}
+footer::before{content:"";position:absolute;top:-1px;left:0;right:0;height:3px;background:linear-gradient(90deg,transparent,var(--red-hi) 30%,var(--red-hi) 70%,transparent)}
+footer::after{content:"";position:absolute;width:520px;height:520px;right:-220px;top:-260px;border-radius:50%;background:radial-gradient(circle,rgba(182,25,39,.28),transparent 65%);pointer-events:none}
+.f-grid{position:relative;z-index:1;display:grid;grid-template-columns:1.5fr .9fr 1.15fr 1.35fr;gap:44px;padding:72px 0 56px}
+.f-logo{display:flex;align-items:center;gap:14px}
+.f-logo img{width:58px;height:58px;border-radius:12px;box-shadow:0 10px 30px -10px rgba(182,25,39,.8)}
+.f-logo b{font-family:"Permanent Marker",cursive;font-weight:400;font-size:26px;color:#fff;line-height:1;letter-spacing:1px}
+.f-logo b small{display:block;font-size:11px;letter-spacing:3.5px;opacity:.7;margin-top:4px}
+.f-brand p{margin:20px 0 24px;max-width:330px;line-height:1.6}
+.f-brand p em{font-style:normal;font-family:"Permanent Marker",cursive;color:var(--red-hi)}
+.f-social{display:flex;gap:10px}
+.f-social a{width:46px;height:46px;border-radius:50%;border:1.5px solid rgba(255,255,255,.18);display:grid;place-items:center;transition:background .25s,border-color .25s,transform .25s}
+.f-social a:hover{background:var(--red);border-color:var(--red);transform:translateY(-3px)}
+.f-social svg{width:20px;height:20px;stroke:#fff;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+footer h4{font-size:12px;font-weight:800;letter-spacing:3px;text-transform:uppercase;color:#fff;margin-bottom:20px;display:flex;align-items:center;gap:10px}
+footer h4::before{content:"";width:18px;height:2px;background:var(--red-hi)}
+.f-links{list-style:none;display:flex;flex-direction:column;gap:11px}
+.f-links a{display:inline-block;transition:color .2s,transform .2s}
+.f-links a:hover{color:#fff;transform:translateX(5px)}
+.f-open{white-space:nowrap;display:inline-flex;align-items:center;gap:9px;font-size:12px;font-weight:700;letter-spacing:.5px;padding:7px 13px;border-radius:999px;background:rgba(255,255,255,.06);border:1px solid var(--line);color:#fff;margin-bottom:14px}
+.f-open i{width:8px;height:8px;border-radius:50%;background:#6fd35a;animation:fpulse 2s infinite}
+.f-open.closed i{background:var(--red-hi);animation:none}
+@keyframes fpulse{0%{box-shadow:0 0 0 0 rgba(111,211,90,.55)}70%{box-shadow:0 0 0 9px rgba(111,211,90,0)}100%{box-shadow:0 0 0 0 rgba(111,211,90,0)}}
+.f-hours{list-style:none}
+.f-hours li{display:flex;justify-content:space-between;gap:12px;padding:9px 0;border-bottom:1px dashed rgba(255,255,255,.1)}
+.f-hours li b{color:#fff;font-weight:600}
+.f-contact address{display:flex;flex-direction:column;gap:14px}
+.f-contact address a{display:flex;gap:12px;align-items:flex-start;line-height:1.45;transition:color .2s;word-break:break-word}
+.f-contact address a:hover{color:#fff}
+.f-contact address svg{flex:none;width:19px;height:19px;margin-top:1px;stroke:var(--red-hi);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.f-contact .btn{margin-top:22px;padding:12px 22px;font-size:14px}
+.f-bottom{position:relative;z-index:1;display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;padding:22px 0;border-top:1px solid var(--line);font-size:13px}
+.f-bottom b{color:#d6d6d6;font-weight:600}
+.totop{display:inline-flex;align-items:center;gap:10px;font-weight:700;color:#fff;font-size:13px}
+.totop span{width:42px;height:42px;border-radius:50%;background:var(--red);display:grid;place-items:center;transition:transform .25s,background .25s}
+.totop:hover span{transform:translateY(-4px);background:var(--red-hi)}
+.totop svg{width:18px;height:18px;stroke:#fff;fill:none;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+@media(max-width:1000px){.f-grid{grid-template-columns:1fr 1fr}}
+@media(max-width:600px){.f-grid{grid-template-columns:1fr;gap:36px;padding:48px 0 40px}.f-bottom{flex-direction:column;align-items:flex-start}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}
 
 /* avviso variazioni orari (Instagram) */

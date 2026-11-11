@@ -140,3 +140,8 @@ Il piano Supabase Free non fa backup. Ogni notte alle 02:30 UTC il workflow GitH
 **Progetto perso:** nuovo progetto Supabase → eseguire in ordine i file `supabase/*.sql` → `--sovrascrivi tutte` → aggiornare URL e chiave in `assets/supabase-config.js` e nelle variabili del Worker → reinserire i segreti (push, backup). Le password non sono nel backup: gli iscritti si riattivano con un nuovo codice e i loro dati vanno ricollegati ai nuovi id utente tramite la tabella `_utenti` (email) dell'anteprima.
 
 Collaudo del 2026-11-10: anteprima e sovrascrittura (completa e di una sola tabella) su schemi di prova, confronto riga per riga con i dati reali: 17 tabelle identiche, contatori id corretti.
+
+## 13. Footer unico e notifiche dopo il logout (2026-11-11)
+- Tutte le pagine (home, corsi, privacy, cookie) hanno lo stesso footer della home. Corsi: generato da `tools/genera-corsi.ps1` (funzione `Footer`); privacy e cookie: copia statica dello stesso markup; stili in `assets/corsi.css`, indicatore «Aperto ora» in `assets/footer.js`. Se cambiano orari o contatti: `data/corsi.json` + rigenerare, poi aggiornare home, privacy, cookie e `FOOT_HOURS`/`assets/footer.js`.
+- App: l'uscita non spegne più le notifiche del telefono, le scollega solo dall'utente; al nuovo accesso si ricollegano da sole se il permesso è già concesso. «Disattiva» invece è ricordato sul dispositivo.
+- App: le lezioni in corso sono indicate «In corso · valutabile dalle hh:mm»; in «Prossime» un invito porta alle lezioni da valutare.

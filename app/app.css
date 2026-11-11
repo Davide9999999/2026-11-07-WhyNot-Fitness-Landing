@@ -205,6 +205,8 @@ select{font:inherit;font-size:16px;color:var(--txt);background:#0d0d0d;border:1p
 /* valutazione: pulsante nell'elenco e popup con stelle grandi */
 .valbtn{display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:6px 14px!important;border-radius:999px!important;border:1px solid rgba(240,179,60,.55)!important;background:rgba(240,179,60,.12);color:#ffe2a6!important;font-weight:800!important;font-size:13px!important}
 .valbtn.fatto{background:transparent;color:#ddd!important;border-color:var(--line2)!important}
+.valhint{font-size:12.5px;color:var(--mut, #a8a8a8)}
+.valinvito{display:flex;width:100%;align-items:center;justify-content:center;gap:6px;min-height:46px;margin:0 0 12px;border-radius:14px;border:1px solid rgba(240,179,60,.55);background:rgba(240,179,60,.12);color:#ffe2a6;font:inherit;font-weight:800;font-size:14px;cursor:pointer}
 .rate.big{display:flex;justify-content:center;gap:8px;margin:10px 0 4px}
 .rate.big button{width:54px;height:54px;border-radius:14px;border:1px solid var(--line2);background:#141414;font-size:34px;line-height:1;color:#555;transition:transform .1s,color .1s,background .1s}
 .rate.big button.on{color:#f0b33c;background:rgba(240,179,60,.12);border-color:rgba(240,179,60,.5)}

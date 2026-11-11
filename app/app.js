@@ -101,7 +101,7 @@ $("fNewPw").addEventListener("submit", async (e) => {
   recovery = false; history.replaceState(null, "", location.pathname); toast("Password aggiornata."); entra();
 });
 
-$("logout").onclick = async () => { await spegniPush(); await sb.auth.signOut(); session = null; prof = null; form("fLogin"); show("vAuth"); window.scrollTo(0, 0); };
+$("logout").onclick = async () => { await scollegaPush(); await sb.auth.signOut(); session = null; prof = null; form("fLogin"); show("vAuth"); window.scrollTo(0, 0); };
 
 // ------------------------------------------------------------------ app
 async function entra() {
@@ -311,20 +311,24 @@ function disegnaMie() {
     (pref ? `<div class="stat fav"><span>Corso preferito</span><b>${esc(pref[0])}</b></div>` : "");
   const lista = vistaMie === "prossime" ? prossime : mie.filter((x) => !prossime.includes(x)).sort((a, b) => b.d - a.d);
   if (!lista.length) {
-    $("mieList").innerHTML = vistaMie === "prossime" ? '<div class="empty"><b>Nessuna lezione in programma</b>Scegli il prossimo allenamento.<br><br><button class="btn sm" data-goto="pPrenota">Prenota una lezione</button></div>'
+    $("mieList").innerHTML = vistaMie === "prossime" ? (mie.some((x) => x.stato === "confermata" && x.presenza !== false && x.lezione_stato !== "annullata" && !x.voto && x.f <= now && now - x.f < 14 * 86400000) ? '<button class="valinvito" data-storico>★ Hai lezioni da valutare</button>' : '') + '<div class="empty"><b>Nessuna lezione in programma</b>Scegli il prossimo allenamento.<br><br><button class="btn sm" data-goto="pPrenota">Prenota una lezione</button></div>'
       : '<div class="empty"><b>Storico vuoto</b>Qui troverai le lezioni a cui hai partecipato.</div>';
     return;
   }
-  let html = "", m = "";
+  const daValutare = mie.filter((x) => x.stato === "confermata" && x.presenza !== false && x.lezione_stato !== "annullata" && !x.voto && x.f <= now && now - x.f < 14 * 86400000).length;
+  let html = vistaMie === "prossime" && daValutare ? `<button class="valinvito" data-storico>★ Hai ${daValutare} ${daValutare === 1 ? "lezione" : "lezioni"} da valutare</button>` : "", m = "";
   lista.forEach((x) => {
     if (vistaMie === "storico") { const mm = fmt.monthYear.format(x.d); if (mm !== m) { html += `<p class="month">${esc(mm)}</p>`; m = mm; } }
     const ann = x.stato === "annullata" || x.lezione_stato === "annullata", fut = vistaMie === "prossime";
+    const inCorso = !fut && !ann && x.stato === "confermata" && x.d <= now && x.f > now;
     const tag = x.lezione_stato === "annullata" ? '<span class="tag x">Lezione annullata</span>' : x.stato === "annullata" ? '<span class="tag x">Annullata</span>'
+      : inCorso ? '<span class="tag wait">In corso</span>'
       : x.stato === "attesa" ? `<span class="tag wait">${fut ? `In attesa${x.posizione_attesa ? ` ${x.posizione_attesa}°` : ""}` : "Non confermata"}</span>` : x.presenza === false && !fut ? '<span class="tag x">Assente</span>' : `<span class="tag ok">${fut ? "Confermata" : "Frequentata"}</span>`;
     const valutabile = !fut && x.stato === "confermata" && x.presenza !== false && x.lezione_stato !== "annullata" && x.f <= now && now - x.f < 14 * 86400000;
     // un solo pulsante grande che apre il popup (niente stelle piccole cliccabili nell'elenco)
     const stelle = valutabile
       ? `<button class="valbtn${x.voto ? " fatto" : ""}" data-val="${x.id}">${x.voto ? `<span class="stars">${"★".repeat(x.voto)}${"☆".repeat(5 - x.voto)}</span> Modifica` : "★ Valuta la lezione"}</button>`
+      : inCorso ? `<span class="valhint">Valutabile dalle ${fmt.time.format(x.f)}</span>`
       : x.voto ? `<span class="stars" title="Il tuo voto">${"★".repeat(x.voto)}${"☆".repeat(5 - x.voto)}</span>` : "";
     html += `<div class="bk${fut ? "" : " past"}${ann ? " x" : ""}" style="--c:${x.col}"><div class="d"><small>${esc(fmt.monthShort.format(x.d).replace(".", ""))}</small><b>${esc(fmt.dayNum.format(x.d))}</b></div>
       <div><h3>${esc(x.corso)}</h3><p>${esc(cap(fmt.dayShort.format(x.d)))} · ${fmt.time.format(x.d)} · ${esc(x.sala)}${fut ? ` · ${esc(relTime(x.d))}` : ""}</p>
@@ -338,6 +342,7 @@ $("pMie").addEventListener("click", (e) => {
   const i = e.target.closest("[data-ics]"); if (i) { const x = mie.find((p) => p.id === i.dataset.ics); if (x) scaricaIcs({ id: x.id, corso: x.corso, sala: x.sala, inizio: x.d, fine: x.f }); return; }
   const s = e.target.closest("[data-ges]"); if (s) { const x = mie.find((p) => p.id === s.dataset.ges); if (x) gestisci(x); }
   const v = e.target.closest("[data-val]"); if (v) valuta(v.dataset.val);
+  if (e.target.closest("[data-storico]")) { vistaMie = "storico"; $("mieSeg").querySelectorAll("button").forEach((x) => x.setAttribute("aria-selected", x.dataset.v === "storico")); disegnaMie(); }
 });
 
 // ------------------------------------------------------------------ profilo
@@ -393,7 +398,13 @@ async function statoNotifiche() {
     $("notifStato").textContent = "Le notifiche sono bloccate per questo sito: riattivale dalle impostazioni del browser o del telefono, poi riapri l'app.";
     return;
   }
-  const sub = await iscrizione();
+  let sub = await iscrizione();
+  // dispositivo già abilitato (es. dopo un'uscita e un nuovo accesso): ricollega in silenzio all'utente attuale, senza chiedere di nuovo
+  if (sub && Notification.permission === "granted" && !pushSpento()) {
+    const j = sub.toJSON();
+    const { error } = await sb.rpc("salva_push", { p_endpoint: j.endpoint, p_p256dh: j.keys.p256dh, p_auth: j.keys.auth, p_dispositivo: navigator.userAgent.slice(0, 200) });
+    if (error) sub = null;
+  } else if (sub && pushSpento()) sub = null;
   if (!sub) {
     $("notifStato").textContent = "Ricevi un promemoria prima delle lezioni, l'avviso quando passi dalla lista d'attesa ai confermati, le lezioni annullate e gli avvisi della palestra.";
     $("notifBtn").hidden = false; return;
@@ -408,6 +419,7 @@ async function statoNotifiche() {
 $("notifBtn").onclick = async (ev) => {
   const b = ev.currentTarget; busy(b, true, "Attivazione...");
   try {
+    segnaPushSpento(false);
     const perm = await Notification.requestPermission();
     if (perm !== "granted") { toast("Permesso non concesso: puoi riattivarlo dalle impostazioni del browser.", false); return; }
     const reg = await navigator.serviceWorker.ready;
@@ -431,13 +443,21 @@ $("notifProva").onclick = async () => {
   const { error } = await sb.rpc("push_prova");
   toast(error ? error.message : "Notifica di prova in arrivo entro un minuto.", !error);
 };
+// "Disattiva" sul dispositivo: ricordato sul telefono, così un nuovo accesso non le riattiva da solo
+const pushSpento = () => { try { return localStorage.getItem("wn-push-off") === "1"; } catch { return false; } };
+const segnaPushSpento = (v) => { try { v ? localStorage.setItem("wn-push-off", "1") : localStorage.removeItem("wn-push-off"); } catch {} };
+// uscita: il telefono smette di ricevere le notifiche di questo utente, ma resta abilitato (al prossimo accesso si ricollega senza chiedere)
+async function scollegaPush() {
+  const sub = pushOk ? await iscrizione() : null;
+  if (sub) { try { await sb.rpc("rimuovi_push", { p_endpoint: sub.endpoint }); } catch {} }
+}
 async function spegniPush() {
   const sub = pushOk ? await iscrizione() : null;
   if (!sub) return;
   try { await sb.rpc("rimuovi_push", { p_endpoint: sub.endpoint }); } catch {}
   try { await sub.unsubscribe(); } catch {}
 }
-$("notifOff").onclick = async () => { await spegniPush(); toast("Notifiche disattivate su questo dispositivo."); statoNotifiche(); };
+$("notifOff").onclick = async () => { segnaPushSpento(true); await spegniPush(); toast("Notifiche disattivate su questo dispositivo."); statoNotifiche(); };
 
 // ------------------------------------------------------------------ corsi preferiti
 let preferiti = new Set(), corsiAttivi = [];

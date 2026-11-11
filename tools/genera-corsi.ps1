@@ -81,24 +81,49 @@ function Header([string]$pre, [bool]$hub) {
 }
 
 function Footer([string]$pre) {
-  $ore = (@($CFG.orariApertura) | ForEach-Object { "<li>$(E $_[0]): <b>$(E $_[1])</b></li>" }) -join ''
+  # stesso footer della home (index.html): logo, social, link rapidi, orari con "Aperto ora", contatti
+  $ore = (@($CFG.orariApertura) | ForEach-Object { "<li><span>$(E $_[0])</span><b>$(E $_[1])</b></li>" }) -join ''
   return @"
-<footer class="foot">
-  <div class="wrap">
-    <div class="foot-grid">
-      <div><h4>WHY NOT Fitness Club</h4><p>Palestra a Biella dal 2010: sala attrezzi e oltre 20 corsi fitness compresi nell'abbonamento.</p></div>
-      <div><h4>Orari palestra</h4><ul>$ore</ul></div>
-      <div><h4>Contatti</h4><address><ul>
-        <li><a href="$($CFG.mapUrl)" target="_blank" rel="noopener">$(E $CFG.via), $($CFG.cap) $(E $CFG.citta) ($($CFG.prov))</a></li>
-        <li><a href="tel:$($CFG.telHref)">$(E $CFG.tel)</a></li>
-        <li><a href="mailto:$($CFG.email)">$(E $CFG.email)</a></li>
-        <li><a href="https://wa.me/$($CFG.wa)" target="_blank" rel="noopener">WhatsApp</a> &middot; <a href="$($CFG.instagram)" target="_blank" rel="noopener">Instagram</a> &middot; <a href="$($CFG.facebook)" target="_blank" rel="noopener">Facebook</a></li>
-      </ul></address></div>
+<footer>
+  <div class="f-grid">
+    <div class="f-brand">
+      <a href="$pre" class="f-logo"><img src="$pre$($CFG.logo)" alt="Logo WHY NOT Fitness Club" width="58" height="58" loading="lazy"><b>WHY NOT<small>FITNESS CLUB</small></b></a>
+      <p>Palestra a Biella dal 2010: sala attrezzi e oltre 20 corsi fitness. Ogni allenamento inizia con una domanda: <em>perch&eacute; no?</em></p>
+      <div class="f-social">
+        <a href="$($CFG.instagram)" target="_blank" rel="noopener" aria-label="Instagram WHY NOT Fitness Club"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r=".6" fill="#fff"/></svg></a>
+        <a href="$($CFG.facebook)" target="_blank" rel="noopener" aria-label="Facebook WHY NOT Fitness Club"><svg viewBox="0 0 24 24"><path d="M14 8h3V4h-3a4 4 0 0 0-4 4v3H7v4h3v6h4v-6h3l1-4h-4V8z"/></svg></a>
+        <a href="https://wa.me/$($CFG.wa)" target="_blank" rel="noopener" aria-label="Scrivici su WhatsApp"><svg viewBox="0 0 24 24"><path d="M4 20l1.3-3.9A8 8 0 1 1 8 19z"/><path d="M9 9.5c0 3 2.5 5.5 5.5 5.5l1-1.5-2-1-1 1a3.5 3.5 0 0 1-2-2l1-1-1-2z"/></svg></a>
+      </div>
     </div>
-    <div class="foot-bottom"><span>&copy; <span id="yr"></span> <b>$(E $CFG.legal)</b> &middot; P.IVA $($CFG.piva) &middot; <a href="$($pre)privacy/">Privacy</a> &middot; <a href="$($pre)cookie/">Cookie</a> &middot; <a href="#" data-cookie-prefs>Preferenze cookie</a></span><a href="$($pre)corsi/">Tutti i corsi &rarr;</a></div>
+    <div role="navigation" aria-label="Link rapidi">
+      <h4>Esplora</h4>
+      <ul class="f-links">
+        <li><a href="$($pre)#club">Il club</a></li><li><a href="$($pre)corsi/">Corsi</a></li><li><a href="$($pre)#prezzi">Prezzi</a></li>
+        <li><a href="$($pre)#orari">Orari</a></li><li><a href="$($pre)#faq">FAQ</a></li><li><a href="$($pre)#contatti">Contatti</a></li>
+      </ul>
+    </div>
+    <div>
+      <h4>Orari</h4>
+      <span class="f-open" id="fOpen" hidden><i></i><span></span></span>
+      <ul class="f-hours">$ore</ul>
+    </div>
+    <div class="f-contact">
+      <h4>Contatti</h4>
+      <address>
+        <a href="$($CFG.mapUrl)" target="_blank" rel="noopener"><svg viewBox="0 0 24 24"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg>$(E $CFG.via)<br>$($CFG.cap) $(E $CFG.citta) ($($CFG.prov))</a>
+        <a href="tel:$($CFG.telHref)"><svg viewBox="0 0 24 24"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"/></svg>$(E $CFG.tel)</a>
+        <a href="mailto:$($CFG.email)"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>$(E $CFG.email)</a>
+      </address>
+      <a class="btn" href="https://wa.me/$($CFG.wa)" target="_blank" rel="noopener">Prenota una prova</a>
+    </div>
+  </div>
+  <div class="f-bottom">
+    <span>&copy; <span id="yr"></span> <b>$(E $CFG.legal)</b> &middot; P.IVA $($CFG.piva) &middot; <a href="$($pre)privacy/">Privacy</a> &middot; <a href="$($pre)cookie/">Cookie</a> &middot; <a href="#" data-cookie-prefs>Preferenze cookie</a></span>
+    <a href="#" class="totop" data-totop>Torna su<span><svg viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7"/></svg></span></a>
   </div>
 </footer>
 <script src="$($pre)assets/corsi.js" defer></script>
+<script src="$($pre)assets/footer.js" defer></script>
 <script src="$($pre)assets/consenso.js" defer></script>
 </body>
 </html>
