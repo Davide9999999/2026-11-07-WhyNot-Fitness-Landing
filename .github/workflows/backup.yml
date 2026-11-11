@@ -38,7 +38,7 @@ jobs:
           echo "nome=$NOME" >> "$GITHUB_OUTPUT"
 
       - name: Conserva 90 giorni
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ steps.b.outputs.nome }}
           path: ${{ steps.b.outputs.nome }}.json.gz.enc
