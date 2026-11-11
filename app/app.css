@@ -250,3 +250,4 @@ dialog.sheet.tall .sh{min-height:88vh}
 .sok{width:48px;height:46px;border-radius:12px;border:1px solid var(--line2);background:#141414;font-size:20px;font-weight:800;color:#777}
 .sok[aria-pressed="true"]{background:var(--ok);border-color:var(--ok);color:#0b2a07}
 .srow.fatta input{opacity:.75}
+.inst{margin-top:18px}.inst h2{margin-bottom:6px}

@@ -366,18 +366,25 @@ $("fPw").addEventListener("submit", async (e) => {
 });
 
 // ------------------------------------------------------------------ installazione
-let promptInst = null;
-window.addEventListener("beforeinstallprompt", (e) => { e.preventDefault(); promptInst = e; installa(); });
+let promptInst = window.__promptInst || null;
+// il segnale del browser viene catturato da installa.js (caricato prima di tutto)
+document.addEventListener("wn-installabile", () => { promptInst = window.__promptInst || null; installa(); });
 function installa() {
   const standalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone;
-  const ios = /iphone|ipad|ipod/i.test(navigator.userAgent);
-  if (standalone || (!promptInst && !ios)) { $("installBox").hidden = true; return; }
-  $("installBox").hidden = false;
-  if (promptInst) {
-    $("installBtn").hidden = false;
-    $("installBtn").onclick = async () => { promptInst.prompt(); await promptInst.userChoice; promptInst = null; $("installBox").hidden = true; };
-  } else $("installTxt").innerHTML = "Su iPhone: apri questa pagina con <b>Safari</b>, tocca <b>Condividi</b> e poi <b>Aggiungi alla schermata Home</b>.";
+  const ua = navigator.userAgent, ios = /iphone|ipad|ipod/i.test(ua) || (/macintosh/i.test(ua) && navigator.maxTouchPoints > 1), android = /android/i.test(ua);
+  const testo = promptInst ? "Aggiungi WHY NOT alla schermata Home: si apre come un'app, a schermo intero."
+    : ios ? "Su iPhone: apri questa pagina con <b>Safari</b>, tocca <b>Condividi</b> (il quadrato con la freccia) e poi <b>Aggiungi alla schermata Home</b>."
+    : android ? "Apri il menu <b>⋮</b> del browser (in alto a destra) e scegli <b>Installa app</b> o <b>Aggiungi a schermata Home</b>."
+    : "";
+  // due riquadri: nella schermata di accesso e nel Profilo
+  [["installAuth", "installAuthTxt", "installAuthBtn"], ["installBox", "installTxt", "installBtn"]].forEach(([box, txt, btn]) => {
+    if (!$(box)) return;
+    if (standalone || !testo) { $(box).hidden = true; return; }
+    $(box).hidden = false; $(txt).innerHTML = testo; $(btn).hidden = !promptInst;
+    $(btn).onclick = async () => { if (!promptInst) return; promptInst.prompt(); await promptInst.userChoice; window.__promptInst = promptInst = null; installa(); };
+  });
 }
+installa();
 
 // ------------------------------------------------------------------ notifiche push
 const pushOk = "serviceWorker" in navigator && "PushManager" in window && "Notification" in window && !!cfg.vapidPublicKey;
