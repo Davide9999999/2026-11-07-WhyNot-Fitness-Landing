@@ -1,7 +1,7 @@
 {
   "_info": "Fonte unica dei corsi. Testi da brochure ufficiale Stagione 2026/2027 (categorie pag. 2, palinsesto pag. 3-4, descrizioni pag. 5-9). Dopo ogni modifica eseguire: powershell -ExecutionPolicy Bypass -File tools/genera-corsi.ps1",
   "config": {
-    "base": "https://davide9999999.github.io/2026-11-07-WhyNot-Fitness-Landing/",
+    "base": "https://whynotfitnessclub.com/",
     "brand": "WHY NOT Fitness Club",
     "legal": "WHY NOT FITNESS CLUB SSDRL",
     "piva": "02680610025",

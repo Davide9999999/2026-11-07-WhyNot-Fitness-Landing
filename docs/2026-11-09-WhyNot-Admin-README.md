@@ -145,3 +145,11 @@ Collaudo del 2026-11-11 (account): 3 account ripristinati con impronta password 
 - Tutte le pagine (home, corsi, privacy, cookie) hanno lo stesso footer della home. Corsi: generato da `tools/genera-corsi.ps1` (funzione `Footer`); privacy e cookie: copia statica dello stesso markup; stili in `assets/corsi.css`, indicatore «Aperto ora» in `assets/footer.js`. Se cambiano orari o contatti: `data/corsi.json` + rigenerare, poi aggiornare home, privacy, cookie e `FOOT_HOURS`/`assets/footer.js`.
 - App: l'uscita non spegne più le notifiche del telefono, le scollega solo dall'utente; al nuovo accesso si ricollegano da sole se il permesso è già concesso. «Disattiva» invece è ricordato sul dispositivo.
 - App: le lezioni in corso sono indicate «In corso · valutabile dalle hh:mm»; in «Prossime» un invito porta alle lezioni da valutare.
+
+## 14. Dominio ufficiale whynotfitnessclub.com (2026-11-11)
+- Sito: https://whynotfitnessclub.com/ · App iscritti: https://whynotfitnessclub.com/app/ · Gestione: https://whynotfitnessclub.com/admin/
+- Il Worker serve `whynotfitnessclub.com` e `www.whynotfitnessclub.com` (domini personalizzati in `wrangler.jsonc`).
+- `assets/dominio.js` (prima riga di ogni pagina) porta chi arriva da www, workers.dev o GitHub Pages alla stessa pagina sul dominio ufficiale.
+- Canonical, sitemap, dati strutturati e robots puntano al .com (`data/corsi.json` → `base`, poi rigenerare).
+- Supabase → Authentication → URL Configuration: Site URL `https://whynotfitnessclub.com/app/`; i vecchi indirizzi restano tra i Redirect URLs per la transizione.
+- Iscritti: al primo accesso sul nuovo indirizzo vanno rifatti login, installazione dell'app sulla schermata Home e attivazione delle notifiche (ogni indirizzo ha la sua memoria nel browser).

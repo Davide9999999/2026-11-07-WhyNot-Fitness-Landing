@@ -360,7 +360,7 @@ $("newForm").addEventListener("submit", async (e) => {
 
 // ------------------------------------------------------------------ iscritti
 // L'anagrafica la crea lo staff; l'iscritto attiva l'app con email + codice (il codice si vede solo quando viene generato).
-const APP_URL = new URL("../app/", location.href).href;
+const APP_URL = "https://whynotfitnessclub.com/app/"; // indirizzo ufficiale, anche se l'admin è aperto da un altro indirizzo
 const STATI = { attivo: ["App attiva", "ok"], "da attivare": ["Da attivare", "w"], "codice scaduto": ["Codice scaduto", "w"], sospeso: ["Sospeso", "x"] };
 let iscFiltro = "";
 async function caricaIscritti(silenzioso) {

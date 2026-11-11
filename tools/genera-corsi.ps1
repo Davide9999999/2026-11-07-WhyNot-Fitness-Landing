@@ -44,6 +44,7 @@ function Head([string]$title, [string]$desc, [string]$url, [string]$pre, [string
 <html lang="it">
 <head>
 <meta charset="utf-8">
+<script src="$($pre)assets/dominio.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>$(E $title)</title>
 <meta name="description" content="$(E $desc)">

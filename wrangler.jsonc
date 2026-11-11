@@ -1,4 +1,4 @@
-// Configurazione Cloudflare Worker (ambiente dev: *.workers.dev).
+// Configurazione Cloudflare Worker. Indirizzo ufficiale: whynotfitnessclub.com (www e workers.dev rimandano lì, vedi assets/dominio.js).
 // Il nome DEVE coincidere con quello del Worker già collegato al repo su Cloudflare.
 {
   "$schema": "node_modules/wrangler/config-schema.json",
@@ -6,6 +6,11 @@
   "main": "worker/index.js",
   "compatibility_date": "2026-09-01",
   "compatibility_flags": ["nodejs_compat"],
+  "routes": [
+    { "pattern": "whynotfitnessclub.com", "custom_domain": true },
+    { "pattern": "www.whynotfitnessclub.com", "custom_domain": true }
+  ],
+  "workers_dev": true,
   "assets": {
     "directory": "./",
     "binding": "ASSETS",
