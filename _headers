@@ -1,0 +1,11 @@
+# Cache dei file statici (Cloudflare Workers Static Assets).
+# Font e immagini non cambiano mai: restano in cache a lungo (se il logo cambia, cambiare il nome del file).
+# HTML, CSS e JS restano "sempre ricontrollati" (impostazione predefinita) così ogni pubblicazione è subito visibile.
+/assets/fonts/*.woff2
+  Cache-Control: public, max-age=31536000, immutable
+/assets/img/*
+  Cache-Control: public, max-age=2592000
+/2026-11-07-Logo-WhyNot.png
+  Cache-Control: public, max-age=2592000
+/app/icons/*
+  Cache-Control: public, max-age=2592000

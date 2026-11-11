@@ -58,8 +58,8 @@ function Head([string]$title, [string]$desc, [string]$url, [string]$pre, [string
 <meta property="og:url" content="$url">
 <meta property="og:image" content="$logoAbs">
 <meta name="twitter:card" content="summary">
-<link rel="icon" type="image/png" href="$pre$($CFG.logo)">
-<link rel="apple-touch-icon" href="$pre$($CFG.logo)">
+<link rel="icon" type="image/png" href="$($pre)assets/img/logo-192.png">
+<link rel="apple-touch-icon" href="$($pre)assets/img/logo-192.png">
 <link rel="stylesheet" href="$($pre)assets/fonts/fonts.css">
 <link rel="stylesheet" href="$($pre)assets/corsi.css">
 <script type="application/ld+json">
@@ -73,7 +73,7 @@ function Header([string]$pre, [bool]$hub) {
   $cur = ''; if ($hub) { $cur = ' aria-current="page"' }
   return @"
 <header class="top"><div class="wrap">
-  <a class="logo" href="$pre"><img src="$pre$($CFG.logo)" alt="Logo WHY NOT Fitness Club" width="44" height="44"><b>WHY NOT<small>FITNESS CLUB</small></b></a>
+  <a class="logo" href="$pre"><img src="$($pre)assets/img/logo-192.jpg" alt="Logo WHY NOT Fitness Club" width="44" height="44"><b>WHY NOT<small>FITNESS CLUB</small></b></a>
   <nav class="toplinks" aria-label="Menu principale"><a href="$($pre)corsi/"$cur>Corsi</a><a href="$($pre)#prezzi">Prezzi</a><a href="$($pre)#orari">Orari</a><a href="$($pre)#faq">FAQ</a><a href="$($pre)#contatti">Contatti</a></nav>
   <a class="btn" href="tel:$($CFG.telHref)">Chiama</a>
 </div></header>
@@ -87,7 +87,7 @@ function Footer([string]$pre) {
 <footer>
   <div class="f-grid">
     <div class="f-brand">
-      <a href="$pre" class="f-logo"><img src="$pre$($CFG.logo)" alt="Logo WHY NOT Fitness Club" width="58" height="58" loading="lazy"><b>WHY NOT<small>FITNESS CLUB</small></b></a>
+      <a href="$pre" class="f-logo"><img src="$($pre)assets/img/logo-192.jpg" alt="Logo WHY NOT Fitness Club" width="58" height="58" loading="lazy"><b>WHY NOT<small>FITNESS CLUB</small></b></a>
       <p>Palestra a Biella dal 2010: sala attrezzi e oltre 20 corsi fitness. Ogni allenamento inizia con una domanda: <em>perch&eacute; no?</em></p>
       <div class="f-social">
         <a href="$($CFG.instagram)" target="_blank" rel="noopener" aria-label="Instagram WHY NOT Fitness Club"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r=".6" fill="#fff"/></svg></a>
