@@ -10,19 +10,25 @@
 #       SOVRASCRIVE le tabelle indicate in public con il contenuto del backup (tutto o niente).
 #   perl tools/ripristino-backup.pl backup.json --sovrascrivi tutte > ripristino.sql
 #       ripristino completo (es. su un progetto nuovo, dopo aver eseguito i file supabase/*.sql).
-# Opzione: --schema nome  -> schema di destinazione diverso (usato per i collaudi).
+#   perl tools/ripristino-backup.pl backup.json --sovrascrivi tutte --account > ripristino.sql
+#       come sopra + ricrea gli account con gli stessi id e la stessa password (gli iscritti entrano come prima).
+#       Pensato per un progetto NUOVO: un account già presente con lo stesso id viene aggiornato.
+# Opzioni per i collaudi: --schema nome (tabelle), --schema-auth nome (account, predefinito "auth").
 use strict; use warnings; use JSON::PP;
 
-my $file = shift or die "Uso: perl tools/ripristino-backup.pl backup.json [--sovrascrivi t1,t2|tutte] [--schema nome]\n";
-my ($modo, $lista, $schema) = ('anteprima', '', undef);
+my $file = shift or die "Uso: perl tools/ripristino-backup.pl backup.json [--sovrascrivi t1,t2|tutte] [--account] [--schema nome]\n";
+my ($modo, $lista, $schema, $account, $sauth) = ('anteprima', '', undef, 0, 'auth');
 while (@ARGV) {
   my $o = shift;
   if ($o eq '--sovrascrivi') { $modo = 'sovrascrivi'; $lista = shift // die "--sovrascrivi vuole l'elenco delle tabelle (o 'tutte')\n"; }
   elsif ($o eq '--schema') { $schema = shift // die "--schema vuole un nome\n"; }
+  elsif ($o eq '--account') { $account = 1; }
+  elsif ($o eq '--schema-auth') { $sauth = shift // die "--schema-auth vuole un nome\n"; }
   else { die "Opzione sconosciuta: $o\n"; }
 }
 $schema //= $modo eq 'anteprima' ? 'ripristino' : 'public';
-die "Nome schema non valido\n" unless $schema =~ /^[a-z_][a-z0-9_]*$/;
+die "Nome schema non valido\n" unless $schema =~ /^[a-z_][a-z0-9_]*$/ && $sauth =~ /^[a-z_][a-z0-9_]*$/;
+die "--account si usa insieme a --sovrascrivi\n" if $account && $modo ne 'sovrascrivi';
 
 open my $fh, '<:raw', $file or die "Non riesco ad aprire $file: $!\n";
 my $d = decode_json(do { local $/; <$fh> });
@@ -51,6 +57,19 @@ if ($modo eq 'anteprima') {
 } else {
   # niente trigger né controlli di chiave esterna durante il caricamento (nessuna notifica parte)
   print "set local session_replication_role = replica;\n";
+  if ($account) {
+    die "Questo backup non contiene gli account (è precedente all'11/11/2026)\n" unless $tab->{_auth_users};
+    # colonne calcolate escluse; un account già presente con lo stesso id viene aggiornato
+    my @acc = (['users', $tab->{_auth_users}, 'email = excluded.email, encrypted_password = excluded.encrypted_password, email_confirmed_at = excluded.email_confirmed_at, raw_app_meta_data = excluded.raw_app_meta_data, raw_user_meta_data = excluded.raw_user_meta_data'],
+               ['identities', $tab->{_auth_identities} || [], 'identity_data = excluded.identity_data']);
+    for my $p (@acc) {
+      my ($t, $righe, $agg) = @$p;
+      print "do \$wnacc\$ declare c text; begin\n",
+        "  select string_agg(quote_ident(column_name), ',' order by ordinal_position) into c from information_schema.columns where table_schema = '$sauth' and table_name = '$t' and is_generated = 'NEVER';\n",
+        "  execute format('insert into $sauth.$t (%1\$s) select %1\$s from jsonb_populate_recordset(null::$sauth.$t, %2\$L::jsonb) on conflict (id) do update set $agg', c, ", $lit->($righe), "::text);\n",
+        "end \$wnacc\$;\n";
+    }
+  }
   for my $t (@scelte) {
     print "delete from $schema.$t;\n";
     print "insert into $schema.$t overriding system value select * from jsonb_populate_recordset(null::public.$t, ", $lit->($tab->{$t}), "::jsonb);\n";
@@ -68,4 +87,4 @@ end \$\$;
 SQL
 }
 print "commit;\n";
-print "-- righe ripristinate: ", join(', ', map { "$_=" . scalar(@{$tab->{$_}}) } @scelte), "\n";
+print "-- righe ripristinate: ", join(', ', map { "$_=" . scalar(@{$tab->{$_}}) } @scelte), ($account ? ", account=" . scalar(@{$tab->{_auth_users}}) : ""), "\n";
