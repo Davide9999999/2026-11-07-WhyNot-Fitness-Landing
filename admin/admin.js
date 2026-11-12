@@ -1148,14 +1148,21 @@ function periodiRif(da, a, giorniTrascorsi) {
   });
 }
 const testoParte = (x, y) => (x === y ? fDate.format(noon(x)) : `${fDate.format(noon(x))} – ${fDate.format(noon(y))}`);
+// corsi "su prenotazione" (capienza reale): solo per loro ha senso il riempimento; gli altri si misurano in partecipanti
+const corsoSuPren = (nome) => corsi.find((x) => x.nome === nome)?.prenotazione_obbligatoria === true;
+function suPrenotazione(pc) {
+  const r = pc.filter((x) => corsoSuPren(x.corso));
+  return { n: r.length, posti: r.reduce((s, x) => s + (x.posti || 0), 0), pren: r.reduce((s, x) => s + (x.prenotati || 0), 0) };
+}
+const n1 = (v) => (v == null ? "—" : Number(v).toLocaleString("it-IT", { maximumFractionDigits: 1 }));
 // riduce una risposta di admin_statistiche agli indicatori confrontabili
 function sintesi(d, giorni) {
   const T = d.totali || {};
   if (!(T.lezioni > 0)) return { vuoto: true, corsi: {} };
-  const posti = T.posti || 0, pren = T.prenotati || 0, lez = T.lezioni || 0;
-  const corsi = {};
-  (d.per_corso || []).forEach((r) => { corsi[r.corso] = { riemp: r.posti ? Math.round((100 * (r.prenotati || 0)) / r.posti) : null }; });
-  return { vuoto: false, giorni, lezioni: lez, posti, prenotati: pren, riemp: posti ? (100 * pren) / posti : null, perLez: lez ? pren / lez : null, perGiorno: pren / giorni,
+  const pren = T.prenotati || 0, lez = T.lezioni || 0;
+  const corsi = {}, sp = suPrenotazione(d.per_corso || []);
+  (d.per_corso || []).forEach((r) => { corsi[r.corso] = { n: r.prenotati || 0, quota: pren ? (100 * (r.prenotati || 0)) / pren : null }; });
+  return { vuoto: false, giorni, lezioni: lez, posti: sp.posti, prenotati: pren, riemp: sp.posti ? (100 * sp.pren) / sp.posti : null, perLez: lez ? pren / lez : null, perGiorno: pren / giorni,
     presenze: (d.giornaliero || []).reduce((s, g) => s + (g.presenze || 0), 0), assPct: pren ? (100 * (T.assenti || 0)) / pren : null,
     annullate: T.annullate || 0, voto: T.voti ? Number(T.voto_medio) : null, voti: T.voti || 0, corsi };
 }
@@ -1164,13 +1171,13 @@ const num = (v, dec = 0) => (v == null ? "—" : Number(v).toLocaleString("it-IT
 const IND = [
   { sez: "Attività" },
   { id: "lezioni", nome: "Lezioni", f: (v) => num(v), d: "rel", meglio: 0 },
-  { id: "posti", nome: "Posti offerti", f: (v) => num(v), d: "rel", meglio: 0 },
-  { id: "prenotati", nome: "Prenotati confermati", f: (v) => num(v), d: "rel", meglio: 1 },
+  { id: "prenotati", nome: "Partecipanti (prenotati e «Partecipo»)", f: (v) => num(v), d: "rel", meglio: 1 },
   { id: "presenze", nome: "Presenze", f: (v) => num(v), d: "rel", meglio: 1 },
   { sez: "Qualità" },
-  { id: "riemp", nome: "Riempimento", f: (v) => (v == null ? "—" : `${num(v)}%`), d: "pt", meglio: 1 },
-  { id: "perGiorno", nome: "Prenotati al giorno", f: (v) => num(v, 1), d: "abs1", meglio: 1 },
-  { id: "perLez", nome: "Prenotati per lezione", f: (v) => num(v, 1), d: "abs1", meglio: 1 },
+  { id: "perGiorno", nome: "Partecipanti al giorno", f: (v) => num(v, 1), d: "abs1", meglio: 1 },
+  { id: "perLez", nome: "Partecipanti per lezione", f: (v) => num(v, 1), d: "abs1", meglio: 1 },
+  { id: "riemp", nome: "Riempimento corsi su prenotazione", f: (v) => (v == null ? "—" : `${num(v)}%`), d: "pt", meglio: 1 },
+  { id: "posti", nome: "Posti offerti (corsi su prenotazione)", f: (v) => num(v), d: "rel", meglio: 0 },
   { id: "assPct", nome: "Assenze segnate", f: (v) => (v == null ? "—" : `${num(v)}%`), d: "pt", meglio: -1 },
   { id: "annullate", nome: "Prenotazioni annullate", f: (v) => num(v), d: "rel", meglio: -1 },
   { id: "voto", nome: "Voto medio", f: (v) => num(v, 1), d: "abs1", meglio: 1 },
@@ -1210,30 +1217,32 @@ async function caricaStat() {
   // nei riquadri: variazione contro il primo riferimento con dati (a pari giorni se il periodo è in corso)
   const kd = (id) => { if (!r0) return ""; const ind = IND.find((x) => x.id === id), x = delta(ind, cur[id], r0.s[id]);
     return x ? `<em class="dlt ${x.verso}">${x.t} <span>vs ${esc(r0.breve)}${inCorso ? " (a pari giorni)" : ""}</span></em>` : ""; };
-  const riemp = t.posti ? Math.round((100 * t.prenotati) / t.posti) : 0;
+  const pc = d.per_corso || [], sp = suPrenotazione(pc), riemp = sp.posti ? Math.round((100 * sp.pren) / sp.posti) : null;
   $("statKpi").innerHTML = `
-    <div class="kpi"><span>Riempimento medio</span><b>${riemp}%</b><small>${t.prenotati} prenotati su ${t.posti} posti</small><div class="meter"><i style="width:${riemp}%"></i></div>${kd("riemp")}</div>
+    <div class="kpi"><span>Partecipanti</span><b>${num(t.prenotati)}</b><small>media ${n1(t.lezioni ? t.prenotati / t.lezioni : null)} per lezione${riemp != null ? ` · corsi su prenotazione pieni al ${riemp}%` : ""}</small>${kd("prenotati")}</div>
     <div class="kpi"><span>Lezioni</span><b>${t.lezioni}</b><small>${statDa === statA ? "nel giorno" : `in ${nGiorni()} giorni`}</small>${kd("lezioni")}</div>
     <div class="kpi"><span>Assenze segnate</span><b>${t.prenotati ? Math.round((100 * t.assenti) / t.prenotati) : 0}%</b><small>${t.assenti} su ${t.prenotati} prenotati · ${t.annullate} annullate</small>${kd("assPct")}</div>
     <div class="kpi"><span>Voto medio lezioni</span><b>${t.voto_medio != null ? Number(t.voto_medio).toFixed(1).replace(".", ",") : "—"}</b><small>${t.voti} valutazioni</small>${kd("voto")}</div>`;
   disegnaConfronto(cur, rif);
-  const pc = d.per_corso || [];
+  // per corso: partecipanti (numero) e quota sul totale dei partecipanti di tutti i corsi; la capienza conta solo per i corsi su prenotazione
+  const totP = pc.reduce((s, r) => s + (r.prenotati || 0), 0);
+  const quota = (r) => (totP ? (100 * (r.prenotati || 0)) / totP : 0);
+  const PC = [...pc].sort((x, y) => (y.prenotati || 0) - (x.prenotati || 0) || x.corso.localeCompare(y.corso, "it"));
+  const maxQ = Math.max(0.0001, ...PC.map(quota));   // barra più lunga = corso più frequentato
   const rB = inCorso ? null : r0;   // tacca di riferimento solo a periodo concluso (con periodo in corso vale la tabella a pari giorni)
-  const bm = (r) => { const c = rB?.s.corsi[r.corso]; return c && c.riemp != null ? `<b class="bm" style="left:${Math.min(100, c.riemp)}%"></b>` : ""; };
-  const bmT = (r) => { const c = rB?.s.corsi[r.corso]; return c && c.riemp != null ? ` · ${rB.breve}: ${c.riemp}%` : ""; };
-  $("statCorsi").innerHTML = pc.length ? `<div class="hbars">${pc.map((r) => `<div class="hb" title="${esc(r.corso)}: ${r.prenotati} prenotati su ${r.posti} posti in ${r.lezioni} lezioni${r.voto ? ` · voto ${r.voto}` : ""}${esc(bmT(r))}">
-      <span class="hl">${esc(r.corso)}</span><span class="ht"><i style="width:${Math.min(100, r.riempimento || 0)}%"></i>${bm(r)}</span><span class="hv">${pct(r.riempimento)}</span></div>`).join("")}</div>
-    ${rB ? `<div class="legend" style="margin-top:10px"><span><i style="background:var(--red-hi)"></i>periodo scelto</span><span><i class="bmk"></i>${esc(rB.breve)}</span></div>` : ""}
-    <details style="margin-top:10px"><summary class="mut">Tabella</summary><div class="wrap-tbl" style="margin-top:8px"><table class="tbl"><thead><tr><th>Corso</th><th class="num">Lezioni</th><th class="num">Prenotati</th><th class="num">Posti</th><th class="num">Riemp.</th><th class="num">Assenti</th><th class="num">Voto</th></tr></thead><tbody>${
-      pc.map((r) => `<tr><td>${esc(r.corso)}</td><td class="num">${r.lezioni}</td><td class="num">${r.prenotati}</td><td class="num">${r.posti}</td><td class="num">${pct(r.riempimento)}</td><td class="num">${r.assenti}</td><td class="num">${r.voto ?? "—"}${r.voti ? ` (${r.voti})` : ""}</td></tr>`).join("")}</tbody></table></div></details>`
-    : '<p class="empty">Nessuna lezione nel periodo.</p>';
-  const pf = d.per_fascia || [], ore = [...new Set(pf.map((r) => r.ora))].sort((x, y) => x - y);
-  const cella = (g, o) => pf.find((r) => r.giorno === g && r.ora === o);
-  $("statHeat").innerHTML = pf.length ? `<div class="heat" style="grid-template-columns:44px repeat(7,minmax(0,1fr))"><span></span>${GIORNI.map((g) => `<span class="hh">${g.slice(0, 3)}</span>`).join("")}
-    ${ore.map((o) => `<span class="hh hr">${String(o).padStart(2, "0")}:00</span>${[1, 2, 3, 4, 5, 6, 7].map((g) => { const c = cella(g, o); const v = c ? c.riempimento || 0 : null;
-      return c ? `<span class="hc" style="--a:${(0.12 + (0.88 * Math.min(100, v)) / 100).toFixed(2)}" title="${GIORNI[g - 1]} ${String(o).padStart(2, "0")}:00 · riempimento ${v}% su ${c.lezioni} ${c.lezioni === 1 ? "lezione" : "lezioni"}">${v}</span>` : '<span class="hc vuota"></span>'; }).join("")}`).join("")}</div>
-    <div class="legend" style="margin-top:10px"><span><i style="background:rgba(224,34,51,.15)"></i>poco pieno</span><span><i style="background:rgba(224,34,51,1)"></i>pieno</span><span>valori in % · celle vuote = nessuna lezione</span></div>`
-    : '<p class="empty">Nessuna lezione nel periodo.</p>';
+  const bm = (r) => { const c = rB?.s.corsi[r.corso]; return c && c.quota != null ? `<b class="bm" style="left:${Math.min(100, (100 * c.quota) / maxQ)}%"></b>` : ""; };
+  const bmT = (r) => { const c = rB?.s.corsi[r.corso]; return c && c.quota != null ? ` · ${rB.breve}: ${c.n} (${n1(c.quota)}%)` : ""; };
+  const media = (r) => (r.lezioni ? r.prenotati / r.lezioni : null);
+  $("statCorsi").innerHTML = PC.length && totP ? `<p class="mut" style="margin-bottom:8px">${num(totP)} partecipanti in ${num(t.lezioni)} lezioni. Per ogni corso: partecipanti e quota sul totale di tutti i corsi.</p>
+    <div class="hbars">${PC.map((r) => `<div class="hb" title="${esc(r.corso)}: ${r.prenotati} partecipanti (${n1(quota(r))}% del totale) in ${r.lezioni} ${r.lezioni === 1 ? "lezione" : "lezioni"}, media ${n1(media(r))} per lezione${corsoSuPren(r.corso) ? ` · su prenotazione, pieno al ${pct(r.riempimento)}` : ""}${r.voto ? ` · voto ${r.voto}` : ""}${esc(bmT(r))}">
+      <span class="hl">${esc(r.corso)}</span><span class="ht"><i style="width:${(100 * quota(r)) / maxQ}%"></i>${bm(r)}</span><span class="hv"><b>${r.prenotati}</b> <span class="mut">${n1(quota(r))}%</span></span></div>`).join("")}</div>
+    <div class="legend" style="margin-top:10px"><span><i style="background:var(--red-hi)"></i>quota del periodo scelto (barra più lunga = corso più frequentato)</span>${rB ? `<span><i class="bmk"></i>quota ${esc(rB.breve)}</span>` : ""}</div>
+    <details style="margin-top:10px"><summary class="mut">Tabella</summary><div class="wrap-tbl" style="margin-top:8px"><table class="tbl"><thead><tr><th>Corso</th><th class="num">Lezioni</th><th class="num">Partecipanti</th><th class="num">Quota</th><th class="num">Per lezione</th><th class="num" title="Solo corsi su prenotazione">Riemp.</th><th class="num">Assenti</th><th class="num">Voto</th></tr></thead><tbody>${
+      PC.map((r) => `<tr><td>${esc(r.corso)}</td><td class="num">${r.lezioni}</td><td class="num"><b>${r.prenotati}</b></td><td class="num">${n1(quota(r))}%</td><td class="num">${n1(media(r))}</td><td class="num">${corsoSuPren(r.corso) ? pct(r.riempimento) : '<span class="mut">—</span>'}</td><td class="num">${r.assenti}</td><td class="num">${r.voto ?? "—"}${r.voti ? ` (${r.voti})` : ""}</td></tr>`).join("")}
+      <tr class="sez"><td>Totale</td><td class="num">${num(t.lezioni)}</td><td class="num">${num(totP)}</td><td class="num">100%</td><td class="num">${n1(t.lezioni ? totP / t.lezioni : null)}</td><td class="num">${pct(riemp)}</td><td class="num">${t.assenti}</td><td></td></tr></tbody></table></div>
+      <p class="mut" style="margin-top:6px">Partecipanti = prenotati confermati nei corsi su prenotazione + chi ha segnato «Partecipo» negli altri. Il riempimento (rispetto ai posti) vale solo per i corsi su prenotazione.</p></details>`
+    : '<p class="empty">Nessun partecipante nel periodo.</p>';
+  disegnaFasce(da, a, gen);
   disegnaGiorni(d.giornaliero || []); disegnaValutazioni(d.valutazioni || {});
   const ms = d.mensile || [], fM = F({ month: "short" });
   const mini = (titolo, campo) => { const max = Math.max(1, ...ms.map((m) => m[campo] || 0));
@@ -1275,6 +1284,38 @@ $("richiamoBtn").onclick = async () => {
   toast(error ? error.message : `Richiamo inviato a ${data} ${data === 1 ? "iscritto" : "iscritti"}.`, !error);
 };
 
+// ------------------------------------------------------------------ statistiche: partecipanti per giorno e ora
+// Media dei partecipanti per lezione in ogni fascia; intensità relativa alla fascia più frequentata (non alla capienza).
+const fRomaGO = new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Rome", weekday: "short", hour: "2-digit", hourCycle: "h23" });
+const GSET = { Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6, Sun: 7 };
+async function disegnaFasce(da, a, gen) {
+  const box = $("statHeat");
+  box.innerHTML = '<div class="skel"></div>';
+  const L = [];
+  for (let da0 = 0; ; da0 += 1000) {   // le risposte sono a pagine da 1000 righe (un anno intero ne richiede più d'una)
+    const { data, error } = await sb.rpc("admin_lezioni", { p_da: da, p_a: a }).range(da0, da0 + 999);
+    if (gen !== statGen) return;
+    if (error) { box.innerHTML = `<p class="empty">${esc(error.message)}</p>`; return; }
+    L.push(...(data || []));
+    if (!data || data.length < 1000) break;
+  }
+  const F2 = {};
+  L.filter((l) => l.stato === "programmata").forEach((l) => {
+    const p = Object.fromEntries(fRomaGO.formatToParts(new Date(l.inizio)).map((x) => [x.type, x.value]));
+    const k = GSET[p.weekday] + "|" + Number(p.hour);
+    (F2[k] ??= { lezioni: 0, n: 0 }); F2[k].lezioni++; F2[k].n += l.confermate || 0;
+  });
+  const ks = Object.keys(F2);
+  if (!ks.length) { box.innerHTML = '<p class="empty">Nessuna lezione nel periodo.</p>'; return; }
+  const ore = [...new Set(ks.map((k) => Number(k.split("|")[1])))].sort((x, y) => x - y);
+  const med = (c) => c.n / c.lezioni, max = Math.max(0.0001, ...Object.values(F2).map(med));
+  box.innerHTML = `<div class="heat" style="grid-template-columns:44px repeat(7,minmax(0,1fr))"><span></span>${GIORNI.map((g) => `<span class="hh">${g.slice(0, 3)}</span>`).join("")}
+    ${ore.map((o) => `<span class="hh hr">${String(o).padStart(2, "0")}:00</span>${[1, 2, 3, 4, 5, 6, 7].map((g) => { const c = F2[g + "|" + o]; if (!c) return '<span class="hc vuota"></span>';
+      const v = med(c);
+      return `<span class="hc" style="--a:${(0.12 + (0.88 * v) / max).toFixed(2)}" title="${GIORNI[g - 1]} ${String(o).padStart(2, "0")}:00 · media ${n1(v)} partecipanti per lezione · ${c.n} in totale su ${c.lezioni} ${c.lezioni === 1 ? "lezione" : "lezioni"}">${Math.round(v)}</span>`; }).join("")}`).join("")}</div>
+    <div class="legend" style="margin-top:10px"><span><i style="background:rgba(224,34,51,.15)"></i>meno partecipanti</span><span><i style="background:rgba(224,34,51,1)"></i>fascia più frequentata</span><span>valori = media partecipanti per lezione · celle vuote = nessuna lezione</span></div>`;
+}
+
 // ------------------------------------------------------------------ statistiche: tabella di confronto tra periodi
 function disegnaConfronto(cur, rif) {
   const P = $("statConfP"), box = $("statConf");
@@ -1293,14 +1334,15 @@ function disegnaConfronto(cur, rif) {
   const righe = IND.map((ind) => ind.sez
     ? `<tr class="sez"><td colspan="${2 + 2 * rif.length}">${ind.sez}</td></tr>`
     : `<tr><td>${ind.nome}</td><td class="num"><b>${ind.f(cur[ind.id])}</b></td>${rif.map((r) => cella(ind, r, r.s?.[ind.id])).join("")}</tr>`).join("");
-  // per corso: riempimento del periodo scelto contro ciascun riferimento (in punti percentuali)
+  // per corso: partecipanti e quota sul totale; la variazione è sulla quota (in punti), così periodi di durata diversa restano confrontabili
   const nomi = [...new Set([...Object.keys(cur.corsi), ...rif.flatMap((r) => (r.s ? Object.keys(r.s.corsi) : []))])]
-    .sort((x, y) => (cur.corsi[y]?.riemp ?? -1) - (cur.corsi[x]?.riemp ?? -1) || x.localeCompare(y, "it"));
-  const indR = IND.find((x) => x.id === "riemp");
-  const rc = (n) => `<tr><td>${esc(n)}</td><td class="num"><b>${pct(cur.corsi[n]?.riemp ?? null)}</b></td>${rif.map((r) => {
+    .sort((x, y) => (cur.corsi[y]?.n ?? -1) - (cur.corsi[x]?.n ?? -1) || x.localeCompare(y, "it"));
+  const indQ = { d: "pt", meglio: 1 };
+  const vq = (c) => (c ? `${c.n} <span class="mut">· ${n1(c.quota)}%</span>` : '<span class="mut">—</span>');
+  const rc = (n) => `<tr><td>${esc(n)}</td><td class="num"><b>${vq(cur.corsi[n])}</b></td>${rif.map((r) => {
     if (r.errore || r.s.vuoto) return '<td class="num mut">—</td><td></td>';
-    const v = r.s.corsi[n]?.riemp ?? null, x = delta(indR, cur.corsi[n]?.riemp ?? null, v);
-    return `<td class="num">${pct(v)}</td><td class="num dlt ${x ? x.verso : ""}">${x ? x.t : ""}</td>`; }).join("")}</tr>`;
+    const v = r.s.corsi[n], x = delta(indQ, cur.corsi[n]?.quota ?? null, v?.quota ?? null);
+    return `<td class="num">${vq(v)}</td><td class="num dlt ${x ? x.verso : ""}">${x ? x.t : ""}</td>`; }).join("")}</tr>`;
   const nCur = giorniTra(cur.da, cur.a);
   const diversi = rif.filter((r) => r.s && !r.s.vuoto && giorniTra(r.da, r.a) !== nCur).map((r) => `${r.breve} ${gg(giorniTra(r.da, r.a))}`);
   const errori = rif.filter((r) => r.errore).map((r) => `${r.nome}: ${r.errore}`);
@@ -1308,9 +1350,9 @@ function disegnaConfronto(cur, rif) {
   const testaCur = `<th class="num">${cur.inCorso ? "Periodo scelto, fino a oggi" : "Periodo scelto"}<small>${esc(testoParte(cur.da, cur.a))}</small><small>${gg(nCur)}</small></th>`;
   box.innerHTML = `${cur.inCorso ? `<p class="mut" style="margin-bottom:10px"><b>Periodo in corso: confronto a pari giorni.</b> Si confrontano i primi ${gg(nCur)} del periodo scelto (fino a oggi) con i primi ${gg(nCur)} di ogni riferimento, così una parte di mese non viene confrontata con un mese intero. Il «periodo a scelta» resta con le date indicate.</p>` : ""}
     <div class="wrap-tbl"><table class="tbl"><thead><tr><th>Indicatore</th>${testaCur}${rif.map(testa).join("")}</tr></thead><tbody>${righe}</tbody></table></div>
-    ${nomi.length ? `<details style="margin-top:12px"><summary class="mut">Riempimento corso per corso</summary><div class="wrap-tbl" style="margin-top:8px"><table class="tbl"><thead><tr><th>Corso</th>${testaCur}${rif.map(testa).join("")}</tr></thead><tbody>${nomi.map(rc).join("")}</tbody></table></div></details>` : ""}
+    ${nomi.length ? `<details style="margin-top:12px"><summary class="mut">Partecipanti corso per corso (numero · quota sul totale; ▲▼ = variazione della quota)</summary><div class="wrap-tbl" style="margin-top:8px"><table class="tbl"><thead><tr><th>Corso</th>${testaCur}${rif.map(testa).join("")}</tr></thead><tbody>${nomi.map(rc).join("")}</tbody></table></div></details>` : ""}
     <p class="mut" style="margin-top:10px">▲▼ variazione del periodo scelto rispetto al riferimento: in verde se migliora, in rosso se peggiora (per assenze e annullate scendere è un miglioramento). Le percentuali si confrontano in punti (pt), i conteggi in variazione %.
-    ${diversi.length ? ` <b>Durata diversa</b> (periodo scelto ${gg(nCur)}; ${esc(diversi.join("; "))}): i totali non sono direttamente confrontabili, guarda riempimento, prenotati al giorno e per lezione.` : ""}
+    ${diversi.length ? ` <b>Durata diversa</b> (periodo scelto ${gg(nCur)}; ${esc(diversi.join("; "))}): i totali non sono direttamente confrontabili, guarda partecipanti al giorno e per lezione e le quote per corso.` : ""}
     ${cur.a > oggi ? " <b>Il periodo comprende giorni futuri</b>: prenotazioni ancora aperte e presenze non ancora registrate." : ""}
     ${vuoti.length ? ` Nessuna lezione registrata per: ${esc(vuoti.join(", "))} (i dati partono dall'avvio dell'app).` : ""}${errori.length ? ` Errore: ${esc(errori.join("; "))}` : ""}</p>`;
 }
@@ -1326,15 +1368,15 @@ function disegnaGiorni(G) {
   const top = [...G].sort((a, b) => (b.prenotati || 0) - (a.prenotati || 0))[0];
   const oggi = ymdRome(new Date());
   const passo = G.length > 60 ? 7 : G.length > 21 ? 3 : 1;   // etichette dell'asse leggibili
-  box.innerHTML = `<p class="mut" style="margin-bottom:8px">${tot} prenotati in ${conLez.length} ${conLez.length === 1 ? "giorno" : "giorni"} con lezioni · media ${media} al giorno${top && top.prenotati ? ` · giorno più pieno: ${esc(fGg.format(noon(top.giorno)))} (${top.prenotati})` : ""}</p>
+  box.innerHTML = `<p class="mut" style="margin-bottom:8px">${tot} partecipanti in ${conLez.length} ${conLez.length === 1 ? "giorno" : "giorni"} con lezioni · media ${media} al giorno${top && top.prenotati ? ` · giorno più pieno: ${esc(fGg.format(noon(top.giorno)))} (${top.prenotati})` : ""}</p>
     <div class="days-ch" style="--n:${G.length}">${G.map((g) => {
       const h = g.prenotati ? Math.max(3, Math.round((100 * g.prenotati) / max)) : 0, futuro = g.giorno > oggi;
-      return `<button type="button" class="dc${futuro ? " fut" : ""}${g.lezioni ? "" : " vuoto"}" data-giorno="${g.giorno}" title="${esc(cap1(fGg.format(noon(g.giorno))))}: ${g.lezioni ? `${g.prenotati} prenotati su ${g.posti} posti (${g.riempimento ?? 0}%) · ${g.lezioni} lezioni${futuro ? "" : ` · ${g.presenze} presenze`}` : "nessuna lezione"}${G.length > 1 ? " · clic per vedere solo questo giorno" : ""}"><i style="height:${h}%"></i></button>`;
+      return `<button type="button" class="dc${futuro ? " fut" : ""}${g.lezioni ? "" : " vuoto"}" data-giorno="${g.giorno}" title="${esc(cap1(fGg.format(noon(g.giorno))))}: ${g.lezioni ? `${g.prenotati} partecipanti · ${g.lezioni} lezioni${futuro ? "" : ` · ${g.presenze} presenze`}` : "nessuna lezione"}${G.length > 1 ? " · clic per vedere solo questo giorno" : ""}"><i style="height:${h}%"></i></button>`;
     }).join("")}</div>
     <div class="dx" style="--n:${G.length}">${G.map((g, k) => `<span>${k % passo === 0 ? esc(fGg.format(noon(g.giorno)).replace(/\.$/, "")) : ""}</span>`).join("")}</div>
-    <div class="legend"><span><i style="background:var(--red-hi)"></i>prenotati (giorni passati e oggi)</span><span><i style="background:rgba(224,34,51,.45)"></i>prenotati per giorni futuri</span></div>
-    <details style="margin-top:10px"><summary class="mut">Tabella giorno per giorno</summary><div class="wrap-tbl" style="margin-top:8px;max-height:360px"><table class="tbl"><thead><tr><th>Giorno</th><th class="num">Lezioni</th><th class="num">Posti</th><th class="num">Prenotati</th><th class="num">Riemp.</th><th class="num">Presenze</th></tr></thead><tbody>${
-      G.map((g) => `<tr><td>${esc(cap1(fGg.format(noon(g.giorno))))}</td><td class="num">${g.lezioni}</td><td class="num">${g.posti}</td><td class="num">${g.prenotati}</td><td class="num">${g.lezioni ? `${g.riempimento ?? 0}%` : "—"}</td><td class="num">${g.giorno > oggi ? "—" : g.presenze}</td></tr>`).join("")}</tbody></table></div></details>`;
+    <div class="legend"><span><i style="background:var(--red-hi)"></i>partecipanti (giorni passati e oggi)</span><span><i style="background:rgba(224,34,51,.45)"></i>già segnati per giorni futuri</span></div>
+    <details style="margin-top:10px"><summary class="mut">Tabella giorno per giorno</summary><div class="wrap-tbl" style="margin-top:8px;max-height:360px"><table class="tbl"><thead><tr><th>Giorno</th><th class="num">Lezioni</th><th class="num">Partecipanti</th><th class="num">Per lezione</th><th class="num">Presenze</th></tr></thead><tbody>${
+      G.map((g) => `<tr><td>${esc(cap1(fGg.format(noon(g.giorno))))}</td><td class="num">${g.lezioni}</td><td class="num">${g.prenotati}</td><td class="num">${g.lezioni ? n1(g.prenotati / g.lezioni) : "—"}</td><td class="num">${g.giorno > oggi ? "—" : g.presenze}</td></tr>`).join("")}</tbody></table></div></details>`;
   box.querySelectorAll("[data-giorno]").forEach((b) => (b.onclick = () => { if (G.length > 1) impostaPeriodo(b.dataset.giorno, b.dataset.giorno, "giorno"); }));
 }
 

@@ -300,7 +300,7 @@ body:not(.is-admin) .admin-only{display:none!important}
 .dotc{width:12px;height:12px;border-radius:50%;flex:none}
 /* statistiche */
 .hbars{display:flex;flex-direction:column;gap:7px}
-.hb{display:grid;grid-template-columns:minmax(90px,150px) minmax(0,1fr) 44px;gap:10px;align-items:center;font-size:13px}
+.hb{display:grid;grid-template-columns:minmax(90px,150px) minmax(0,1fr) 82px;gap:10px;align-items:center;font-size:13px}
 .hl{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#ddd}
 .ht{height:12px;border-radius:4px;background:rgba(255,255,255,.06);overflow:hidden}
 .ht i{display:block;height:100%;background:var(--red-hi);border-radius:0 4px 4px 0}
