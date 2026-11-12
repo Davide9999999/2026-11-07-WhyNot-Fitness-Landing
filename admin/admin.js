@@ -170,7 +170,7 @@ async function caricaHome() {
     <div class="kpi"><span>Lezioni oggi</span><b>${oggiAttive.length}</b><small>${prossima ? `prossima alle ${fTime.format(new Date(prossima.inizio))}` : oggiAttive.length ? "concluse per oggi" : "nessuna in programma"}${diOggi.length > oggiAttive.length ? ` · ${diOggi.length - oggiAttive.length} annullate` : ""}</small></div>
     <div class="kpi"><span>Prenotati oggi</span><b>${pren}</b><small>su ${posti} posti</small></div>
     <div class="kpi"><span>In lista d'attesa</span><b>${att}</b><small>questa settimana</small></div>
-    <div class="kpi"><span>Riempimento settimana</span><b>${perc}%</b><small>${conf} prenotati su ${capW} posti</small><div class="meter"><i style="width:${perc}%"></i></div></div>`;
+    <div class="kpi"><span>Riempimento settimana</span><b>${perc}%</b><small>${conf} prenotati su ${capW} posti</small><div class="meter"><i style="width:${Math.min(100, perc)}%"></i></div></div>`;
 
   $("today").innerHTML = diOggi.length ? diOggi.map((l) => rigaTl(l, now)).join("") : '<p class="empty">Nessuna lezione oggi.</p>';
 
@@ -183,7 +183,7 @@ async function caricaHome() {
   const per = {};
   attive.forEach((l) => { const k = l.corso; per[k] ??= { n: 0, c: 0, cat: l.categoria }; per[k].n += l.confermate; per[k].c += l.capienza; });
   const top = Object.entries(per).filter(([, v]) => v.n > 0).sort((a, b) => b[1].n - a[1].n).slice(0, 5);
-  $("rank").innerHTML = top.map(([k, v]) => `<div><span><b>${esc(k)}</b><em>${v.n} prenotati · ${Math.round((v.n / v.c) * 100)}%</em></span><div class="pb"><i style="width:${Math.round((v.n / v.c) * 100)}%;background:${catColor(v.cat)}"></i></div></div>`).join("")
+  $("rank").innerHTML = top.map(([k, v]) => `<div><span><b>${esc(k)}</b><em>${v.n} prenotati · ${Math.round((v.n / v.c) * 100)}%</em></span><div class="pb"><i style="width:${Math.min(100, Math.round((v.n / v.c) * 100))}%;background:${catColor(v.cat)}"></i></div></div>`).join("")
     || '<p class="empty">Ancora nessuna prenotazione questa settimana.</p>';
   lezioniCache(sett);
 }
