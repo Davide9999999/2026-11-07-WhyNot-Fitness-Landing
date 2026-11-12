@@ -251,3 +251,10 @@ dialog.sheet.tall .sh{min-height:88vh}
 .sok[aria-pressed="true"]{background:var(--ok);border-color:var(--ok);color:#0b2a07}
 .srow.fatta input{opacity:.75}
 .inst{margin-top:18px}.inst h2{margin-bottom:6px}
+/* 2026-11-12: istruzioni installazione iPhone, corsi su prenotazione, nuova password */
+.itxt{font-size:14px;line-height:1.5;color:#d6d6d6}
+.itxt .btn{margin-top:12px}
+.isteps{margin:6px 0 0;padding-left:20px;display:flex;flex-direction:column;gap:8px}
+.ish{width:18px;height:18px;vertical-align:-3px;fill:none;stroke:#4da3ff;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.supren{color:#ffd27a;font-weight:600}
+.ftitle{font-size:18px;margin-bottom:6px}

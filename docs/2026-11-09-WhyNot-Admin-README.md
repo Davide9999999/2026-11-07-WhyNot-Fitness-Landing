@@ -91,7 +91,7 @@ Pagine: `/prenota/` (ora pubblica, in sitemap e nel menu) e `/area-personale/` (
 - **Email (SMTP)**: da configurare in Supabase → Authentication → Emails → SMTP Settings. Dopo, applicare i modelli in italiano di `supabase/2026-11-09-WhyNot-email-templates.json` (PATCH `/v1/projects/{ref}/config/auth`): sul piano gratuito Supabase li accetta solo con SMTP personalizzato.
 
 ## 9. Notifiche push e settimane future (2026-11-09)
-- **App**: in Prenota si scorrono fino a 5 settimane avanti (solo le lezioni già inserite dall'admin: una settimana non ancora generata resta vuota). Si prenota dalla domenica alle 00:00 che precede la settimana della lezione (regola in `_apertura_prenotazioni()`, file `2026-11-09-WhyNot-apertura-prenotazioni.sql`): la settimana successiva va generata dall'admin entro sabato.
+- **App**: in Prenota si scorrono fino a 5 settimane avanti (solo le lezioni già inserite dall'admin: una settimana non ancora generata resta vuota). Si prenota dal sabato alle 9:00 che precede la settimana della lezione (regola in `_apertura_prenotazioni()`, file `2026-11-12-WhyNot-partecipazione.sql`): la settimana successiva va generata dall'admin entro venerdì.
 - **Notifiche** (Profilo → Notifiche): promemoria prima della lezione (30 min – 1 giorno), posto confermato dalla lista d'attesa, lezione annullata, avvisi della palestra. Su iPhone servono iOS 16.4+ e l'app installata sulla schermata Home.
 - **Admin**: «Invia avviso» (Panoramica/Iscritti). Annullando una lezione i prenotati con notifiche attive vengono avvisati.
 - **Come funziona**: il database mette in coda le notifiche; il Worker Cloudflare (cron ogni minuto, `worker/push.js`) le invia con Web Push (VAPID + aes128gcm, verificato con il vettore di prova dell'RFC 8291).
@@ -165,3 +165,13 @@ Collaudo del 2026-11-11 (account): 3 account ripristinati con impronta password 
 - Se le durate sono diverse (es. ottobre 31 giorni vs settembre 30) la tabella lo segnala: per i totali guardare riempimento, prenotati al giorno e per lezione.
 - Percentuali confrontate in punti (pt), conteggi in variazione %. Verde = miglioramento, rosso = peggioramento (per assenze e annullate scendere è meglio), sempre con freccia ▲▼.
 - Nessuna modifica al database: usa la stessa `admin_statistiche`. I confronti con periodi precedenti all'avvio dell'app risultano «nessuna lezione».
+
+## 16. Corsi a partecipazione, apertura al sabato, nuova password (2026-11-12) — `supabase/2026-11-12-WhyNot-partecipazione.sql`
+- **Apertura prenotazioni**: sabato alle 9:00 prima della settimana della lezione (prima: domenica 00:00). Le settimane vanno generate entro venerdì.
+- **Modalità del corso** (Corsi e orari → corso → *Modalità*, colonna `corsi.prenotazione_obbligatoria`):
+  - **Su prenotazione**: posti limitati alla capienza, poi lista d'attesa; annullo entro il limite di ore impostato. Oggi: H.E.A.T. Program e Step Coreo.
+  - **A partecipazione**: nell'app il pulsante è «Partecipo»; nessun limite di posti, nessuna lista d'attesa; si toglie fino all'inizio. Serve a sapere quante persone vengono (in admin: «N part.»).
+  - Se un corso passa da «su prenotazione» a «a partecipazione», chi era in lista d'attesa nelle lezioni future diventa confermato (e riceve la notifica di posto confermato).
+- **Reimposta password**: il link dell'email apre la pagina «Imposta la nuova password» (con conferma); dopo il salvataggio l'app esce e torna all'accesso con l'email già compilata. Link scaduto o già usato: l'app lo dice e propone di richiederne uno nuovo.
+- **Installazione su iPhone**: Apple non consente a nessun sito un pulsante «Installa» in Safari; l'app mostra i 3 passaggi (Condividi → Aggiungi alla schermata Home → Aggiungi) e il pulsante «Copia il link dell'app». Dentro Instagram/WhatsApp/Facebook invita ad aprire in Safari.
+- L'app passa alla nuova logica solo quando il database risponde con i nuovi campi: finché il file SQL non è eseguito tutto resta come prima.

@@ -1,6 +1,6 @@
 // App iscritti WHY NOT: accesso, attivazione con codice, prenotazione corsi, prenotazioni e profilo.
 // Le regole (chi può prenotare, capienza, lista d'attesa) sono nel database: qui c'è solo l'interfaccia.
-import { cfg, sb, $, esc, fmt, dayKey, hourRome, cap, catColor, initials, relTime, scaricaIcs, erroreAuth } from "../assets/whynot-app.js";
+import { cfg, sb, $, esc, fmt, dayKey, hourRome, cap, catColor, initials, relTime, scaricaIcs, erroreAuth, linkEmail } from "../assets/whynot-app.js";
 
 const ICO_OK = '<svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
 const ICO_WAIT = '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>';
@@ -31,9 +31,21 @@ else {
 }
 
 async function avvia() {
+  // link "reimposta password": pagina per scegliere la nuova password, poi di nuovo l'accesso
+  if (linkEmail.tipo === "recovery") recovery = true;
   const { data } = await sb.auth.getSession();
   session = data.session;
-  if (recovery) return;
+  if (recovery) {
+    if (!session) { form("fReset"); show("vAuth"); return msg($("mReset"), "Il link non è più valido: richiedine uno nuovo qui sotto.", false); }
+    $("fNewPw").username.value = session.user?.email || "";
+    form("fNewPw"); show("vAuth"); return;
+  }
+  // link scaduto o già usato (Supabase lo segnala nell'indirizzo)
+  if (linkEmail.errore && !session) {
+    history.replaceState(null, "", location.pathname + location.search);
+    form("fReset"); show("vAuth");
+    return msg($("mReset"), "Il link è scaduto o è già stato usato: inserisci la tua email per riceverne uno nuovo.", false);
+  }
   if (!session) { form(new URLSearchParams(location.search).has("attiva") ? "fAtt" : "fLogin"); show("vAuth"); return; }
   await entra();
 }
@@ -94,11 +106,19 @@ $("fReset").addEventListener("submit", async (e) => {
 $("fNewPw").addEventListener("submit", async (e) => {
   e.preventDefault(); const f = e.target, b = f.querySelector("[type=submit]");
   if (f.password.value.length < 8) return msg($("mNewPw"), "Almeno 8 caratteri.");
+  if (f.password.value !== f.password2.value) return msg($("mNewPw"), "Le due password non coincidono.");
   busy(b, true, "Salvataggio...");
   const { error } = await sb.auth.updateUser({ password: f.password.value });
   busy(b, false);
   if (error) return msg($("mNewPw"), erroreAuth(error));
-  recovery = false; history.replaceState(null, "", location.pathname); toast("Password aggiornata."); entra();
+  // esco e torno all'accesso: l'iscritto entra con la nuova password (e il browser propone di salvarla)
+  const email = session?.user?.email || "";
+  recovery = false; history.replaceState(null, "", location.pathname);
+  await sb.auth.signOut(); session = null; f.reset();
+  form("fLogin"); show("vAuth");
+  const fl = $("fLogin"); if (email) fl.email.value = email;
+  msg($("mLogin"), "Password aggiornata. Ora accedi con la nuova password.", true);
+  fl.password.focus();
 });
 
 $("logout").onclick = async () => { await scollegaPush(); await sb.auth.signOut(); session = null; prof = null; form("fLogin"); show("vAuth"); window.scrollTo(0, 0); };
@@ -124,7 +144,7 @@ async function entra() {
   await ricarica();
 }
 
-// settimana mostrata: 0 = questa, fino a MAX_SETT settimane avanti (prenotabili dalla domenica prima della loro settimana)
+// settimana mostrata: 0 = questa, fino a MAX_SETT settimane avanti (prenotabili dal sabato alle 9:00 prima della loro settimana)
 const MAX_SETT = 5;
 let settOff = 0;
 
@@ -202,14 +222,14 @@ function disegnaCat() {
 }
 function disegnaLezioni() {
   const lista = lezioni.filter((l) => dayKey(l.d) === giornoSel && (!catSel || l.categoria === catSel));
-  // le prenotazioni di una settimana si aprono la domenica precedente alle 00:00 (regola nel database)
-  const apertura = fmt.dayMonth.format(new Date(settimana(settOff)[0].getTime() - 86400000));
+  // le prenotazioni di una settimana si aprono il sabato precedente alle 9:00 (regola nel database)
+  const apertura = fmt.dayMonth.format(new Date(settimana(settOff)[0].getTime() - 2 * 86400000));
   const aperta = lezioni.some((l) => l.prenotabile);
   if (!lezioni.length) {
     $("slots").innerHTML = `<div class="empty"><b>Corsi non ancora pubblicati</b>${settOff > 0 ? "Le lezioni di questa settimana compariranno qui appena la palestra le inserisce." : "Le lezioni di questa settimana non sono ancora disponibili."}</div>`;
     return;
   }
-  const nota = settOff > 0 && !aperta ? `<p class="notice info">Le prenotazioni per questa settimana si aprono domenica ${esc(apertura)} alle 00:00.</p>` : "";
+  const nota = settOff > 0 && !aperta ? `<p class="notice info">Le prenotazioni per questa settimana si aprono sabato ${esc(apertura)} alle 9:00.</p>` : "";
   if (!lista.length) {
     $("slots").innerHTML = nota + `<div class="empty"><b>Nessuna lezione${catSel ? ` di ${esc(catSel)}` : ""}</b>Prova un altro giorno${catSel ? " o togli il filtro" : ""}.</div>`;
     return;
@@ -217,22 +237,28 @@ function disegnaLezioni() {
   const parti = [["Mattina", (h) => h < 13], ["Pomeriggio", (h) => h >= 13 && h < 18], ["Sera", (h) => h >= 18]];
   $("slots").innerHTML = nota + parti.map(([n, fn]) => { const gr = lista.filter((l) => fn(hourRome(l.d))); return gr.length ? `<p class="part">${n}</p>` + gr.map(riga).join("") : ""; }).join("");
 }
+// corsi su prenotazione (posti limitati + lista d'attesa) o a partecipazione (segnali che vieni, nessun limite)
+// finché il database non ha la versione 2026-11-12 (campo "partecipanti" assente) tutto resta "su prenotazione", come prima
+const suPren = (l) => (l.partecipanti === undefined && l.annullabile_fino === undefined) || l.prenotazione_obbligatoria !== false;
+const nPart = (l) => l.partecipanti ?? Math.max(0, l.capienza - l.posti_liberi);
+const testoPart = (n) => (n ? `${n} ${n === 1 ? "partecipante" : "partecipanti"}` : "nessun partecipante finora");
 function riga(l) {
-  const passata = l.d <= new Date(), ann = l.stato === "annullata", mia = miaPer(l.id);
+  const passata = l.d <= new Date(), ann = l.stato === "annullata", mia = miaPer(l.id), pren = suPren(l);
   const perc = l.capienza ? Math.min(100, Math.round(((l.capienza - l.posti_liberi) / l.capienza) * 100)) : 0;
   const chiusa = !ann && !passata && !mia && l.prenotabile === false;
   let tag;
   if (ann) tag = '<span class="tag x">Annullata</span>';
-  else if (mia) tag = mia.stato === "attesa" ? `<span class="tag wait">In attesa${mia.posizione_attesa ? ` ${mia.posizione_attesa}°` : ""}</span>` : '<span class="tag ok">✓ Prenotato</span>';
+  else if (mia) tag = mia.stato === "attesa" ? `<span class="tag wait">In attesa${mia.posizione_attesa ? ` ${mia.posizione_attesa}°` : ""}</span>` : `<span class="tag ok">✓ ${pren ? "Prenotato" : "Partecipi"}</span>`;
   else if (passata) tag = '<span class="tag x">Conclusa</span>';
   else if (chiusa) tag = '<span class="tag soon">Presto</span>';
+  else if (!pren) tag = '<span class="tag go">Partecipo</span>';
   else tag = l.posti_liberi === 0 ? '<span class="tag go w">Lista d\'attesa</span>' : '<span class="tag go">Prenota</span>';
-  const posti = ann ? "" : l.posti_liberi === 0 ? `Completa${l.in_attesa ? ` · ${l.in_attesa} in attesa` : ""}` : `${l.posti_liberi} ${l.posti_liberi === 1 ? "posto" : "posti"} su ${l.capienza}`;
+  const posti = ann ? "" : !pren ? testoPart(nPart(l)) : l.posti_liberi === 0 ? `Completa${l.in_attesa ? ` · ${l.in_attesa} in attesa` : ""}` : `${l.posti_liberi} ${l.posti_liberi === 1 ? "posto" : "posti"} su ${l.capienza}`;
   const off = ann || (passata && !mia) || chiusa;
   return `<button class="les${ann || (passata && !mia) ? " off" : ""}" data-id="${l.id}" style="--c:${l.col}" ${off ? "disabled" : ""}>
     <span class="t">${fmt.time.format(l.d)}<small>${Math.round((l.f - l.d) / 60000)} min</small></span>
-    <span><b>${esc(l.corso)}${preferiti.has(corsoId(l)) ? ' <i class="hrt" title="Preferito">♥</i>' : ""}</b><span class="s"><span class="ct">${esc(l.categoria)}</span> · ${esc(l.sala)}${posti ? ` · ${posti}` : ""}</span>
-      ${ann ? "" : `<span class="pb"><i class="${perc >= 100 ? "full" : perc >= 75 ? "mid" : ""}" style="width:${perc}%"></i></span>`}</span>
+    <span><b>${esc(l.corso)}${preferiti.has(corsoId(l)) ? ' <i class="hrt" title="Preferito">♥</i>' : ""}</b><span class="s"><span class="ct">${esc(l.categoria)}</span> · ${esc(l.sala)}${posti ? ` · ${posti}` : ""}${pren ? ' · <span class="supren">su prenotazione</span>' : ""}</span>
+      ${ann || !pren ? "" : `<span class="pb"><i class="${perc >= 100 ? "full" : perc >= 75 ? "mid" : ""}" style="width:${perc}%"></i></span>`}</span>
     ${tag}</button>`;
 }
 $("days").addEventListener("click", (e) => { const b = e.target.closest(".day"); if (!b) return; giornoSel = b.dataset.k; $("days").querySelectorAll(".day").forEach((x) => x.setAttribute("aria-pressed", x === b)); disegnaLezioni(); });
@@ -250,23 +276,26 @@ function testa(l) {
 function apri(l) {
   const mia = miaPer(l.id);
   if (mia) return gestisci(mia, l);
-  const puo = prof?.iscritto && prof?.attivo;
+  const puo = prof?.iscritto && prof?.attivo, pren = suPren(l);
+  const spiega = !pren
+    ? `Corso a partecipazione libera, senza limite di posti: segnalando che vieni la palestra sa quante persone aspettarsi. Finora: ${testoPart(nPart(l))}.`
+    : l.posti_liberi === 0 ? `La lezione è completa: entri in lista d'attesa${l.in_attesa ? ` dopo ${l.in_attesa} ${l.in_attesa === 1 ? "persona" : "persone"}` : ""} e passi tra i confermati appena si libera un posto.` : `Corso su prenotazione: ${l.posti_liberi} ${l.posti_liberi === 1 ? "posto libero" : "posti liberi"} su ${l.capienza}.`;
   $("shBody").innerHTML = testa(l) + (puo ? `
     <div class="who"><span class="av">${esc(initials(prof.nome || session.user.email))}</span><div><b>${esc(prof.nome || session.user.email)}</b><small>${esc([prof.telefono, session.user.email].filter(Boolean).join(" · "))}</small></div></div>
-    <p style="font-size:13.5px;color:#cfcfcf;margin-bottom:12px">${l.posti_liberi === 0 ? `La lezione è completa: entri in lista d'attesa${l.in_attesa ? ` dopo ${l.in_attesa} ${l.in_attesa === 1 ? "persona" : "persone"}` : ""} e passi tra i confermati appena si libera un posto.` : `${l.posti_liberi} ${l.posti_liberi === 1 ? "posto libero" : "posti liberi"} su ${l.capienza}.`}</p>
+    <p style="font-size:13.5px;color:#cfcfcf;margin-bottom:12px">${spiega}</p>
     <label>Nota per l'istruttore <small>(facoltativa, niente dati sulla salute)</small><textarea id="shNote" maxlength="500" placeholder="es. è la mia prima lezione"></textarea></label>
-    <div class="btns"><button class="btn" id="shOk">${l.posti_liberi === 0 ? "Mettimi in lista d'attesa" : "Conferma prenotazione"}</button><button class="btn ghost" id="shNo">Annulla</button></div>
+    <div class="btns"><button class="btn" id="shOk">${!pren ? "Partecipo" : l.posti_liberi === 0 ? "Mettimi in lista d'attesa" : "Conferma prenotazione"}</button><button class="btn ghost" id="shNo">Annulla</button></div>
     <p class="msg" id="shMsg"></p>`
     : `<p class="notice" style="margin:0 0 14px">${!prof?.iscritto ? "Il tuo account non è collegato a un iscritto." : "Il tuo account è sospeso."} Per prenotare chiedi in reception.</p><div class="btns"><button class="btn ghost" id="shNo">Chiudi</button></div>`);
   $("shNo").onclick = () => sheet.close();
   if (puo) $("shOk").onclick = async (ev) => {
-    const b = ev.currentTarget; busy(b, true, "Prenotazione...");
+    const b = ev.currentTarget; busy(b, true, pren ? "Prenotazione..." : "Invio...");
     const { data, error } = await sb.rpc("prenota_iscritto", { p_lezione_id: l.id, p_note: $("shNote").value.trim() || null });
     if (error) { busy(b, false); return msg($("shMsg"), error.message); }
     const att = data.stato === "attesa";
     $("shBody").innerHTML = testa(l) + `<div class="done${att ? " wait" : ""}"><div class="ic">${att ? ICO_WAIT : ICO_OK}</div>
-      <h3>${att ? "Sei in lista d'attesa" : "Prenotato!"}</h3>
-      <p>${att ? `Posizione <b>${data.posizione_attesa}</b>: se si libera un posto passi in automatico tra i confermati. Controlla lo stato in "Le mie".` : "Ti aspettiamo: arriva qualche minuto prima."}</p></div>
+      <h3>${att ? "Sei in lista d'attesa" : pren ? "Prenotato!" : "Ci sei!"}</h3>
+      <p>${att ? `Posizione <b>${data.posizione_attesa}</b>: se si libera un posto passi in automatico tra i confermati. Controlla lo stato in "Le mie".` : pren ? "Ti aspettiamo: arriva qualche minuto prima." : "Partecipazione segnata. Se cambi idea puoi toglierla fino all'inizio della lezione."}</p></div>
       <div class="btns"><button class="btn" id="shIcs">Aggiungi al calendario</button><button class="btn ghost" id="shNo">Fatto</button></div>`;
     $("shIcs").onclick = () => scaricaIcs({ id: data.id, corso: l.corso, sala: l.sala, inizio: l.d, fine: l.f });
     $("shNo").onclick = () => sheet.close();
@@ -278,11 +307,12 @@ function gestisci(p, l) {
   l = l || p;
   const futura = p.d > new Date() && p.stato !== "annullata" && p.lezione_stato !== "annullata";
   const limite = p.annullabile_fino ? new Date(p.annullabile_fino) : p.d, puoAnnullare = futura && new Date() < limite;
+  const pren = suPren(p);
   $("shBody").innerHTML = testa(l) + `
-    <p style="margin-bottom:14px">${p.stato === "attesa" ? `<span class="tag wait">In lista d'attesa${p.posizione_attesa ? ` · ${p.posizione_attesa}°` : ""}</span>` : '<span class="tag ok">✓ Prenotazione confermata</span>'}</p>
+    <p style="margin-bottom:14px">${p.stato === "attesa" ? `<span class="tag wait">In lista d'attesa${p.posizione_attesa ? ` · ${p.posizione_attesa}°` : ""}</span>` : `<span class="tag ok">✓ ${pren ? "Prenotazione confermata" : "Partecipazione segnata"}</span>`}</p>
     ${p.note ? `<p style="font-size:13.5px;color:#cfcfcf;margin-bottom:12px">Nota: «${esc(p.note)}»</p>` : ""}
-    ${futura ? `<p style="font-size:13px;color:#cfcfcf;margin-bottom:12px">${puoAnnullare ? `Puoi annullare fino a ${esc(fmt.dayShort.format(limite))} alle ${fmt.time.format(limite)}.` : "Il termine per annullare è passato: per disdire contatta la reception."}</p>` : ""}
-    <div class="btns">${futura ? `<button class="btn ghost" id="shIcs">Aggiungi al calendario</button>${puoAnnullare ? '<button class="btn ghost danger" id="shDel">Annulla prenotazione</button>' : '<a class="btn ghost" href="tel:+393337933400">Chiama la reception</a>'}` : ""}<button class="btn ghost" id="shNo">Chiudi</button></div>
+    ${futura ? `<p style="font-size:13px;color:#cfcfcf;margin-bottom:12px">${puoAnnullare ? `Puoi ${pren ? "annullare" : "toglierla"} fino a ${esc(fmt.dayShort.format(limite))} alle ${fmt.time.format(limite)}.` : "Il termine per annullare è passato: per disdire contatta la reception."}</p>` : ""}
+    <div class="btns">${futura ? `<button class="btn ghost" id="shIcs">Aggiungi al calendario</button>${puoAnnullare ? `<button class="btn ghost danger" id="shDel">${pren ? "Annulla prenotazione" : "Non vengo più"}</button>` : '<a class="btn ghost" href="tel:+393337933400">Chiama la reception</a>'}` : ""}<button class="btn ghost" id="shNo">Chiudi</button></div>
     <p class="msg" id="shMsg"></p>`;
   $("shNo").onclick = () => sheet.close();
   if (futura) {
@@ -293,7 +323,7 @@ function gestisci(p, l) {
       busy(b, true, "Annullamento...");
       const { error } = await sb.rpc("annulla_mia_prenotazione", { p_id: p.id });
       if (error) { busy(b, false); return msg($("shMsg"), error.message); }
-      sheet.close(); toast("Prenotazione annullata."); ricarica();
+      sheet.close(); toast(pren ? "Prenotazione annullata." : "Partecipazione tolta."); ricarica();
     };
   }
   if (!sheet.open) sheet.showModal();
@@ -323,7 +353,7 @@ function disegnaMie() {
     const inCorso = !fut && !ann && x.stato === "confermata" && x.d <= now && x.f > now;
     const tag = x.lezione_stato === "annullata" ? '<span class="tag x">Lezione annullata</span>' : x.stato === "annullata" ? '<span class="tag x">Annullata</span>'
       : inCorso ? '<span class="tag wait">In corso</span>'
-      : x.stato === "attesa" ? `<span class="tag wait">${fut ? `In attesa${x.posizione_attesa ? ` ${x.posizione_attesa}°` : ""}` : "Non confermata"}</span>` : x.presenza === false && !fut ? '<span class="tag x">Assente</span>' : `<span class="tag ok">${fut ? "Confermata" : "Frequentata"}</span>`;
+      : x.stato === "attesa" ? `<span class="tag wait">${fut ? `In attesa${x.posizione_attesa ? ` ${x.posizione_attesa}°` : ""}` : "Non confermata"}</span>` : x.presenza === false && !fut ? '<span class="tag x">Assente</span>' : `<span class="tag ok">${fut ? (suPren(x) ? "Confermata" : "Partecipi") : "Frequentata"}</span>`;
     const valutabile = !fut && x.stato === "confermata" && x.presenza !== false && x.lezione_stato !== "annullata" && x.f <= now && now - x.f < 14 * 86400000;
     // un solo pulsante grande che apre il popup (niente stelle piccole cliccabili nell'elenco)
     const stelle = valutabile
@@ -372,15 +402,20 @@ document.addEventListener("wn-installabile", () => { promptInst = window.__promp
 function installa() {
   const standalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone;
   const ua = navigator.userAgent, ios = /iphone|ipad|ipod/i.test(ua) || (/macintosh/i.test(ua) && navigator.maxTouchPoints > 1), android = /android/i.test(ua);
+  // su iPhone Apple non permette a nessun sito un pulsante "Installa": si aggiunge dal menu Condividi di Safari
+  const inApp = /instagram|fban|fbav|fb_iab|whatsapp|line\/|micromessenger/i.test(ua);
+  const ICO_SH = '<svg class="ish" viewBox="0 0 24 24" aria-label="Condividi"><path d="M12 15V3M8 7l4-4 4 4"/><path d="M6 11H5v10h14V11h-1"/></svg>';
   const testo = promptInst ? "Aggiungi WHY NOT alla schermata Home: si apre come un'app, a schermo intero."
-    : ios ? "Su iPhone: apri questa pagina con <b>Safari</b>, tocca <b>Condividi</b> (il quadrato con la freccia) e poi <b>Aggiungi alla schermata Home</b>."
+    : ios && inApp ? "Stai usando il browser interno di un'altra app: tocca <b>⋯</b> e scegli <b>Apri in Safari</b> (oppure copia il link qui sotto e incollalo in Safari), poi segui i passaggi per aggiungerla alla Home."
+    : ios ? `<ol class="isteps"><li>Tocca ${ICO_SH} <b>Condividi</b> nella barra di Safari (su iOS 26 è dentro il menu <b>⋯</b> in basso).</li><li>Scorri e scegli <b>Aggiungi alla schermata Home</b>.</li><li>Tocca <b>Aggiungi</b>: l'icona WHY NOT comparirà tra le tue app.</li></ol>`
     : android ? "Apri il menu <b>⋮</b> del browser (in alto a destra) e scegli <b>Installa app</b> o <b>Aggiungi a schermata Home</b>."
     : "";
   // due riquadri: nella schermata di accesso e nel Profilo
   [["installAuth", "installAuthTxt", "installAuthBtn"], ["installBox", "installTxt", "installBtn"]].forEach(([box, txt, btn]) => {
     if (!$(box)) return;
     if (standalone || !testo) { $(box).hidden = true; return; }
-    $(box).hidden = false; $(txt).innerHTML = testo; $(btn).hidden = !promptInst;
+    $(box).hidden = false; $(txt).innerHTML = testo + (ios ? `<button class="btn ghost sm" type="button" data-copialink>Copia il link dell'app</button>` : ""); $(btn).hidden = !promptInst;
+    $(txt).querySelector("[data-copialink]")?.addEventListener("click", () => navigator.clipboard.writeText("https://whynotfitnessclub.com/app/").then(() => toast("Link copiato: incollalo in Safari."), () => toast("whynotfitnessclub.com/app", true)));
     $(btn).onclick = async () => { if (!promptInst) return; promptInst.prompt(); await promptInst.userChoice; window.__promptInst = promptInst = null; installa(); };
   });
 }

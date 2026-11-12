@@ -62,8 +62,11 @@
       </form>
 
       <form id="fNewPw" novalidate hidden>
-        <p class="hint">Scegli la nuova password del tuo account.</p>
+        <h2 class="ftitle">Imposta la nuova password</h2>
+        <p class="hint">Scegli la nuova password del tuo account (almeno 8 caratteri). Dopo il salvataggio torni all'accesso ed entri con la nuova password.</p>
+        <input name="username" type="email" autocomplete="username" hidden>
         <label>Nuova password<span class="pw"><input name="password" type="password" required minlength="8" autocomplete="new-password"><button type="button" data-show>Mostra</button></span></label>
+        <label>Ripeti la nuova password<span class="pw"><input name="password2" type="password" required minlength="8" autocomplete="new-password"><button type="button" data-show>Mostra</button></span></label>
         <button class="btn" type="submit">Salva password</button>
         <p class="msg" id="mNewPw" role="status"></p>
       </form>
@@ -71,7 +74,7 @@
     <p class="foot-note">Non sei ancora iscritto? <a href="../#contatti">Vieni a trovarci</a> o scrivici su <a href="https://wa.me/393337933400" target="_blank" rel="noopener">WhatsApp</a>.<br><a href="../">Torna al sito</a> · <a href="../privacy/">Privacy</a></p>
     <div class="card inst" id="installAuth" hidden>
       <h2>Installa l'app</h2>
-      <p id="installAuthTxt"></p>
+      <div id="installAuthTxt" class="itxt"></div>
       <button class="btn ghost" type="button" id="installAuthBtn" hidden>Installa l'app</button>
     </div>
   </section>
@@ -132,7 +135,7 @@
       </div>
       <div class="card" id="installBox" hidden>
         <h2>Installa l'app</h2>
-        <p id="installTxt">Aggiungi WHY NOT alla schermata Home: si apre come un'app, a schermo intero.</p>
+        <div id="installTxt" class="itxt">Aggiungi WHY NOT alla schermata Home: si apre come un'app, a schermo intero.</div>
         <button class="btn" type="button" id="installBtn" hidden>Installa</button>
       </div>
       <div class="card">

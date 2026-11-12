@@ -114,7 +114,7 @@
     <section id="tab-palinsesto" class="page" hidden>
       <div class="panel admin-only" id="regole"><h2>Regole prenotazioni</h2>
         <form id="fRegole" class="acts-row" style="align-items:flex-end"><label style="max-width:300px">Annullo consentito fino a (ore prima della lezione)<input name="ore" type="number" min="0" max="72" required></label><button class="btn sm" type="submit">Salva</button></form>
-        <p class="mut" style="margin-top:8px">Chi è confermato può annullare dall'app fino a questo limite; chi è in lista d'attesa può uscire fino all'inizio. Le prenotazioni si aprono la domenica prima della settimana.</p></div>
+        <p class="mut" style="margin-top:8px">Vale per i corsi su prenotazione: chi è confermato può annullare dall'app fino a questo limite, chi è in lista d'attesa può uscire fino all'inizio. Nei corsi a partecipazione si può togliere la partecipazione fino all'inizio. Le prenotazioni si aprono il sabato alle 9:00 prima della settimana.</p></div>
       <div class="panel"><h2>Corsi <span class="mut">capienza e sala valgono per le settimane generate da adesso in poi</span></h2><div id="corsiTbl"></div></div>
       <div class="panel"><h2>Palinsesto settimanale <span class="mut">modello usato da «Genera dal palinsesto»</span></h2><div id="palGrid" class="palgrid"></div></div>
     </section>
@@ -294,7 +294,7 @@
   <div class="row"><label>Nome<input name="nome" required maxlength="80"></label><label>Categoria<input name="categoria" required maxlength="40" list="catList"></label></div>
   <datalist id="catList"><option>Posturale</option><option>Tonificazione</option><option>Aerobico</option><option>Funzionale</option><option>H.E.A.T. Program</option><option>Sala attrezzi</option></datalist>
   <div class="row"><label>Sala<input name="sala" required maxlength="40"></label><label>Capienza (posti)<input name="capienza_default" type="number" min="1" max="500" required></label></div>
-  <label class="chk"><input type="checkbox" name="prenotazione_obbligatoria"> Prenotazione obbligatoria</label>
+  <label>Modalità<select name="prenotazione_obbligatoria"><option value="0">A partecipazione: l'iscritto segnala che viene, nessun limite di posti</option><option value="1">Su prenotazione: posti limitati alla capienza e lista d'attesa</option></select></label>
   <label class="chk"><input type="checkbox" name="attivo"> Attivo (compare nel palinsesto e nell'app)</label>
   <label class="chk" id="applicaBox"><input type="checkbox" name="applica"> Applica la nuova capienza anche alle lezioni future già generate</label>
   <div class="acts end"><button class="ghost" type="button" data-close>Annulla</button><button class="btn" type="submit">Salva</button></div><p class="msg" id="corsoMsg"></p>

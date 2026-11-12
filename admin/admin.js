@@ -74,7 +74,7 @@ async function avvia() {
   document.body.classList.toggle("is-istr", st.ruolo === "istruttore");
   if (st.ruolo === "istruttore") { vai("mie"); return; }
   caricaIstruttori();
-  const { data: c } = await sb.from("corsi").select("id,nome,categoria,sala,capienza_default,attivo").order("nome");
+  const { data: c } = await sb.from("corsi").select("id,nome,categoria,sala,capienza_default,prenotazione_obbligatoria,attivo").order("nome");
   corsi = c || [];
   opzioniCorsi();
   disegnaLegenda();
@@ -154,7 +154,7 @@ async function caricaHome() {
 
   let alert = "";
   if (!sett.length) alert = avviso(`Questa settimana non ha ancora lezioni.`, lun);
-  else if (!(nw.data || []).length) alert = avviso(`La settimana dal ${fDay.format(noon(next))} non ha ancora lezioni: generale entro sabato: le prenotazioni si aprono domenica alle 00:00.`, next);
+  else if (!(nw.data || []).length) alert = avviso(`La settimana dal ${fDay.format(noon(next))} non ha ancora lezioni: generale entro venerdì, le prenotazioni si aprono sabato alle 9:00.`, next);
   const { data: schPub } = await sb.from("schede").select("id,titolo,pubblicata_il,struttura,stato").eq("stato", "pubblicata");
   const inScad = (schPub || []).map(scadenzaScheda).filter((x) => x && x.giorni >= 0 && x.giorni <= 7).length;
   const scadute = (schPub || []).map(scadenzaScheda).filter((x) => x && x.giorni < 0).length;
@@ -190,13 +190,19 @@ async function caricaHome() {
 function avviso(testo, w) {
   return `<div class="alert"><svg viewBox="0 0 24 24"><path d="M12 3 2 21h20z"/><path d="M12 10v5M12 18v.5"/></svg><div>${esc(testo)}</div><button class="btn sm" data-act="genera-w" data-w="${w}">Genera ora</button></div>`;
 }
+// modalità del corso: su prenotazione (posti e lista d'attesa) o a partecipazione (conta chi viene, nessun limite)
+const corsoDi = (l) => corsi.find((x) => (l.corso_id != null ? x.id === l.corso_id : x.nome === l.corso));
+const suPrenL = (l) => corsoDi(l)?.prenotazione_obbligatoria !== false;
+const fillHtml = (l, p) => suPrenL(l)
+  ? `<span class="fill">${l.confermate}/${l.capienza}${l.attesa ? ` <span class="mut">+${l.attesa}</span>` : ""}<div class="pb"><i class="${fillCls(p)}" style="width:${p}%"></i></div></span>`
+  : `<span class="fill" title="Corso a partecipazione">${l.confermate} <span class="mut">part.</span></span>`;
 function rigaTl(l, now) {
   const s = new Date(l.inizio).getTime(), e = new Date(l.fine).getTime();
   const p = Math.min(100, Math.round((l.confermate / l.capienza) * 100));
   const cls = l.stato === "annullata" ? " x done" : now >= s && now < e ? " now" : now >= e ? " done" : "";
   return `<button class="tli${cls}" data-lez="${l.id}" style="--c:${catColor(l.categoria)}"><span class="t">${fTime.format(new Date(s))}<small>${fTime.format(new Date(e))}</small></span><span class="s"></span>
     <span><b>${esc(l.corso)}</b><span class="sub">${esc(l.sala)}${l.istruttore ? ` · ${esc(l.istruttore)}` : ""}${l.stato === "annullata" ? " · annullata" : ""}${l.pubblicata ? "" : " · nascosta online"}</span></span>
-    <span class="fill">${l.confermate}/${l.capienza}${l.attesa ? ` <span class="mut">+${l.attesa}</span>` : ""}<div class="pb"><i class="${fillCls(p)}" style="width:${p}%"></i></div></span></button>`;
+    ${fillHtml(l, p)}</button>`;
 }
 const cache = new Map();
 function lezioniCache(arr) { arr.forEach((l) => cache.set(l.id, l)); }
@@ -220,8 +226,8 @@ async function caricaSettimana() {
         const p = Math.min(100, Math.round((l.confermate / l.capienza) * 100));
         return `<button class="lz${l.stato === "annullata" ? " annullata" : ""}${l.pubblicata ? "" : " nascosta"}" data-lez="${l.id}" data-q="${esc((l.corso + " " + (l.istruttore || "")).toLowerCase())}" style="--c:${catColor(l.categoria)}">
           <small>${fTime.format(new Date(l.inizio))}–${fTime.format(new Date(l.fine))}${l.sala !== "Sala 1" ? ` · ${esc(l.sala)}` : ""}</small><b>${esc(l.corso)}</b>
-          <div class="row3"><span>${l.confermate}/${l.capienza}</span><span>${l.attesa ? `<span class="tg w">+${l.attesa} attesa</span>` : ""}${l.stato === "annullata" ? '<span class="tg">annullata</span>' : !l.pubblicata ? '<span class="tg">nascosta</span>' : ""}</span></div>
-          <div class="pb"><i class="${fillCls(p)}" style="width:${p}%"></i></div></button>`;
+          <div class="row3"><span>${suPrenL(l) ? `${l.confermate}/${l.capienza}` : `${l.confermate} part.`}</span><span>${l.attesa ? `<span class="tg w">+${l.attesa} attesa</span>` : ""}${l.stato === "annullata" ? '<span class="tg">annullata</span>' : !l.pubblicata ? '<span class="tg">nascosta</span>' : ""}</span></div>
+          ${suPrenL(l) ? `<div class="pb"><i class="${fillCls(p)}" style="width:${p}%"></i></div>` : ""}</button>`;
       }).join("") || '<p class="none">Nessuna lezione</p>'}</div>`;
   }).join("");
   filtraCal();
@@ -250,12 +256,13 @@ function disegnaLegenda() {
 async function apriLezione(id) {
   lezAperta = id;
   const [{ data: l, error }, { data: pren }] = await Promise.all([
-    sb.from("lezioni").select("id,inizio,fine,sala,capienza,istruttore,istruttore_id,note,stato,pubblicata,corsi(nome,categoria,slug)").eq("id", id).single(),
+    sb.from("lezioni").select("id,inizio,fine,sala,capienza,istruttore,istruttore_id,note,stato,pubblicata,corsi(nome,categoria,slug,prenotazione_obbligatoria)").eq("id", id).single(),
     sb.from("prenotazioni").select("id,nome,telefono,email,stato,origine,note,created_at,member_id,presenza").eq("lezione_id", id).order("created_at"),
   ]);
   if (error || !l) return toast(error?.message || "Lezione non trovata", false);
   const P = pren || [], conf = P.filter((p) => p.stato === "confermata"), att = P.filter((p) => p.stato === "attesa"), ann = P.filter((p) => p.stato === "annullata");
   const perc = Math.min(100, Math.round((conf.length / l.capienza) * 100)), col = catColor(l.corsi.categoria);
+  const suPr = l.corsi.prenotazione_obbligatoria !== false;   // a partecipazione: nessun limite di posti né lista d'attesa
   const appelloAperto = new Date(l.inizio).getTime() - 30 * 60000 <= Date.now() && l.stato !== "annullata";
   const persona = (p, k) => `<div class="pp">${p.stato === "attesa" ? `<span class="pos">${k + 1}°</span>` : ""}<span class="av sm2${p.member_id ? " member" : ""}">${esc(initials(p.nome))}</span>
     <div><b>${esc(p.nome)}</b>${p.member_id ? '<span class="tag">iscritto</span>' : ""}
@@ -268,15 +275,16 @@ async function apriLezione(id) {
       <div class="kv"><span>${esc(cap1(fFull.format(new Date(l.inizio))))}</span><span>${fTime.format(new Date(l.inizio))}–${fTime.format(new Date(l.fine))}</span><span>${esc(l.sala)}</span>${l.istruttore ? `<span>${esc(l.istruttore)}</span>` : ""}
         ${l.stato === "annullata" ? '<span class="x">Annullata</span>' : ""}${l.pubblicata ? "" : '<span class="w">Nascosta online</span>'}</div></div>
     <div class="dw-body">
-      <div class="big"><div><b>${conf.length}<small> / ${l.capienza} posti</small></b><div class="pb"><i class="${fillCls(perc)}" style="width:${perc}%"></i></div></div>
-        <span class="mut">${Math.max(l.capienza - conf.length, 0)} liberi${att.length ? `<br>${att.length} in attesa` : ""}</span></div>
+      ${suPr ? `<div class="big"><div><b>${conf.length}<small> / ${l.capienza} posti</small></b><div class="pb"><i class="${fillCls(perc)}" style="width:${perc}%"></i></div></div>
+        <span class="mut">${Math.max(l.capienza - conf.length, 0)} liberi${att.length ? `<br>${att.length} in attesa` : ""}</span></div>`
+        : `<div class="big"><div><b>${conf.length}<small> ${conf.length === 1 ? "partecipante" : "partecipanti"}</small></b></div><span class="mut">corso a partecipazione<br>nessun limite di posti</span></div>`}
       <div class="sec"><h3>Partecipanti (${conf.length}) ${conf.length ? '<button class="link" id="copyList">Copia elenco</button>' : ""}</h3>${conf.length ? `<div class="ppl">${conf.map(persona).join("")}</div>` : '<p class="empty">Nessun partecipante.</p>'}</div>
       ${att.length ? `<div class="sec"><h3>Lista d'attesa (${att.length})</h3><div class="ppl">${att.map(persona).join("")}</div></div>` : ""}
       ${ann.length ? `<details class="sec"><summary>Annullate (${ann.length})</summary><div class="ppl">${ann.map(persona).join("")}</div></details>` : ""}
       <div class="sec"><h3>Aggiungi partecipante</h3>
         <form id="addG" class="form2"><input class="full" name="nome" list="iscList" placeholder="Nome e cognome (scrivi per cercare tra gli iscritti)" required minlength="2" autocomplete="off">
           <input name="telefono" placeholder="Telefono"><input name="email" type="email" placeholder="Email"><input type="hidden" name="member_id">
-          <button class="btn full" type="submit">Aggiungi${conf.length >= l.capienza ? " in lista d'attesa" : ""}</button></form>
+          <button class="btn full" type="submit">Aggiungi${suPr && conf.length >= l.capienza ? " in lista d'attesa" : ""}</button></form>
         <datalist id="iscList">${(iscritti || []).map((i) => `<option value="${esc(i.nome)}">${esc(i.email || i.telefono || "")}</option>`).join("")}</datalist></div>
       <div class="sec box"><h3>Impostazioni lezione</h3>
         <div class="form2"><label>Capienza<input id="lzCap" type="number" min="1" value="${l.capienza}"></label><label>Istruttore<select id="lzIstr">${opzioniIstr(l.istruttore_id, l.istruttore)}</select></label><label class="full">Note<input id="lzNote" value="${esc(l.note || "")}"></label></div>
@@ -309,7 +317,7 @@ async function apriLezione(id) {
     const p = P.find((x) => x.id === b.dataset.pid);
     let stato = b.dataset.pst;
     if (stato === "annullata" && !(await ask("Annullare la prenotazione?", `${p.nome}${p.stato === "confermata" && att.length ? ". Il primo in lista d'attesa passerà automaticamente tra i confermati." : ""}`, "Annulla prenotazione"))) return;
-    if (stato === "ripristina") stato = conf.length < l.capienza ? "confermata" : "attesa";
+    if (stato === "ripristina") stato = !suPr || conf.length < l.capienza ? "confermata" : "attesa";
     const { error: e } = await sb.from("prenotazioni").update({ stato }).eq("id", p.id);
     if (e) return toast(e.message, false);
     dopo(stato === "annullata" ? "Prenotazione annullata." : stato === "attesa" ? "Ripristinata in lista d'attesa (lezione piena)." : "Prenotazione ripristinata.");
@@ -908,7 +916,7 @@ async function caricaMie() {
     return `<button class="tli${l.stato === "annullata" ? " x done" : new Date(l.fine).getTime() < now ? " done" : ""}" data-app="${l.id}" style="--c:${catColor(l.categoria)}">
       <span class="t">${esc(fWd.format(s))}<small>${fTime.format(s)}</small></span><span class="s"></span>
       <span><b>${esc(l.corso)}</b><span class="sub">${esc(fDate.format(s))} · ${esc(l.sala)}${l.stato === "annullata" ? " · annullata" : ""}</span></span>
-      <span class="fill">${l.confermate}/${l.capienza}${l.attesa ? ` <span class="mut">+${l.attesa}</span>` : ""}<div class="pb"><i class="${fillCls(p)}" style="width:${p}%"></i></div></span></button>`;
+      ${fillHtml(l, p)}</button>`;
   }).join("") || '<p class="empty">Nessuna lezione assegnata a te in questa settimana.</p>';
 }
 $("mPrev").onclick = () => { mLun = addDays(mLun, -7); caricaMie(); };
@@ -926,7 +934,7 @@ async function apriAppello(id) {
   $("lezBody").innerHTML = `<div class="dw-head" style="--c:${catColor(l.categoria)}"><button class="close" data-x aria-label="Chiudi">&times;</button><span class="k">${esc(l.categoria)}</span><h2>${esc(l.corso)}</h2>
       <div class="kv"><span>${esc(cap1(fFull.format(new Date(l.inizio))))}</span><span>${fTime.format(new Date(l.inizio))}–${fTime.format(new Date(l.fine))}</span><span>${esc(l.sala)}</span></div></div>
     <div class="dw-body">${aperto ? "" : '<p class="mut">L\'appello si apre 30 minuti prima della lezione.</p>'}
-      <div class="sec"><h3>Partecipanti (${conf.length}/${l.capienza})</h3>${conf.length ? `<div class="ppl">${conf.map(riga).join("")}</div>` : '<p class="empty">Nessun partecipante.</p>'}</div>
+      <div class="sec"><h3>Partecipanti (${conf.length}${suPrenL(l) ? `/${l.capienza}` : ""})</h3>${conf.length ? `<div class="ppl">${conf.map(riga).join("")}</div>` : '<p class="empty">Nessun partecipante.</p>'}</div>
       ${att.length ? `<div class="sec"><h3>Lista d'attesa (${att.length})</h3><div class="ppl">${att.map(riga).join("")}</div></div>` : ""}</div>`;
   $("lezBody").querySelector("[data-x]").onclick = () => $("dLez").close();
   $("lezBody").querySelectorAll("[data-pr]").forEach((b) => (b.onclick = async () => {
@@ -954,7 +962,7 @@ async function caricaPalinsesto() {
   $("corsiTbl").innerHTML = `<div class="wrap-tbl"><table class="tbl"><thead><tr><th>Corso</th><th class="hm">Categoria</th><th>Sala</th><th class="num">Posti</th><th class="num hm">Fasce</th><th>Stato</th></tr></thead><tbody>${
     corsi.map((x) => `<tr data-corso="${x.id}"><td><div class="p"><span class="dotc" style="background:${catColor(x.categoria)}"></span><b>${esc(x.nome)}</b></div></td><td class="hm">${esc(x.categoria)}</td><td>${esc(x.sala)}</td>
       <td class="num"><b>${x.capienza_default}</b></td><td class="num hm">${palinsesto.filter((s) => s.corso_id === x.id && s.attivo).length}</td>
-      <td>${x.attivo ? '<span class="pill ok">Attivo</span>' : '<span class="pill">Non attivo</span>'}${x.prenotazione_obbligatoria ? ' <span class="pill w">Su prenotazione</span>' : ""}</td></tr>`).join("")}</tbody></table></div>`;
+      <td>${x.attivo ? '<span class="pill ok">Attivo</span>' : '<span class="pill">Non attivo</span>'}${x.prenotazione_obbligatoria ? ' <span class="pill w">Su prenotazione</span>' : ' <span class="pill">A partecipazione</span>'}</td></tr>`).join("")}</tbody></table></div>`;
   const nomeC = (id) => corsi.find((x) => x.id === id) || { nome: "?", categoria: "", sala: "", capienza_default: 0 };
   const nomeI = (id) => istruttori.find((i) => i.user_id === id)?.nome || "";
   $("palGrid").innerHTML = GIORNI.map((g, k) => {
@@ -973,7 +981,7 @@ $("fRegole").addEventListener("submit", async (e) => {
 function apriCorso(c) {
   const f = $("corsoForm"); f.reset(); msg($("corsoMsg"), "");
   f.elements.id.value = c?.id || ""; f.nome.value = c?.nome || ""; f.categoria.value = c?.categoria || ""; f.sala.value = c?.sala || "Sala 1";
-  f.capienza_default.value = c?.capienza_default || 20; f.prenotazione_obbligatoria.checked = !!c?.prenotazione_obbligatoria; f.attivo.checked = c ? c.attivo : true;
+  f.capienza_default.value = c?.capienza_default || 20; f.prenotazione_obbligatoria.value = c?.prenotazione_obbligatoria ? "1" : "0"; f.attivo.checked = c ? c.attivo : true;
   $("applicaBox").hidden = !c; $("corsoT").textContent = c ? c.nome : "Nuovo corso";
   f.dataset.capPrima = c?.capienza_default || "";
   $("dCorso").showModal();
@@ -983,7 +991,7 @@ $("corsiTbl").addEventListener("click", (e) => { const r = e.target.closest("[da
 $("corsoForm").addEventListener("submit", async (e) => {
   e.preventDefault(); const f = e.target;
   const row = { nome: f.nome.value.trim(), categoria: f.categoria.value.trim(), sala: f.sala.value.trim(), capienza_default: Number(f.capienza_default.value),
-    prenotazione_obbligatoria: f.prenotazione_obbligatoria.checked, attivo: f.attivo.checked };
+    prenotazione_obbligatoria: f.prenotazione_obbligatoria.value === "1", attivo: f.attivo.checked };
   if (row.nome.length < 2 || !row.categoria || !row.sala || !(row.capienza_default > 0)) return msg($("corsoMsg"), "Compila nome, categoria, sala e capienza.");
   let res;
   if (f.elements.id.value) res = await sb.from("corsi").update(row).eq("id", f.elements.id.value);

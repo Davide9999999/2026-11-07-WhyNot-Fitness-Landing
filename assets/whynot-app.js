@@ -5,6 +5,10 @@ export const cfg = window.WHYNOT_SUPABASE || {};
 // lock semplice (lo stesso che Supabase usa quando navigator.locks non c'è): con navigator.locks getSession()
 // a volte restava in attesa e l'app non partiva (verificato il 2026-11-09).
 const AUTH = { auth: { lock: (_nome, _attesa, fn) => fn() } };
+// arrivo da un link email (reimposta password, conferma): leggo il tipo PRIMA che Supabase ripulisca l'indirizzo.
+// Supabase avvisa "PASSWORD_RECOVERY" solo dopo aver già aperto la sessione: senza questo l'app entrerebbe direttamente.
+const hashLink = new URLSearchParams(location.hash.slice(1));
+export const linkEmail = { tipo: hashLink.get("type") || "", errore: hashLink.get("error_code") || hashLink.get("error") || "" };
 export const sb = cfg.url && cfg.anonKey ? createClient(cfg.url, cfg.anonKey, AUTH) : null;
 
 export const $ = (id) => document.getElementById(id);
