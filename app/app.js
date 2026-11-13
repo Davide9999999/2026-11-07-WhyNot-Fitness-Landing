@@ -4,6 +4,8 @@ import { cfg, sb, $, esc, fmt, dayKey, hourRome, cap, catColor, initials, relTim
 
 const ICO_OK = '<svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
 const ICO_WAIT = '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>';
+const ICO_PAUSA = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>';
+const ICO_PLAY = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.5-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z"/></svg>';
 const TITOLI = { pPrenota: "Prenota", pMie: "Le mie lezioni", pSchede: "Schede", pBacheca: "Bacheca", pProfilo: "Profilo" };
 let session = null, prof = null, lezioni = [], mie = [], giornoSel = null, catSel = "", vistaMie = "prossime", pagina = "pPrenota", recovery = false;
 
@@ -628,6 +630,7 @@ const giorni = () => wo.s.struttura?.giorni || [];
 const esercizi = () => giorni()[wo.g]?.esercizi || [];
 
 function apriSchedaApp(s) {
+  fermaTimer();
   const ripresa = leggiWo();
   const riprendi = ripresa && ripresa.id === s.id;
   wo = { s, g: riprendi ? Math.min(ripresa.g, Math.max(0, (s.struttura?.giorni || []).length - 1)) : giornoSuggerito(s), attivo: !!riprendi, inizio: riprendi ? ripresa.inizio : 0, reg: regCache, bozza: {}, mano: new Set(), aperto: null };
@@ -640,11 +643,19 @@ function apriSchedaApp(s) {
   const ids = [...new Set((s.struttura?.giorni || []).flatMap((g) => (g.esercizi || []).map((x) => x.id)).filter((id) => id && !cues.has(id)))];
   if (ids.length) sb.from("esercizi").select("id,descrizione,attrezzo").in("id", ids).then(({ data }) => { (data || []).forEach((x) => cues.set(x.id, x)); if (wo?.s === s) riempiCues(); });
 }
-sheet.addEventListener("close", () => {
+// Pulizia alla chiusura del pannello. Il browser segnala la chiusura ("close") con un attimo di ritardo:
+// se nel frattempo il pannello è stato riaperto, la segnalazione tardiva non deve azzerare quello nuovo.
+function pulisciPannello() {
+  if (sheet.open) return;
+  const t = $("toast"); if (t.parentNode !== document.body) document.body.appendChild(t);   // il messaggio torna sulla pagina
   if (!wo) return;
   sheet.classList.remove("tall"); fermaTimer(); schermoAcceso(false); wo = null;
   if (pagina === "pSchede" && schede.length) disegnaElenco();
-});
+}
+sheet.addEventListener("close", pulisciPannello);   // chiusura con il tasto Indietro / Esc
+sheet.addEventListener("cancel", () => setTimeout(pulisciPannello, 0));   // Indietro / Esc: segnale immediato, pulizia appena chiuso
+const chiudiPannello = sheet.close.bind(sheet);
+sheet.close = (...a) => { chiudiPannello(...a); pulisciPannello(); };   // chiusura dai pulsanti: pulizia subito
 
 // serie già fatte oggi per l'esercizio i del giorno corrente
 const fatteOggi = (i) => wo.reg.filter((r) => r.scheda_id === wo.s.id && r.giorno === wo.g && r.esercizio_idx === i && r.data === oggiK());
@@ -696,11 +707,12 @@ function disegnaScheda() {
     + `<div class="wl" id="wList">${L.map((x, i) => cardEsercizio(x, i, et[i])).join("")}</div>`
     + (st.note && !wo.attivo ? `<p class="wnote">${esc(st.note)}</p>` : "")
     + `<div class="wfoot">
-        <div class="wtimer" id="wTimer"${timer ? "" : " hidden"}><i id="wBar"></i><button type="button" data-rec="-15" aria-label="Togli 15 secondi">−15</button><span id="wTxt"></span><button type="button" data-rec="15" aria-label="Aggiungi 15 secondi">+15</button><button type="button" id="wSkip">Salta</button></div>
+        <div class="wtimer" id="wTimer"${recInCorso() ? "" : " hidden"}><i id="wBar"></i><button type="button" data-rec="-15" aria-label="Togli 15 secondi">−15</button><span class="wtt"><small id="recLbl"></small><b id="wTxt"></b></span><button type="button" id="wPausa" class="wpa" aria-label="Metti in pausa il recupero" data-ico="pausa">${ICO_PAUSA}</button><button type="button" data-rec="15" aria-label="Aggiungi 15 secondi">+15</button><button type="button" id="wSkip">Salta</button></div>
         <div class="btns two">${wo.attivo ? `<button class="btn ghost" id="shNo">Chiudi</button><button class="btn" id="woFine">Termina</button>` : `<button class="btn ghost" id="shNo">Chiudi</button><button class="btn" id="woVia">▶ ${L.some((x, i) => fatteOggi(i).length) ? "Continua" : "Inizia"}</button>`}</div>
       </div>`;
   aggiornaProgresso(); riempiCues();
   $("shNo").onclick = () => sheet.close();
+  if (recInCorso()) tickRec();   // il recupero (anche in pausa) sopravvive al ridisegno
   $("woVia")?.addEventListener("click", iniziaAllenamento);
   $("woFine")?.addEventListener("click", terminaAllenamento);
   $("wSkip").onclick = fermaTimer;
@@ -806,15 +818,19 @@ document.addEventListener("input", (e) => {
 // tocco su un campo: seleziona il numero per riscriverlo subito
 document.addEventListener("focusin", (e) => { if (wo && (e.target.dataset?.kg || e.target.dataset?.rp)) setTimeout(() => e.target.select?.(), 0); });
 
-function aggiornaLocale(i, j, fatta, kg, rip) {
-  const x = esercizi()[i];
-  const resto = wo.reg.filter((r) => !(r.scheda_id === wo.s.id && r.giorno === wo.g && r.esercizio_idx === i && r.serie === j + 1 && r.data === oggiK()));
-  wo.reg = fatta ? [{ scheda_id: wo.s.id, giorno: wo.g, esercizio_idx: i, esercizio_id: x.id || null, esercizio: x.nome, data: oggiK(), serie: j + 1, kg, rip }, ...resto] : resto;
-  regCache = wo.reg;
+// registro locale delle serie di oggi (lo stesso usato dall'elenco): toglie o rimette una serie
+function aggiornaReg(sid, g, i, j, riga) {
+  const resto = regCache.filter((r) => !(r.scheda_id === sid && r.giorno === g && r.esercizio_idx === i && r.serie === j + 1 && r.data === oggiK()));
+  regCache = riga ? [riga, ...resto] : resto;
+  if (wo && wo.s.id === sid) wo.reg = regCache;
 }
-async function segnaSerie(i, j, el) {
+// salvataggi in fila, uno alla volta: con un doppio tocco "salva" e "togli" arrivano al database nell'ordine giusto
+let codaSalva = Promise.resolve();
+function inCoda(fn) { const p = codaSalva.then(fn, fn); codaSalva = p.catch(() => {}); return p; }
+
+function segnaSerie(i, j, el) {
   const L = esercizi(), x = L[i], g0 = wo.g, s0 = wo.s;
-  const gia = fatteOggi(i).some((r) => r.serie === j + 1);
+  const vecchia = fatteOggi(i).find((r) => r.serie === j + 1) || null, gia = !!vecchia;
   let kg = null, rip = null;
   if (el.dataset.ok && !gia) {
     kg = numero(document.querySelector(`[data-kg="${i}:${j}"]`)?.value);
@@ -822,32 +838,35 @@ async function segnaSerie(i, j, el) {
     if (kg != null && (kg < 0 || kg > 1000)) return toast("Controlla i chili: valore non valido.", false);
     if (rip != null) { rip = Math.round(rip); if (rip < 0 || rip > 500) return toast("Controlla le ripetizioni.", false); }
   }
-  const prima = wo.reg, bozza = wo.bozza[`${i}:${j}`];
-  // subito a video, poi il salvataggio: se fallisce si torna indietro
-  aggiornaLocale(i, j, !gia, kg, rip); delete wo.bozza[`${i}:${j}`];
+  const nuova = gia ? null : { scheda_id: s0.id, giorno: g0, esercizio_idx: i, esercizio_id: x.id || null, esercizio: x.nome, data: oggiK(), serie: j + 1, kg, rip };
+  const bozza = wo.bozza[`${i}:${j}`];
+  // subito a video, poi il salvataggio: se fallisce si rimette com'era solo questa serie
+  aggiornaReg(s0.id, g0, i, j, nuova); delete wo.bozza[`${i}:${j}`];
   try { navigator.vibrate?.(15); } catch {}
   let dopo = [i];
   if (!gia) {
     const gr = gruppo(i), finito = gr.every((k) => completo(k));
-    if (finito) { const nx = primoDaFare(); dopo = [...dopo, ...gr]; if (nx != null) { apriEs(nx, true); } else { wo.aperto = null; } }
-    // recupero: dopo l'ultimo esercizio della superserie (o dopo un esercizio singolo)
-    const rec = Number(L[gr[gr.length - 1]].rec) || 0;
-    if (rec && (!x.ss || i === gr[gr.length - 1]) && primoDaFare() != null) avviaTimer(rec);
+    if (finito) { const nx = primoDaFare(); dopo = [...dopo, ...gr]; if (nx != null) apriEs(nx, true); else wo.aperto = null; }
+    // recupero: dopo un esercizio singolo o dopo l'ultimo della superserie, se resta qualcosa da fare
+    const ultimo = gr[gr.length - 1], rec = Number(L[ultimo].rec) || 0;
+    if (rec && i === ultimo && primoDaFare() != null) avviaTimer(rec);
+    if (primoDaFare() == null) { fermaTimer(); toast("Tutti gli esercizi fatti: tocca «Termina» per il riepilogo."); }
   }
   aggiornaCards(dopo);
   const args = { p_scheda_id: s0.id, p_giorno: g0, p_idx: i, p_serie: j + 1 };
-  const { error } = !gia
-    ? await sb.rpc("salva_carico", { ...args, p_esercizio_id: x.id || null, p_esercizio: x.nome, p_kg: kg, p_rip: rip })
-    : await sb.rpc("togli_carico", args);
-  if (error) {
+  inCoda(() => (nuova
+    ? sb.rpc("salva_carico", { ...args, p_esercizio_id: nuova.esercizio_id, p_esercizio: nuova.esercizio, p_kg: kg, p_rip: rip })
+    : sb.rpc("togli_carico", args))
+  ).then(({ error }) => {
+    if (!error) return;
     toast("Serie non salvata: " + error.message, false);
-    if (wo && wo.s === s0) {
-      wo.reg = regCache = prima; if (bozza) wo.bozza[`${i}:${j}`] = bozza;
-      if (wo.g === g0) { if (!gia) fermaTimer(); if (wo.attivo && !gruppo(wo.aperto).includes(i)) apriEs(i, true); else aggiornaCards([i]); }
-    }
-    return;
-  }
-  if (!gia && wo && wo.attivo && primoDaFare() == null && wo.g === g0) { fermaTimer(); toast("Tutti gli esercizi fatti: tocca «Termina» per il riepilogo."); }
+    aggiornaReg(s0.id, g0, i, j, vecchia);
+    if (!wo || wo.s !== s0) return;
+    if (bozza) wo.bozza[`${i}:${j}`] = bozza;
+    if (wo.g !== g0) return;
+    if (!gia) fermaTimer();
+    if (wo.attivo && !gruppo(wo.aperto).includes(i)) apriEs(i, true); else aggiornaCards([i]);
+  }, () => { toast("Serie non salvata: connessione assente.", false); aggiornaReg(s0.id, g0, i, j, vecchia); if (wo && wo.s === s0 && wo.g === g0) aggiornaCards([i]); });
 }
 document.addEventListener("click", (e) => {
   if (!wo) return;
@@ -867,28 +886,55 @@ document.addEventListener("click", (e) => {
     inp.value = fmtKg(nv); inp.dispatchEvent(new Event("input", { bubbles: true })); return;
   }
   const rc = e.target.closest("[data-rec]");
-  if (rc && timer) { recFine += Number(rc.dataset.rec) * 1000; recTot = Math.max(recTot + Number(rc.dataset.rec), 1); return; }
+  if (rc) { cambiaRec(Number(rc.dataset.rec)); return; }
+  if (e.target.closest("#wPausa")) { pausaRec(); return; }
   const ok = e.target.closest("[data-ok],[data-set]");
   if (ok) { const [i, j] = (ok.dataset.ok || ok.dataset.set).split(":").map(Number); segnaSerie(i, j, ok); }
 });
 
-// recupero: barra fissa in basso con −15 / +15 / Salta
+// recupero: barra fissa in basso con −15 / pausa / +15 / Salta.
+// In corso: timer attivo e recFine = momento della fine. In pausa: timer fermo e recPausa = millisecondi rimasti.
+let recPausa = 0, recNascondi = null;
+const recInCorso = () => !!timer || recPausa > 0;
 function avviaTimer(sec) {
   fermaTimer();
   recFine = Date.now() + sec * 1000; recTot = sec;
-  const box = $("wTimer"); if (box) box.hidden = false;
-  const tick = () => {
-    const r = Math.max(0, Math.round((recFine - Date.now()) / 1000));
-    if (!$("wTxt")) return fermaTimer();
-    $("wTimer").hidden = false;
-    $("wTxt").textContent = r ? `Recupero ${Math.floor(r / 60)}:${String(r % 60).padStart(2, "0")}` : "Vai!";
-    $("wBar").style.width = `${Math.max(0, Math.min(100, (100 * r) / Math.max(1, recTot)))}%`;
-    $("wTimer").classList.toggle("fine", !r);
-    if (!r) { clearInterval(timer); timer = null; try { navigator.vibrate?.([200, 100, 200]); } catch {} setTimeout(() => { if (!timer && $("wTimer")) $("wTimer").hidden = true; }, 2500); }
-  };
-  timer = setInterval(tick, 250); tick();
+  timer = setInterval(tickRec, 250); tickRec();
 }
-function fermaTimer() { if (timer) clearInterval(timer); timer = null; if ($("wTimer")) { $("wTimer").hidden = true; $("wTimer").classList.remove("fine"); } }
+function tickRec() {
+  const box = $("wTimer");
+  if (!box) { if (timer) clearInterval(timer); timer = null; recPausa = 0; return; }
+  if (!recInCorso()) return;
+  const ms = recPausa || recFine - Date.now(), r = Math.max(0, Math.ceil(ms / 1000));
+  clearTimeout(recNascondi);
+  box.hidden = false;
+  box.classList.toggle("pausa", recPausa > 0); box.classList.toggle("fine", !r);
+  $("recLbl").textContent = recPausa ? "In pausa" : r ? "Recupero" : "";
+  $("wTxt").textContent = r ? `${Math.floor(r / 60)}:${String(r % 60).padStart(2, "0")}` : "Vai!";
+  $("wBar").style.width = `${Math.max(0, Math.min(100, (100 * r) / Math.max(1, recTot)))}%`;
+  const p = $("wPausa"); const ico = recPausa ? "play" : "pausa"; if (p.dataset.ico !== ico) { p.dataset.ico = ico; p.innerHTML = recPausa ? ICO_PLAY : ICO_PAUSA; } p.setAttribute("aria-label", recPausa ? "Riprendi il recupero" : "Metti in pausa il recupero");
+  if (!r) {
+    clearInterval(timer); timer = null;
+    try { navigator.vibrate?.([200, 100, 200]); } catch {}
+    recNascondi = setTimeout(() => { if (!recInCorso() && $("wTimer")) { $("wTimer").hidden = true; $("wTimer").classList.remove("fine"); } }, 2500);
+  }
+}
+function pausaRec() {
+  if (timer) { recPausa = Math.max(1000, recFine - Date.now()); clearInterval(timer); timer = null; }
+  else if (recPausa) { recFine = Date.now() + recPausa; recPausa = 0; timer = setInterval(tickRec, 250); }
+  tickRec();
+}
+function cambiaRec(sec) {
+  if (!recInCorso()) return;
+  recTot = Math.max(1, recTot + sec);
+  if (recPausa) recPausa = Math.max(1000, recPausa + sec * 1000);
+  else recFine += sec * 1000;
+  tickRec();
+}
+function fermaTimer() {
+  if (timer) clearInterval(timer); timer = null; recPausa = 0; clearTimeout(recNascondi);
+  if ($("wTimer")) { $("wTimer").hidden = true; $("wTimer").classList.remove("fine", "pausa"); }
+}
 
 // schermo sempre acceso durante l'allenamento (dove il telefono lo consente)
 async function schermoAcceso(on) {
