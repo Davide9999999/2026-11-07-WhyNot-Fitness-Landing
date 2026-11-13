@@ -442,3 +442,9 @@ dialog.editor::backdrop{background:rgba(0,0,0,.7)}
 .dchip{display:inline-flex;align-items:center;gap:4px;padding:4px 4px 4px 10px;border-radius:999px;background:rgba(224,34,51,.16);border:1px solid rgba(224,34,51,.45);font-size:12.5px;font-weight:600}
 .dchip button{width:22px;height:22px;border-radius:50%;border:0;background:rgba(0,0,0,.3);font-size:15px;line-height:1}
 .sc .pill{align-self:flex-start}
+/* interruttore su prenotazione / a partecipazione nell'elenco corsi */
+.modo{display:inline-flex;align-items:center;gap:8px;background:none;border:1px solid #3a3a3a;border-radius:999px;padding:4px 12px 4px 5px;color:#ccc;font:inherit;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap}
+.modo i{width:28px;height:16px;border-radius:999px;background:#444;position:relative;flex:none;transition:background .15s}
+.modo i::after{content:"";position:absolute;top:2px;left:2px;width:12px;height:12px;border-radius:50%;background:#bbb;transition:transform .15s}
+.modo.on{border-color:#6b5420;color:#ffe2a6}.modo.on i{background:#b8892a}.modo.on i::after{transform:translateX(12px);background:#fff}
+.modo:hover{border-color:#777}.modo:disabled{opacity:.5;cursor:wait}

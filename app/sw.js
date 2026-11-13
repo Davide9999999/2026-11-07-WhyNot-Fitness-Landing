@@ -1,7 +1,7 @@
 // Service worker dell'app iscritti: rende l'app installabile e apribile anche con rete debole.
 // Solo i file dell'interfaccia vanno in cache; i dati (Supabase) arrivano sempre dalla rete.
-const VER = "whynot-app-v15";
-const SHELL = ["./", "app.css", "app.js", "installa.js", "manifest.webmanifest", "icons/icon-192.png", "icons/icon-512.png",
+const VER = "whynot-app-v16";
+const SHELL = ["./", "app.css", "app.js", "installa.js", "manifest.webmanifest", "icons/icon-192.png", "icons/icon-512.png", "icons/badge-96.png",
   "../assets/whynot-app.js", "../assets/supabase-config.js", "../assets/fonts/fonts.css",
   "../assets/fonts/anton-latin.woff2", "../assets/fonts/inter-latin.woff2", "../assets/fonts/permanent-marker-latin.woff2"];
 
@@ -31,7 +31,7 @@ self.addEventListener("push", (e) => {
   let d = {};
   try { d = e.data ? e.data.json() : {}; } catch { d = { body: e.data ? e.data.text() : "" }; }
   e.waitUntil(self.registration.showNotification(d.title || "WHY NOT Fitness Club", {
-    body: d.body || "", icon: "icons/icon-192.png", badge: "icons/icon-192.png", tag: d.tag, lang: "it", data: { url: d.url || "./" },
+    body: d.body || "", icon: "icons/icon-192.png", badge: "icons/badge-96.png", tag: d.tag, lang: "it", data: { url: d.url || "./" },
   }));
 });
 self.addEventListener("notificationclick", (e) => {

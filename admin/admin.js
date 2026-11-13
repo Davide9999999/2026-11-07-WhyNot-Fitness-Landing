@@ -959,10 +959,11 @@ async function caricaPalinsesto() {
   corsi = c.data || []; palinsesto = p.data || []; opzioniCorsi(); disegnaLegenda();
   const ore = (imp.data || []).find((x) => x.chiave === "ore_annullo");
   $("fRegole").ore.value = ore ? Number(ore.valore) : 2;
-  $("corsiTbl").innerHTML = `<div class="wrap-tbl"><table class="tbl"><thead><tr><th>Corso</th><th class="hm">Categoria</th><th>Sala</th><th class="num">Posti</th><th class="num hm">Fasce</th><th>Stato</th></tr></thead><tbody>${
+  $("corsiTbl").innerHTML = `<div class="wrap-tbl"><table class="tbl"><thead><tr><th>Corso</th><th class="hm">Categoria</th><th>Sala</th><th class="num">Posti</th><th class="num hm">Fasce</th><th>Stato</th><th>Prenotazione</th></tr></thead><tbody>${
     corsi.map((x) => `<tr data-corso="${x.id}"><td><div class="p"><span class="dotc" style="background:${catColor(x.categoria)}"></span><b>${esc(x.nome)}</b></div></td><td class="hm">${esc(x.categoria)}</td><td>${esc(x.sala)}</td>
       <td class="num"><b>${x.capienza_default}</b></td><td class="num hm">${palinsesto.filter((s) => s.corso_id === x.id && s.attivo).length}</td>
-      <td>${x.attivo ? '<span class="pill ok">Attivo</span>' : '<span class="pill">Non attivo</span>'}${x.prenotazione_obbligatoria ? ' <span class="pill w">Su prenotazione</span>' : ' <span class="pill">A partecipazione</span>'}</td></tr>`).join("")}</tbody></table></div>`;
+      <td>${x.attivo ? '<span class="pill ok">Attivo</span>' : '<span class="pill">Non attivo</span>'}</td>
+      <td><button type="button" class="modo${x.prenotazione_obbligatoria ? " on" : ""}" data-modo="${x.id}" role="switch" aria-checked="${x.prenotazione_obbligatoria}" title="Tocca per ${x.prenotazione_obbligatoria ? "togliere la prenotazione (diventa a partecipazione)" : "renderlo su prenotazione"}"><i></i>${x.prenotazione_obbligatoria ? "Su prenotazione" : "A partecipazione"}</button></td></tr>`).join("")}</tbody></table></div>`;
   const nomeC = (id) => corsi.find((x) => x.id === id) || { nome: "?", categoria: "", sala: "", capienza_default: 0 };
   const nomeI = (id) => istruttori.find((i) => i.user_id === id)?.nome || "";
   $("palGrid").innerHTML = GIORNI.map((g, k) => {
@@ -987,7 +988,9 @@ function apriCorso(c) {
   $("dCorso").showModal();
 }
 $("addCorso").onclick = () => apriCorso(null);
-$("corsiTbl").addEventListener("click", (e) => { const r = e.target.closest("[data-corso]"); if (r) apriCorso(corsi.find((x) => x.id === Number(r.dataset.corso))); });
+$("corsiTbl").addEventListener("click", (e) => {
+  const m = e.target.closest("[data-modo]"); if (m) return cambiaModo(corsi.find((x) => x.id === Number(m.dataset.modo)), m);
+  const r = e.target.closest("[data-corso]"); if (r) apriCorso(corsi.find((x) => x.id === Number(r.dataset.corso))); });
 $("corsoForm").addEventListener("submit", async (e) => {
   e.preventDefault(); const f = e.target;
   const row = { nome: f.nome.value.trim(), categoria: f.categoria.value.trim(), sala: f.sala.value.trim(), capienza_default: Number(f.capienza_default.value),
@@ -1463,3 +1466,21 @@ document.addEventListener("click", (e) => {
   schFiltro = b.dataset.scad; vai("schede");
   $("schFilter").querySelectorAll(".chip").forEach((x) => x.setAttribute("aria-pressed", x.dataset.f === schFiltro));
 });
+
+// ------------------------------------------------------------------ corsi: su prenotazione / a partecipazione con un tocco
+async function cambiaModo(c, btn) {
+  if (!c) return;
+  const suPren = !c.prenotazione_obbligatoria;
+  const ok = await ask(suPren ? `Rendere «${c.nome}» su prenotazione?` : `Togliere la prenotazione a «${c.nome}»?`,
+    suPren
+      ? `Da ora vale la capienza (${c.capienza_default} posti, modificabile lezione per lezione): gli iscritti prenotano dal sabato alle 9:00 e, a lezione piena, finiscono in lista d'attesa. Chi è già segnato alle prossime lezioni resta confermato.`
+      : "Diventa a partecipazione: niente limite di posti né lista d'attesa, gli iscritti toccano «Partecipo» e possono toglierlo fino all'inizio. Chi è in lista d'attesa nelle prossime lezioni entra subito tra i confermati.",
+    suPren ? "Rendi su prenotazione" : "Togli la prenotazione");
+  if (!ok) return;
+  btn.disabled = true;
+  const { error } = await sb.from("corsi").update({ prenotazione_obbligatoria: suPren }).eq("id", c.id);
+  btn.disabled = false;
+  if (error) return toast(error.message, false);
+  toast(suPren ? `«${c.nome}» ora è su prenotazione.` : `«${c.nome}» ora è a partecipazione.`);
+  caricaPalinsesto();
+}

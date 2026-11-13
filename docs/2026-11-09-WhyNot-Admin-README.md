@@ -175,3 +175,11 @@ Collaudo del 2026-11-11 (account): 3 account ripristinati con impronta password 
 - **Reimposta password**: il link dell'email apre la pagina «Imposta la nuova password» (con conferma); dopo il salvataggio l'app esce e torna all'accesso con l'email già compilata. Link scaduto o già usato: l'app lo dice e propone di richiederne uno nuovo.
 - **Installazione su iPhone**: Apple non consente a nessun sito un pulsante «Installa» in Safari; l'app mostra i 3 passaggi (Condividi → Aggiungi alla schermata Home → Aggiungi) e il pulsante «Copia il link dell'app». Dentro Instagram/WhatsApp/Facebook invita ad aprire in Safari.
 - L'app passa alla nuova logica solo quando il database risponde con i nuovi campi: finché il file SQL non è eseguito tutto resta come prima.
+
+## 17. Prenotazione con un tocco e icona delle notifiche (2026-11-13)
+
+- **Corsi e orari → Corsi**: la colonna «Prenotazione» ha un interruttore per ogni corso. Toccandolo il corso passa da «A partecipazione» a «Su prenotazione» (o viceversa), dopo una conferma.
+  - Rendere un corso su prenotazione: da quel momento valgono la capienza e la lista d'attesa; chi è già segnato alle prossime lezioni resta confermato.
+  - Togliere la prenotazione: niente limite di posti; chi era in lista d'attesa nelle prossime lezioni entra subito tra i confermati.
+  - La stessa scelta resta disponibile anche nella scheda del corso.
+- **Notifiche**: su Android l'icona piccola nella barra di stato ora è il simbolo «?» del logo (bianco su trasparente, come richiede Android); l'immagine grande della notifica resta il logo completo. Su iPhone iOS usa sempre l'icona dell'app installata. I telefoni prendono la nuova icona al prossimo aggiornamento dell'app (versione v16).
