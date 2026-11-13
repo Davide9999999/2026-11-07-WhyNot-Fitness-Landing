@@ -47,9 +47,9 @@ WHY NOT Fitness Club - Via Emma e Cerino Zegna 7, Biella - https://whynotfitness
 }
 
 export async function inviti(request, env, json, autentica) {
-  if (!env.RESEND_API_KEY) return json({ error: "Invio email non configurato: manca il secret RESEND_API_KEY nel Worker Cloudflare." }, 500);
   const a = await autentica(request, env);
   if (a.errore) return a.errore;
+  if (!env.RESEND_API_KEY) return json({ error: "Invio email non configurato: manca il secret RESEND_API_KEY nel Worker Cloudflare." }, 500);
   const body = await request.json().catch(() => null);
   const ids = Array.isArray(body?.ids) ? [...new Set(body.ids.filter((x) => /^[0-9a-f-]{36}$/i.test(String(x))))] : [];
   if (!ids.length) return json({ error: "Nessun iscritto selezionato" }, 400);
