@@ -186,8 +186,9 @@ Collaudo del 2026-11-11 (account): 3 account ripristinati con impronta password 
 
 ## 18. Import iscritti da CSV e inviti via email (2026-11-13) — `supabase/2026-11-13-WhyNot-inviti-import.sql`
 
-**Importa CSV** (Iscritti → Importa CSV)
-- File CSV con la prima riga di titoli (da Excel: Salva con nome → CSV). Servono nome (o nome e cognome in due colonne) ed email; telefono e note facoltativi.
+**Importa** (Iscritti → Importa)
+- File **Excel .xlsx** o **CSV** con la prima riga di titoli (dal file Excel si legge il primo foglio con dati; date convertite in gg/mm/aaaa, formule lette con il loro risultato). I vecchi .xls vanno salvati come .xlsx o CSV.
+- **Scarica il modello Excel**: file `AAAA-MM-GG-Modello-Iscritti-WhyNot.xlsx` con le intestazioni Nome, Cognome, Email, Telefono, Note (colonne in formato testo, così i telefoni non diventano 3,4E+09) e un foglio di istruzioni. Servono nome (o nome e cognome in due colonne) ed email; telefono e note facoltativi.
 - Le colonne vengono riconosciute da sole (Nome, Cognome, Nominativo, E-mail, Cellulare, Telefono, Abbonamento…); si possono correggere dai menu.
 - Gestiti: separatore `;` `,` tab; file UTF-8 o Windows (Excel italiano); nomi in MAIUSCOLO (convertibili in Maiuscole iniziali); email con spazi o più indirizzi nella cella (si usa la prima); telefoni in formato Excel `3,4E+09` (scartati con avviso); doppioni nel file (importati una volta); iscritti già presenti (saltati, oppure completati con telefono/note mancanti se spunti l'opzione).
 - Le righe senza email valida o senza nome non vengono importate: correggile nel file e reimportalo (le righe già importate risultano «già presenti»).

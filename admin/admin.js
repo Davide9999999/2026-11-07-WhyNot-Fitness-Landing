@@ -1,6 +1,7 @@
 // /admin : panoramica, calendario, prenotazioni, iscritti, schede + assistente AI.
 // Tutte le letture/scritture passano da Supabase con la sessione dello staff: decide la RLS.
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/+esm";
+import { leggiXlsx, scriviXlsx } from "./xlsx.js";
 
 const cfg = window.WHYNOT_SUPABASE || {};
 const $ = (id) => document.getElementById(id);
@@ -1568,8 +1569,8 @@ function analizza() {
   const visti = new Set();
   IMP.dati = righe.map((r, k) => {
     const val = (key) => (map[key] >= 0 ? String(r[map[key]] ?? "").trim() : "");
-    let nome = [val("nome"), val("cognome")].filter(Boolean).join(" ").replace(/\s+/g, " ").trim();
-    if (maiuscole && nome && nome === nome.toUpperCase()) nome = titleCase(nome);
+    const parte = (s) => (maiuscole && s.length > 1 && s === s.toUpperCase() && s !== s.toLowerCase() ? titleCase(s) : s);   // ROSSI → Rossi, anche se solo una delle due è in maiuscolo
+    let nome = [val("nome"), val("cognome")].filter(Boolean).map(parte).join(" ").replace(/\s+/g, " ").trim();
     const { email, piu } = pulisciEmail(val("email"));
     const { tel, avviso } = pulisciTel(val("telefono"));
     const avvisi = [];
@@ -1599,7 +1600,7 @@ function disegnaImport() {
   const vis = lista.filter((x) => !filtro || (filtro === "errore" ? x.stato.startsWith("errore") : filtro === "avvisi" ? x.avvisi.length : x.stato === filtro));
   const chip = (f, t, v) => `<button class="chip" data-f="${f}" aria-pressed="${filtro === f}">${t} ${v}</button>`;
   $("impPasso2").innerHTML = `
-    <p class="mut">File <b>${esc(IMP.file)}</b>: ${D.length} righe (separatore «${IMP.sep === "\t" ? "tab" : esc(IMP.sep)}»). Controlla che le colonne siano abbinate bene.</p>
+    <p class="mut">File <b>${esc(IMP.file)}</b>: ${D.length} righe (${IMP.sep.startsWith("xlsx:") ? `Excel, foglio «${esc(IMP.sep.slice(5))}»` : `CSV, separatore «${IMP.sep === "\t" ? "tab" : esc(IMP.sep)}»`}). Controlla che le colonne siano abbinate bene.</p>
     <div class="form2 mapcols">${COLONNE.map((c) => `<label>${c.t}${c.req ? " *" : ""}<select data-map="${c.k}">${opt(c.k)}</select></label>`).join("")}</div>
     <label class="chk"><input type="checkbox" id="impMaiusc" ${IMP.maiuscole ? "checked" : ""}> Nomi in MAIUSCOLO &rarr; Maiuscole iniziali (es. ROSSI MARIO &rarr; Rossi Mario)</label>
     <label class="chk"><input type="checkbox" id="impAgg" ${IMP.aggiorna ? "checked" : ""}> Per gli iscritti già presenti, completa telefono e note se mancano (nome ed email non vengono toccati)</label>
@@ -1623,8 +1624,14 @@ function disegnaImport() {
 async function caricaFileImport(file) {
   if (!file) return;
   if (file.size > 5 * 1024 * 1024) return msg($("impMsg"), "File troppo grande (massimo 5 MB).");
-  if (/\.xlsx?$/i.test(file.name)) return msg($("impMsg"), "Questo è un file Excel: aprilo e salvalo come «CSV (delimitato dal separatore di elenco)», poi caricalo qui.");
-  const { sep, righe } = leggiCsv(await testoFile(file));
+  if (/\.(xls|xlsb|xlsm|ods|numbers)$/i.test(file.name)) return msg($("impMsg"), "Formato non supportato: in Excel usa «Salva con nome» e scegli «Cartella di lavoro di Excel (.xlsx)» oppure «CSV», poi caricalo qui.");
+  let sep, righe;
+  if (/\.xlsx$/i.test(file.name) || /spreadsheetml/.test(file.type)) {
+    try {
+      const x = await leggiXlsx(await file.arrayBuffer());
+      righe = x.righe; sep = `xlsx:${x.foglio}${x.fogli > 1 ? ` (primo foglio con dati, su ${x.fogli})` : ""}`;
+    } catch (err) { return msg($("impMsg"), err.message || "File Excel non leggibile: salvalo come CSV e riprova."); }
+  } else ({ sep, righe } = leggiCsv(await testoFile(file)));
   if (righe.length < 2) return msg($("impMsg"), "Il file non contiene righe di dati (la prima riga deve essere quella dei titoli).");
   if (righe.length > 5001) return msg($("impMsg"), "Massimo 5000 iscritti per file: dividi il file in più parti.");
   const titoli = righe[0].map((t) => t.trim());
@@ -1669,6 +1676,27 @@ async function eseguiImport() {
   $("impInvita")?.addEventListener("click", () => { $("dImp").close(); apriInviti(nuovi); });
 }
 $("impIsc").onclick = apriImport;
+// modello Excel con le intestazioni riconosciute dall'import (colonne in formato testo: niente 3,4E+09 sui telefoni)
+$("impModello").onclick = () => {
+  const blob = scriviXlsx([
+    { nome: "Iscritti", intestazione: true, larghezze: [18, 20, 32, 18, 30], righe: [["Nome", "Cognome", "Email", "Telefono", "Note"]] },
+    { nome: "Istruzioni", intestazione: true, larghezze: [110], righe: [
+      ["Come compilare il foglio «Iscritti»"],
+      ["Una riga per iscritto, a partire dalla riga 2. Non cambiare i titoli della riga 1."],
+      ["Nome e Email sono obbligatori: l'email è quella con cui l'iscritto attiverà l'app e riceverà l'invito."],
+      ["Cognome, Telefono e Note sono facoltativi. Puoi anche scrivere nome e cognome insieme nella colonna Nome e lasciare vuota Cognome."],
+      ["Telefono: scrivilo come testo (es. 333 123 4567 oppure +39 333 1234567)."],
+      ["Note: informazioni interne visibili solo allo staff (es. tipo di abbonamento)."],
+      ["Gli iscritti già presenti (stessa email) vengono riconosciuti e non duplicati."],
+      ["Salva il file in formato .xlsx (o CSV) e caricalo in Gestione → Iscritti → Importa."],
+    ] },
+  ]);
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `${ymdRome(new Date())}-Modello-Iscritti-WhyNot.xlsx`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+};
 $("impFile").onchange = (e) => caricaFileImport(e.target.files[0]);
 ["dragover", "dragenter"].forEach((t) => $("impDrop").addEventListener(t, (e) => { e.preventDefault(); $("impDrop").classList.add("on"); }));
 ["dragleave", "drop"].forEach((t) => $("impDrop").addEventListener(t, (e) => { e.preventDefault(); $("impDrop").classList.remove("on"); }));
