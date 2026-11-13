@@ -64,7 +64,9 @@ async function inviaUna(env, n) {
       authorization: `vapid t=${jwt}, k=${env.VAPID_PUBLIC_KEY}` },
     body: corpo,
   });
-  return r.status;
+  // in caso di rifiuto conserva il motivo (es. 403 chiavi VAPID diverse, 400 richiesta non valida)
+  const motivo = r.ok ? "" : (await r.text().catch(() => "")).replace(/\s+/g, " ").slice(0, 200);
+  return { status: r.status, motivo };
 }
 
 async function rpc(env, nome, args) {
@@ -81,14 +83,22 @@ export async function giroNotifiche(env) {
   // max 45 per giro: il piano Workers Free consente 50 richieste esterne per esecuzione (1 lettura + 45 invii + 1 pulizia);
   // il resto resta in coda e parte al giro successivo (cron ogni minuto)
   const lista = await rpc(env, "push_da_inviare", { p_segreto: env.PUSH_SECRET, p_max: 45 });
-  const scadute = [], esiti = {};
+  const scadute = [], esiti = {}, perCoda = {};
+  const segna = (id, testo) => { (perCoda[id] ??= []).push(testo); };
   await Promise.all(lista.map(async (n) => {
     try {
-      const st = await inviaUna(env, n);
+      const { status: st, motivo } = await inviaUna(env, n);
       esiti[st] = (esiti[st] || 0) + 1;
+      segna(n.coda_id, motivo ? `${st} ${motivo}` : String(st));
       if (st === 404 || st === 410) scadute.push(n.endpoint);
-    } catch (e) { esiti.errore = (esiti.errore || 0) + 1; esiti.ultimoErrore = String(e && e.message || e).slice(0, 200); }
+    } catch (e) {
+      esiti.errore = (esiti.errore || 0) + 1; esiti.ultimoErrore = String(e && e.message || e).slice(0, 200);
+      segna(n.coda_id, "errore " + esiti.ultimoErrore);
+    }
   }));
   if (scadute.length) await rpc(env, "push_scadute", { p_segreto: env.PUSH_SECRET, p_endpoint: scadute });
+  // esito per notifica (una notifica può andare a più dispositivi dello stesso iscritto); se la funzione non c'è ancora, si ignora
+  const perDb = Object.entries(perCoda).map(([id, v]) => ({ id: Number(id), esito: v.join(" | ") }));
+  if (perDb.length) await rpc(env, "push_esiti", { p_segreto: env.PUSH_SECRET, p_esiti: perDb }).catch((e) => console.error("push_esiti", String(e.message || e)));
   return { inviate: lista.length, esiti, scadute: scadute.length };
 }
