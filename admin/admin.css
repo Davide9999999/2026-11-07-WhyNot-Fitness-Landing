@@ -455,3 +455,7 @@ dialog.sheet.wide{width:min(860px,96vw)}
 .drop input{position:absolute;opacity:0;width:1px;height:1px}
 .mapcols{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
 .limbox{padding:10px 14px;border-radius:12px;background:rgba(255,255,255,.04);border:1px solid var(--line)}
+/* selezione multipla iscritti */
+.selbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:-4px 0 12px;padding:10px 14px;border-radius:12px;background:rgba(224,34,51,.08);border:1px solid rgba(224,34,51,.35)}
+.selbar span{font-weight:700;margin-right:auto}
+.tbl .selc{width:34px;text-align:center}

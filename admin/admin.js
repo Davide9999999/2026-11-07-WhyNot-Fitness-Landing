@@ -372,6 +372,7 @@ $("newForm").addEventListener("submit", async (e) => {
 const APP_URL = "https://whynotfitnessclub.com/app/"; // indirizzo ufficiale, anche se l'admin è aperto da un altro indirizzo
 const STATI = { attivo: ["App attiva", "ok"], "da invitare": ["Da invitare", ""], "da attivare": ["Da attivare", "w"], "codice scaduto": ["Codice scaduto", "w"], sospeso: ["Sospeso", "x"] };
 let iscFiltro = "";
+const iscSel = new Set();   // selezione multipla (rimozione, solo admin)
 async function caricaIscritti(silenzioso) {
   const { data, error } = await sb.rpc("admin_iscritti");
   if (error) {
@@ -391,14 +392,27 @@ function disegnaIscritti() {
   const lista = iscritti.filter((i) => (!iscFiltro || i.stato === iscFiltro || (iscFiltro === "da attivare" && i.stato === "codice scaduto"))
     && (!q || [i.nome, i.email, i.telefono].some((v) => String(v || "").toLowerCase().includes(q))));
   $("iscCount").textContent = `${lista.length} ${lista.length === 1 ? "iscritto" : "iscritti"}`;
-  $("iscritti").innerHTML = lista.length ? `<div class="wrap-tbl"><table class="tbl"><thead><tr><th>Iscritto</th><th>Stato</th><th class="hm">Telefono</th><th class="hm">Dal</th><th class="num">Frequent.</th><th class="num hm">Prossime</th></tr></thead><tbody>${
-    lista.map((i) => { const s = STATI[i.stato] || [i.stato, ""]; return `<tr data-iid="${i.id}"><td><div class="p"><span class="av sm2${i.user_id ? " member" : ""}">${esc(initials(i.nome))}</span><div><b>${esc(i.nome)}</b>${i.ruolo_staff ? ` <span class="pill">${i.ruolo_staff}</span>` : ""}<small>${esc(i.email)}</small></div></div></td>
+  const adm = mioRuolo === "admin", nSel = iscritti.filter((i) => iscSel.has(i.id)).length;
+  $("iscSelBar").hidden = !adm || !nSel;
+  if (adm && nSel) $("iscSelN").textContent = `${nSel} ${nSel === 1 ? "iscritto selezionato" : "iscritti selezionati"}`;
+  const cb = (i) => (adm ? `<td class="selc"><input type="checkbox" class="iscSel" value="${i.id}" ${iscSel.has(i.id) ? "checked" : ""} ${i.user_id && i.user_id === session?.user?.id ? "disabled title=\"Sei tu\"" : ""} aria-label="Seleziona ${esc(i.nome)}"></td>` : "");
+  $("iscritti").innerHTML = lista.length ? `<div class="wrap-tbl"><table class="tbl"><thead><tr>${adm ? `<th class="selc"><input type="checkbox" id="iscSelAll" aria-label="Seleziona tutti quelli in elenco" ${lista.every((i) => iscSel.has(i.id)) ? "checked" : ""}></th>` : ""}<th>Iscritto</th><th>Stato</th><th class="hm">Telefono</th><th class="hm">Dal</th><th class="num">Frequent.</th><th class="num hm">Prossime</th></tr></thead><tbody>${
+    lista.map((i) => { const s = STATI[i.stato] || [i.stato, ""]; return `<tr data-iid="${i.id}">${cb(i)}<td><div class="p"><span class="av sm2${i.user_id ? " member" : ""}">${esc(initials(i.nome))}</span><div><b>${esc(i.nome)}</b>${i.ruolo_staff ? ` <span class="pill">${i.ruolo_staff}</span>` : ""}<small>${esc(i.email)}</small></div></div></td>
       <td><span class="pill ${s[1]}">${s[0]}</span>${!i.user_id && i.invito_at ? `<small class="mut" style="display:block;margin-top:3px">invitato il ${fDate.format(new Date(i.invito_at))}${i.inviti_n > 1 ? ` (${i.inviti_n}ª volta)` : ""}</small>` : ""}</td><td class="hm">${esc(i.telefono || "—")}</td><td class="hm">${fDate.format(new Date(i.iscritto_dal))}</td><td class="num">${i.frequentate}</td><td class="num hm">${i.prossime}</td></tr>`; }).join("")}</tbody></table></div>`
     : `<p class="empty">${q || iscFiltro ? "Nessun iscritto corrisponde alla ricerca." : "Ancora nessun iscritto. Crea il primo con «Nuovo iscritto»: riceverai il codice da dargli per attivare l'app."}</p>`;
 }
 $("iscSearch").addEventListener("input", disegnaIscritti);
 $("iscChips").addEventListener("click", (e) => { const b = e.target.closest("[data-f]"); if (!b) return; iscFiltro = b.dataset.f; disegnaIscritti(); });
-$("iscritti").addEventListener("click", (e) => { const r = e.target.closest("[data-iid]"); if (r) apriIscritto(r.dataset.iid); });
+$("iscritti").addEventListener("click", (e) => {
+  if (e.target.closest(".selc")) return;   // la casella di selezione non apre la scheda
+  const r = e.target.closest("[data-iid]"); if (r) apriIscritto(r.dataset.iid);
+});
+$("iscritti").addEventListener("change", (e) => {
+  if (e.target.id === "iscSelAll") { document.querySelectorAll(".iscSel:not(:disabled)").forEach((c) => (e.target.checked ? iscSel.add(c.value) : iscSel.delete(c.value))); disegnaIscritti(); }
+  else if (e.target.classList.contains("iscSel")) { e.target.checked ? iscSel.add(e.target.value) : iscSel.delete(e.target.value); disegnaIscritti(); }
+});
+$("iscSelNo").onclick = () => { iscSel.clear(); disegnaIscritti(); };
+$("iscSelDel").onclick = () => rimuoviIscritti([...iscSel]);
 
 function boxCodice(nome, email, tel, codice, scade) {
   const testo = `Ciao ${String(nome).split(" ")[0]}! Ecco il tuo codice per attivare l'app di WHY NOT Fitness Club: ${codice}\n\n1) Apri ${APP_URL}?attiva\n2) Inserisci la tua email (${email}) e il codice\n3) Scegli una password\n\nIl codice scade il ${fDate.format(new Date(scade))}.`;
@@ -455,6 +469,9 @@ async function apriIscritto(id, codice) {
         <p class="mut" style="margin-bottom:10px">${i.user_id ? "Dà accesso all'area staff (questa dashboard) con il suo account." : "Il ruolo diventa attivo quando attiva l'app."}</p>
         <div class="acts-row"><select id="iscRuolo" style="width:auto"><option value="">Nessuno (solo iscritto)</option><option value="staff" ${i.ruolo_staff === "staff" ? "selected" : ""}>Staff</option><option value="admin" ${i.ruolo_staff === "admin" ? "selected" : ""}>Admin</option><option value="istruttore" ${i.ruolo_staff === "istruttore" ? "selected" : ""}>Istruttore</option></select><button class="ghost sm" type="button" id="iscRuoloOk">Applica</button></div></div>` : ""}
       ${carichiHtml}
+      ${mioRuolo === "admin" && !(i.user_id && i.user_id === session?.user?.id) ? `<div class="box"><h3 class="mut" style="font-size:12px;letter-spacing:1.2px;text-transform:uppercase;margin-bottom:6px">Rimuovi iscritto</h3>
+        <p class="mut" style="margin-bottom:10px">Cancella definitivamente anagrafica e account dell'app. Le prenotazioni future vengono annullate; lo storico resta anonimo nelle statistiche. Se deve solo smettere di prenotare per un periodo, usa «Iscrizione attiva» qui sotto.</p>
+        <button class="ghost sm danger" type="button" id="iscDel">Rimuovi definitivamente</button></div>` : ""}
       <form class="sec box" id="iscEdit"><h3>Dati iscritto</h3>
         <div class="form2"><label class="full">Nome e cognome<input name="nome" value="${esc(i.nome)}" required minlength="2"></label><label>Telefono<input name="telefono" value="${esc(i.telefono || "")}"></label><label>Email<input value="${esc(i.email)}" readonly title="L'email è quella di accesso all'app"></label>
         <label class="full">Note interne<input name="note" value="${esc(i.note || "")}" placeholder="es. abbonamento annuale"></label>
@@ -474,6 +491,7 @@ async function apriIscritto(id, codice) {
     if (error) return toast(error.message, false);
     toast(r ? `Ruolo ${r} impostato.` : "Ruolo collaboratore rimosso."); await caricaIscritti(); apriIscritto(i.id);
   });
+  $("iscDel")?.addEventListener("click", async () => { if (await rimuoviIscritti([i.id])) $("dLez").close(); });
   $("iscInv")?.addEventListener("click", async (e) => {
     if (!(await ask("Inviare l'invito?", `${i.nome} riceverà a ${i.email} un codice nuovo e il pulsante per attivare l'app. Un eventuale codice precedente smette di funzionare.`, "Invia"))) return;
     e.target.disabled = true;
@@ -1765,3 +1783,27 @@ async function inviaInviti() {
     <p class="mut">Le email rimbalzate (indirizzo inesistente o casella piena) si vedono nel pannello di Resend, sezione Emails.</p></div>`;
 }
 $("invIsc").onclick = () => apriInviti();
+
+// ------------------------------------------------------------------ rimozione definitiva iscritti (solo admin)
+async function rimuoviIscritti(ids) {
+  const L = iscritti.filter((i) => ids.includes(i.id) && !(i.user_id && i.user_id === session?.user?.id));
+  if (!L.length) return false;
+  const n = L.length, conApp = L.filter((i) => i.user_id).length, pren = L.reduce((s, i) => s + (i.prossime || 0), 0), staff = L.filter((i) => i.ruolo_staff);
+  const nomi = L.slice(0, 5).map((i) => i.nome).join(", ") + (n > 5 ? ` e altri ${n - 5}` : "");
+  const testo = `${n === 1 ? `${L[0].nome} (${L[0].email}) verrà rimosso` : `Verranno rimossi ${n} iscritti: ${nomi}`} definitivamente.`
+    + `${conApp ? ` ${n === 1 ? "Il suo account dell'app viene eliminato" : conApp === 1 ? "1 account dell'app viene eliminato" : `${conApp} account dell'app vengono eliminati`}.` : ""}`
+    + `${pren ? ` ${pren} ${pren === 1 ? "prenotazione futura viene annullata" : "prenotazioni future vengono annullate"} (chi è in lista d'attesa entra).` : ""}`
+    + `${staff.length ? ` Attenzione: ${staff.map((i) => `${i.nome} (${i.ruolo_staff})`).join(", ")} ${staff.length === 1 ? "perde" : "perdono"} anche l'accesso all'area staff.` : ""}`
+    + " Lo storico resta anonimo nelle statistiche. L'operazione non si può annullare.";
+  if (!(await ask(n === 1 ? "Rimuovere l'iscritto?" : `Rimuovere ${n} iscritti?`, testo, "Rimuovi"))) return false;
+  if (n > 1) {
+    const r = prompt(`Per confermare la rimozione di ${n} iscritti scrivi RIMUOVI`);
+    if (String(r || "").trim().toUpperCase() !== "RIMUOVI") { toast("Rimozione annullata.", false); return false; }
+  }
+  const { data, error } = await sb.rpc("admin_rimuovi_iscritti", { p_ids: L.map((i) => i.id) });
+  if (error) { toast(error.message, false); return false; }
+  L.forEach((i) => iscSel.delete(i.id));
+  toast(`${data.rimossi} ${data.rimossi === 1 ? "iscritto rimosso" : "iscritti rimossi"}${data.prenotazioni_annullate ? ` · ${data.prenotazioni_annullate} prenotazioni future annullate` : ""}${data.esclusi?.length ? ` · ${data.esclusi.length} esclusi` : ""}.`);
+  await caricaIscritti();
+  return true;
+}

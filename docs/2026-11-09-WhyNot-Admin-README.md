@@ -201,3 +201,12 @@ Collaudo del 2026-11-11 (account): 3 account ripristinati con impronta password 
 - Invio a gruppi di 50; chi non riceve l'email resta selezionato per riprovare. Le email rimbalzate si vedono nel pannello di Resend (Emails).
 - Nella lista iscritti compare «invitato il …»; filtri «Mai invitati» e «Già invitati, app non attivata» per i solleciti.
 - Richiede il secret `RESEND_API_KEY` nel Worker Cloudflare (Settings → Variables and Secrets): la chiave non è mai nel codice né nel browser.
+
+## 19. Rimozione iscritti (2026-11-13) — `supabase/2026-11-13-WhyNot-rimuovi-iscritti.sql`
+
+Solo gli **admin**. Due modi:
+- nella scheda dell'iscritto, riquadro **Rimuovi iscritto → Rimuovi definitivamente**;
+- nell'elenco Iscritti, spunta le caselle (o quella in testa per tutti quelli filtrati) e usa **Rimuovi definitivamente** nella barra rossa. Con più di un iscritto va scritto RIMUOVI per confermare.
+
+Cosa succede: prenotazioni future annullate (chi è in lista d'attesa entra e riceve la notifica); prenotazioni passate conservate ma anonime («Iscritto rimosso», senza email/telefono/note), così presenze e statistiche non cambiano; commenti delle valutazioni cancellati (i voti restano nelle medie); account dell'app, profilo, ruolo staff, notifiche, preferiti e carichi cancellati; anagrafica e storico inviti cancellati. Le schede di allenamento restano, senza iscritto collegato.
+Non si può rimuovere se stessi. Non è annullabile (resta solo il backup notturno). Per una pausa temporanea usare invece «Iscrizione attiva» (sospensione).
