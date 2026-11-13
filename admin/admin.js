@@ -369,7 +369,7 @@ $("newForm").addEventListener("submit", async (e) => {
 // ------------------------------------------------------------------ iscritti
 // L'anagrafica la crea lo staff; l'iscritto attiva l'app con email + codice (il codice si vede solo quando viene generato).
 const APP_URL = "https://whynotfitnessclub.com/app/"; // indirizzo ufficiale, anche se l'admin è aperto da un altro indirizzo
-const STATI = { attivo: ["App attiva", "ok"], "da attivare": ["Da attivare", "w"], "codice scaduto": ["Codice scaduto", "w"], sospeso: ["Sospeso", "x"] };
+const STATI = { attivo: ["App attiva", "ok"], "da invitare": ["Da invitare", ""], "da attivare": ["Da attivare", "w"], "codice scaduto": ["Codice scaduto", "w"], sospeso: ["Sospeso", "x"] };
 let iscFiltro = "";
 async function caricaIscritti(silenzioso) {
   const { data, error } = await sb.rpc("admin_iscritti");
@@ -385,14 +385,14 @@ async function caricaIscritti(silenzioso) {
 function disegnaIscritti() {
   const q = $("iscSearch").value.trim().toLowerCase();
   const conta = (s) => iscritti.filter((i) => i.stato === s).length;
-  $("iscChips").innerHTML = [["", "Tutti", iscritti.length], ["attivo", "App attiva", conta("attivo")], ["da attivare", "Da attivare", conta("da attivare") + conta("codice scaduto")], ["sospeso", "Sospesi", conta("sospeso")]]
+  $("iscChips").innerHTML = [["", "Tutti", iscritti.length], ["attivo", "App attiva", conta("attivo")], ["da invitare", "Da invitare", conta("da invitare")], ["da attivare", "Da attivare", conta("da attivare") + conta("codice scaduto")], ["sospeso", "Sospesi", conta("sospeso")]]
     .map(([k, t, n]) => `<button class="chip" data-f="${k}" aria-pressed="${iscFiltro === k}">${t} ${n}</button>`).join("");
   const lista = iscritti.filter((i) => (!iscFiltro || i.stato === iscFiltro || (iscFiltro === "da attivare" && i.stato === "codice scaduto"))
     && (!q || [i.nome, i.email, i.telefono].some((v) => String(v || "").toLowerCase().includes(q))));
   $("iscCount").textContent = `${lista.length} ${lista.length === 1 ? "iscritto" : "iscritti"}`;
   $("iscritti").innerHTML = lista.length ? `<div class="wrap-tbl"><table class="tbl"><thead><tr><th>Iscritto</th><th>Stato</th><th class="hm">Telefono</th><th class="hm">Dal</th><th class="num">Frequent.</th><th class="num hm">Prossime</th></tr></thead><tbody>${
     lista.map((i) => { const s = STATI[i.stato] || [i.stato, ""]; return `<tr data-iid="${i.id}"><td><div class="p"><span class="av sm2${i.user_id ? " member" : ""}">${esc(initials(i.nome))}</span><div><b>${esc(i.nome)}</b>${i.ruolo_staff ? ` <span class="pill">${i.ruolo_staff}</span>` : ""}<small>${esc(i.email)}</small></div></div></td>
-      <td><span class="pill ${s[1]}">${s[0]}</span></td><td class="hm">${esc(i.telefono || "—")}</td><td class="hm">${fDate.format(new Date(i.iscritto_dal))}</td><td class="num">${i.frequentate}</td><td class="num hm">${i.prossime}</td></tr>`; }).join("")}</tbody></table></div>`
+      <td><span class="pill ${s[1]}">${s[0]}</span>${!i.user_id && i.invito_at ? `<small class="mut" style="display:block;margin-top:3px">invitato il ${fDate.format(new Date(i.invito_at))}${i.inviti_n > 1 ? ` (${i.inviti_n}ª volta)` : ""}</small>` : ""}</td><td class="hm">${esc(i.telefono || "—")}</td><td class="hm">${fDate.format(new Date(i.iscritto_dal))}</td><td class="num">${i.frequentate}</td><td class="num hm">${i.prossime}</td></tr>`; }).join("")}</tbody></table></div>`
     : `<p class="empty">${q || iscFiltro ? "Nessun iscritto corrisponde alla ricerca." : "Ancora nessun iscritto. Crea il primo con «Nuovo iscritto»: riceverai il codice da dargli per attivare l'app."}</p>`;
 }
 $("iscSearch").addEventListener("input", disegnaIscritti);
@@ -442,8 +442,8 @@ async function apriIscritto(id, codice) {
     <div class="dw-body">
       ${codice ? boxCodice(i.nome, i.email, i.telefono, codice.codice, codice.scade) : ""}
       ${!i.user_id && !codice ? `<div class="box"><h3 class="mut" style="font-size:12px;letter-spacing:1.2px;text-transform:uppercase;margin-bottom:6px">Attivazione app</h3>
-        <p class="mut" style="margin-bottom:10px">${i.stato === "codice scaduto" ? "Il codice è scaduto." : `Non ha ancora attivato l'app. Il codice scade il ${i.codice_scade ? fDate.format(new Date(i.codice_scade)) : "—"}.`} Se l'ha perso, generane uno nuovo (quello vecchio smette di funzionare).</p>
-        <button class="btn sm" type="button" id="iscCod">Genera nuovo codice</button></div>` : ""}
+        <p class="mut" style="margin-bottom:10px">${i.stato === "da invitare" ? "Importato, non ha ancora ricevuto il codice." : i.stato === "codice scaduto" ? "Il codice è scaduto." : `Non ha ancora attivato l'app. Il codice scade il ${i.codice_scade ? fDate.format(new Date(i.codice_scade)) : "—"}.`}${i.invito_at ? ` Ultimo invito email: ${fDate.format(new Date(i.invito_at))}.` : ""} Ogni invito o nuovo codice sostituisce quello precedente.</p>
+        <div class="acts-row">${i.attivo ? '<button class="btn sm" type="button" id="iscInv">Invia invito via email</button>' : ""}<button class="ghost sm" type="button" id="iscCod">Genera codice da consegnare a mano</button></div></div>` : ""}
       ${i.user_id ? `<div class="kpis" style="grid-template-columns:repeat(4,1fr);margin:0"><div class="kpi"><span>Frequentate</span><b>${i.frequentate}</b></div><div class="kpi"><span>Assenze</span><b>${i.assenze ?? 0}</b></div><div class="kpi"><span>Prossime</span><b>${i.prossime}</b></div><div class="kpi"><span>Totale</span><b>${i.prenotazioni}</b></div></div>
       <div class="sec"><h3>Prossime lezioni</h3>${fut.length ? `<div class="tl">${fut.map(riga).join("")}</div>` : '<p class="empty">Nessuna lezione in programma.</p>'}</div>
       <div class="sec"><h3>Storico</h3>${pas.length ? `<div class="tl">${pas.map(riga).join("")}</div>` : '<p class="empty">Nessuna lezione nello storico.</p>'}</div>` : ""}
@@ -473,6 +473,16 @@ async function apriIscritto(id, codice) {
     if (error) return toast(error.message, false);
     toast(r ? `Ruolo ${r} impostato.` : "Ruolo collaboratore rimosso."); await caricaIscritti(); apriIscritto(i.id);
   });
+  $("iscInv")?.addEventListener("click", async (e) => {
+    if (!(await ask("Inviare l'invito?", `${i.nome} riceverà a ${i.email} un codice nuovo e il pulsante per attivare l'app. Un eventuale codice precedente smette di funzionare.`, "Invia"))) return;
+    e.target.disabled = true;
+    try {
+      const r = await api("/api/inviti", { ids: [i.id] });
+      if (r.inviati) toast(`Invito inviato a ${i.email}.`);
+      else toast(`Invito non inviato: ${r.errori?.[0]?.errore || r.esclusi?.[0]?.motivo || "errore"}`, false);
+    } catch (err) { toast(err.message, false); }
+    await caricaIscritti(); apriIscritto(i.id);
+  });
   $("iscCod")?.addEventListener("click", async () => {
     if (!(await ask("Nuovo codice di attivazione", `Il codice precedente di ${i.nome} smetterà di funzionare.`, "Genera"))) return;
     const { data, error } = await sb.rpc("admin_nuovo_codice", { p_id: i.id });
@@ -496,8 +506,21 @@ $("iscForm").addEventListener("submit", async (e) => {
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(f.email.value.trim())) return msg($("iscMsg"), "Serve un'email valida: sarà quella di accesso all'app.");
   const { data, error } = await sb.rpc("admin_crea_iscritto", { p_nome: f.nome.value.trim(), p_telefono: f.telefono.value.trim() || null, p_email: f.email.value.trim(), p_ruolo_staff: (f.ruolo && f.ruolo.value) || null });
   if (error) return msg($("iscMsg"), error.message);
+  const nome = f.nome.value.trim(), mail = f.email.value.trim().toLowerCase();
+  let cod = data, inviato = false, errInvio = "";
+  if (f.invia.checked) {
+    msg($("iscMsg"), "Invio dell'invito…", true);
+    try { const r = await api("/api/inviti", { ids: [data.id] }); inviato = r.inviati === 1; errInvio = r.errori?.[0]?.errore || r.esclusi?.[0]?.motivo || ""; }
+    catch (err) { errInvio = err.message; }
+    // l'invito genera un codice nuovo: se l'email non è partita, ne serve uno valido da consegnare a mano
+    if (!inviato) { const n = await sb.rpc("admin_nuovo_codice", { p_id: data.id }); if (!n.error) cod = n.data; }
+  }
+  msg($("iscMsg"), "");
   f.hidden = true;
-  $("iscDone").innerHTML = `<p>Iscritto creato: <b>${esc(f.nome.value.trim())}</b>. Consegnagli il codice per attivare l'app.</p>` + boxCodice(f.nome.value.trim(), f.email.value.trim().toLowerCase(), f.telefono.value.trim(), data.codice, data.scade) +
+  $("iscDone").innerHTML = inviato
+    ? `<div class="limbox"><span class="mut">Invito inviato</span><p>Iscritto creato: <b>${esc(nome)}</b>. Ha ricevuto a <b>${esc(mail)}</b> l'email con il codice e il pulsante per attivare l'app.</p>
+       <p class="mut">Se non la trova (controlli lo spam), apri la sua scheda e genera un nuovo codice da consegnare a mano.</p></div><div class="acts end"><button class="btn" type="button" id="iscFine">Fatto</button></div>`
+    : `${errInvio ? `<p class="msg ko">Email non inviata: ${esc(errInvio)}. Consegna il codice a mano.</p>` : ""}<p>Iscritto creato: <b>${esc(nome)}</b>. Consegnagli il codice per attivare l'app.</p>` + boxCodice(nome, mail, f.telefono.value.trim(), cod.codice, cod.scade) +
     '<div class="acts end"><button class="btn" type="button" id="iscFine">Fatto</button></div>';
   $("iscFine").onclick = () => $("dIsc").close();
   caricaIscritti(tab !== "iscritti");
@@ -1484,3 +1507,233 @@ async function cambiaModo(c, btn) {
   toast(suPren ? `«${c.nome}» ora è su prenotazione.` : `«${c.nome}» ora è a partecipazione.`);
   caricaPalinsesto();
 }
+
+// ------------------------------------------------------------------ import iscritti da CSV
+// Casi gestiti: separatore ; , tab |; file UTF-8 o Windows (Excel italiano); virgolette e a capo nei campi; titoli con nomi diversi;
+// nome e cognome in una o due colonne; nomi tutti in MAIUSCOLO; email con spazi, "mailto:" o più indirizzi; telefoni in formato Excel (3,4E+09);
+// doppioni nel file; iscritti già presenti (saltati o completati); righe senza email o senza nome (segnalate, non importate).
+const normT = (s) => String(s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]/g, "");
+const COLONNE = [
+  { k: "email", t: "Email", req: true, alias: ["email", "mail", "email1", "indirizzoemail", "posta", "postaelettronica", "emailcliente", "emailsocio"] },
+  { k: "nome", t: "Nome (o nome e cognome)", req: true, alias: ["nome", "name", "firstname", "nominativo", "nomecognome", "cognomenome", "nomecompleto", "fullname", "cliente", "socio", "iscritto", "anagrafica", "ragionesociale"] },
+  { k: "cognome", t: "Cognome", alias: ["cognome", "surname", "lastname"] },
+  { k: "telefono", t: "Telefono", alias: ["telefono", "cellulare", "cell", "tel", "mobile", "phone", "telefono1", "cellulare1", "numeroditelefono", "recapito", "telcellulare"] },
+  { k: "note", t: "Note interne", alias: ["note", "abbonamento", "tipoabbonamento", "tessera", "numerotessera", "scadenza", "scadenzaabbonamento"] },
+];
+let IMP = null;
+
+function separatore(riga) {
+  let best = ";", n = -1;
+  for (const s of [";", ",", "\t", "|"]) { let q = false, c = 0; for (const ch of riga) { if (ch === '"') q = !q; else if (ch === s && !q) c++; } if (c > n) { n = c; best = s; } }
+  return best;
+}
+function leggiCsv(testo) {
+  testo = testo.replace(/^﻿/, "");
+  const sep = separatore(testo.split(/\r?\n/).find((l) => l.trim()) || "");
+  const righe = []; let r = [], c = "", q = false;
+  for (let i = 0; i < testo.length; i++) {
+    const ch = testo[i];
+    if (q) { if (ch === '"') { if (testo[i + 1] === '"') { c += '"'; i++; } else q = false; } else c += ch; }
+    else if (ch === '"' && !c.trim()) { q = true; c = ""; }
+    else if (ch === sep) { r.push(c.trim()); c = ""; }
+    else if (ch === "\n" || ch === "\r") { if (ch === "\r" && testo[i + 1] === "\n") i++; r.push(c.trim()); righe.push(r); r = []; c = ""; }
+    else c += ch;
+  }
+  if (c || r.length) { r.push(c.trim()); righe.push(r); }
+  return { sep, righe: righe.filter((x) => x.some((v) => v)) };
+}
+async function testoFile(file) {
+  const buf = await file.arrayBuffer();
+  try { return new TextDecoder("utf-8", { fatal: true }).decode(buf); } catch { return new TextDecoder("windows-1252").decode(buf); }
+}
+const titleCase = (s) => s.toLowerCase().replace(/(^|[\s'’-])(\p{L})/gu, (m, p, l) => p + l.toUpperCase());
+function pulisciEmail(v) {
+  let e = String(v || "").replace(/^mailto:/i, "").trim().toLowerCase();
+  const piu = /[;,\s/]/.test(e);
+  if (piu) e = e.split(/[;,\s/]+/).find((x) => x.includes("@")) || "";
+  return { email: e, piu };
+}
+function pulisciTel(v) {
+  let t = String(v || "").trim();
+  if (!t) return { tel: "" };
+  if (/e\+?\d/i.test(t)) return { tel: "", avviso: "telefono in formato Excel (es. 3,4E+09): non importato" };
+  t = t.replace(/[^0-9+]/g, "").replace(/^00/, "+");
+  const cifre = t.replace(/\D/g, "");
+  if (cifre.length < 6 || cifre.length > 15) return { tel: "", avviso: "telefono non valido: non importato" };
+  return { tel: t };
+}
+function analizza() {
+  const { righe, map, maiuscole } = IMP;
+  const esistenti = new Map(iscritti.map((i) => [String(i.email).toLowerCase(), i]));
+  const visti = new Set();
+  IMP.dati = righe.map((r, k) => {
+    const val = (key) => (map[key] >= 0 ? String(r[map[key]] ?? "").trim() : "");
+    let nome = [val("nome"), val("cognome")].filter(Boolean).join(" ").replace(/\s+/g, " ").trim();
+    if (maiuscole && nome && nome === nome.toUpperCase()) nome = titleCase(nome);
+    const { email, piu } = pulisciEmail(val("email"));
+    const { tel, avviso } = pulisciTel(val("telefono"));
+    const avvisi = [];
+    if (piu && email) avvisi.push("più email nella cella: uso la prima");
+    if (avviso) avvisi.push(avviso);
+    if (nome.length > 80) { nome = nome.slice(0, 80); avvisi.push("nome troppo lungo: accorciato"); }
+    let stato;
+    if (!email) stato = "errore:email mancante";
+    else if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) stato = "errore:email non valida";
+    else if (nome.length < 2) stato = "errore:nome mancante";
+    else if (visti.has(email)) stato = "doppio";
+    else if (esistenti.has(email)) stato = "presente";
+    else stato = "nuovo";
+    if (email) visti.add(email);
+    return { riga: k + 2, nome, email, telefono: tel, note: val("note").slice(0, 500), stato, avvisi, esistente: esistenti.get(email) };
+  });
+}
+function disegnaImport() {
+  analizza();
+  const D = IMP.dati, n = (s) => D.filter((x) => (s === "errore" ? x.stato.startsWith("errore") : x.stato === s)).length;
+  const nNuovi = n("nuovo"), nPres = n("presente"), nDop = n("doppio"), nErr = n("errore"), nAvv = D.filter((x) => x.avvisi.length).length;
+  const opt = (k) => `<option value="-1">—</option>${IMP.titoli.map((t, j) => `<option value="${j}" ${IMP.map[k] === j ? "selected" : ""}>${esc(t || `Colonna ${j + 1}`)}</option>`).join("")}`;
+  const ETI = { nuovo: ["Da importare", "ok"], presente: ["Già presente", ""], doppio: ["Doppione nel file", "w"] };
+  const ord = { errore: 0, doppio: 1, nuovo: 2, presente: 3 };
+  const lista = [...D].sort((a, b) => (ord[a.stato.split(":")[0]] - ord[b.stato.split(":")[0]]) || a.riga - b.riga);
+  const filtro = IMP.filtro || "";
+  const vis = lista.filter((x) => !filtro || (filtro === "errore" ? x.stato.startsWith("errore") : filtro === "avvisi" ? x.avvisi.length : x.stato === filtro));
+  const chip = (f, t, v) => `<button class="chip" data-f="${f}" aria-pressed="${filtro === f}">${t} ${v}</button>`;
+  $("impPasso2").innerHTML = `
+    <p class="mut">File <b>${esc(IMP.file)}</b>: ${D.length} righe (separatore «${IMP.sep === "\t" ? "tab" : esc(IMP.sep)}»). Controlla che le colonne siano abbinate bene.</p>
+    <div class="form2 mapcols">${COLONNE.map((c) => `<label>${c.t}${c.req ? " *" : ""}<select data-map="${c.k}">${opt(c.k)}</select></label>`).join("")}</div>
+    <label class="chk"><input type="checkbox" id="impMaiusc" ${IMP.maiuscole ? "checked" : ""}> Nomi in MAIUSCOLO &rarr; Maiuscole iniziali (es. ROSSI MARIO &rarr; Rossi Mario)</label>
+    <label class="chk"><input type="checkbox" id="impAgg" ${IMP.aggiorna ? "checked" : ""}> Per gli iscritti già presenti, completa telefono e note se mancano (nome ed email non vengono toccati)</label>
+    <div class="chips" id="impFiltri">${chip("", "Tutte", D.length)}${chip("nuovo", "Da importare", nNuovi)}${chip("presente", "Già presenti", nPres)}${nDop ? chip("doppio", "Doppioni", nDop) : ""}${nErr ? chip("errore", "Da correggere", nErr) : ""}${nAvv ? chip("avvisi", "Con avvisi", nAvv) : ""}</div>
+    <div class="wrap-tbl" style="max-height:340px"><table class="tbl"><thead><tr><th class="num">Riga</th><th>Nome</th><th>Email</th><th class="hm">Telefono</th><th>Esito</th></tr></thead><tbody>${
+      vis.slice(0, 300).map((x) => { const err = x.stato.startsWith("errore"), e = ETI[x.stato];
+        return `<tr><td class="num mut">${x.riga}</td><td>${esc(x.nome) || '<span class="mut">—</span>'}</td><td>${esc(x.email) || '<span class="mut">—</span>'}</td><td class="hm">${esc(x.telefono) || '<span class="mut">—</span>'}</td>
+          <td>${err ? `<span class="pill x">${esc(x.stato.slice(7))}</span>` : `<span class="pill ${e[1]}">${e[0]}</span>`}${x.stato === "presente" && x.esistente ? `<small class="mut" style="display:block">${esc((STATI[x.esistente.stato] || [x.esistente.stato])[0])}</small>` : ""}${x.avvisi.map((a) => `<small class="mut" style="display:block">⚠ ${esc(a)}</small>`).join("")}</td></tr>`; }).join("")
+      || '<tr><td colspan="5" class="mut">Nessuna riga.</td></tr>'}</tbody></table></div>
+    ${vis.length > 300 ? `<p class="mut">Mostrate le prime 300 righe di ${vis.length}.</p>` : ""}
+    <p class="mut">${nErr ? `<b>${nErr} righe da correggere</b> non verranno importate (senza email valida l'iscritto non può attivare l'app): correggile nel file e reimportalo, le righe già importate verranno riconosciute come «già presenti». ` : ""}${nDop ? "I doppioni (stessa email più volte) vengono importati una volta sola. " : ""}Gli iscritti importati non ricevono nulla finché non invii l'invito.</p>
+    <div class="acts end"><button class="ghost" type="button" id="impIndietro">Scegli un altro file</button><button class="btn" type="button" id="impVai" ${nNuovi || (IMP.aggiorna && nPres) ? "" : "disabled"}>Importa ${nNuovi} ${nNuovi === 1 ? "iscritto" : "iscritti"}${IMP.aggiorna && nPres ? ` e completa ${nPres} già presenti` : ""}</button></div>
+    <p class="msg" id="impMsg2" role="status"></p>`;
+  $("impPasso2").querySelectorAll("[data-map]").forEach((s) => (s.onchange = () => { IMP.map[s.dataset.map] = Number(s.value); disegnaImport(); }));
+  $("impMaiusc").onchange = (e) => { IMP.maiuscole = e.target.checked; disegnaImport(); };
+  $("impAgg").onchange = (e) => { IMP.aggiorna = e.target.checked; disegnaImport(); };
+  $("impFiltri").onclick = (e) => { const b = e.target.closest("[data-f]"); if (b) { IMP.filtro = b.dataset.f; disegnaImport(); } };
+  $("impIndietro").onclick = apriImport;
+  $("impVai").onclick = eseguiImport;
+}
+async function caricaFileImport(file) {
+  if (!file) return;
+  if (file.size > 5 * 1024 * 1024) return msg($("impMsg"), "File troppo grande (massimo 5 MB).");
+  if (/\.xlsx?$/i.test(file.name)) return msg($("impMsg"), "Questo è un file Excel: aprilo e salvalo come «CSV (delimitato dal separatore di elenco)», poi caricalo qui.");
+  const { sep, righe } = leggiCsv(await testoFile(file));
+  if (righe.length < 2) return msg($("impMsg"), "Il file non contiene righe di dati (la prima riga deve essere quella dei titoli).");
+  if (righe.length > 5001) return msg($("impMsg"), "Massimo 5000 iscritti per file: dividi il file in più parti.");
+  const titoli = righe[0].map((t) => t.trim());
+  const map = {};
+  COLONNE.forEach((c) => { map[c.k] = titoli.findIndex((t) => c.alias.includes(normT(t))); });
+  if (map.email < 0) map.email = titoli.findIndex((t) => normT(t).includes("mail"));
+  if (map.email < 0) map.email = righe[1].findIndex((v) => /@/.test(v));   // titolo non riconosciuto: la colonna con la @
+  if (map.nome < 0) map.nome = titoli.findIndex((t) => /nom/.test(normT(t)) && !/cognom/.test(normT(t)));
+  const dati = righe.slice(1);
+  const nomi = dati.map((r) => (map.nome >= 0 ? r[map.nome] || "" : "")).filter(Boolean);
+  IMP = { file: file.name, sep, titoli, righe: dati, map, maiuscole: nomi.filter((x) => x === x.toUpperCase()).length > nomi.length / 2, aggiorna: false, filtro: "" };
+  await caricaIscritti(true);
+  $("impPasso1").hidden = true; $("impPasso2").hidden = false; $("impPasso3").hidden = true;
+  disegnaImport();
+}
+function apriImport() {
+  IMP = null; $("impFile").value = ""; msg($("impMsg"), "");
+  $("impPasso1").hidden = false; $("impPasso2").hidden = true; $("impPasso3").hidden = true;
+  if (!$("dImp").open) $("dImp").showModal();
+}
+async function eseguiImport() {
+  const D = IMP.dati.filter((x) => x.stato === "nuovo" || (IMP.aggiorna && x.stato === "presente"));
+  if (!D.length) return;
+  const b = $("impVai"); b.disabled = true;
+  const tot = { creati: 0, esistenti: 0, aggiornati: 0, errori: 0, righe: [] };
+  for (let k = 0; k < D.length; k += 500) {
+    msg($("impMsg2"), `Importazione… ${Math.min(k + 500, D.length)} di ${D.length}`, true);
+    const { data, error } = await sb.rpc("admin_importa_iscritti", { p_righe: D.slice(k, k + 500).map(({ nome, email, telefono, note }) => ({ nome, email, telefono, note })), p_aggiorna: IMP.aggiorna });
+    if (error) { b.disabled = false; return msg($("impMsg2"), `Errore: ${error.message}${tot.creati ? ` (già importati ${tot.creati}: reimportando il file verranno riconosciuti)` : ""}`); }
+    ["creati", "esistenti", "aggiornati", "errori"].forEach((x) => (tot[x] += data[x] || 0)); tot.righe.push(...(data.righe || []));
+  }
+  await caricaIscritti(tab !== "iscritti");
+  const nuovi = tot.righe.filter((r) => r.esito === "creato").map((r) => r.id);
+  const err = tot.righe.filter((r) => String(r.esito).startsWith("errore"));
+  $("impPasso2").hidden = true; $("impPasso3").hidden = false;
+  $("impPasso3").innerHTML = `<div class="limbox"><span class="mut">Importazione completata</span>
+      <p><b>${tot.creati}</b> nuovi iscritti${tot.aggiornati ? ` · <b>${tot.aggiornati}</b> già presenti completati` : ""}${tot.esistenti ? ` · ${tot.esistenti} già presenti lasciati invariati` : ""}${tot.errori ? ` · <b>${tot.errori}</b> righe scartate` : ""}.</p></div>
+    ${err.length ? `<p class="mut">Righe scartate: ${err.slice(0, 20).map((r) => `${esc(r.email || "—")} (${esc(r.esito.replace("errore: ", ""))})`).join(", ")}${err.length > 20 ? "…" : ""}</p>` : ""}
+    <p class="mut">I nuovi iscritti sono nello stato «Da invitare»: non hanno ancora ricevuto nulla.</p>
+    <div class="acts end"><button class="ghost" type="button" id="impChiudi">Chiudi</button>${nuovi.length ? `<button class="btn" type="button" id="impInvita">Invia l'invito ai ${nuovi.length} nuovi iscritti</button>` : ""}</div>`;
+  $("impChiudi").onclick = () => $("dImp").close();
+  $("impInvita")?.addEventListener("click", () => { $("dImp").close(); apriInviti(nuovi); });
+}
+$("impIsc").onclick = apriImport;
+$("impFile").onchange = (e) => caricaFileImport(e.target.files[0]);
+["dragover", "dragenter"].forEach((t) => $("impDrop").addEventListener(t, (e) => { e.preventDefault(); $("impDrop").classList.add("on"); }));
+["dragleave", "drop"].forEach((t) => $("impDrop").addEventListener(t, (e) => { e.preventDefault(); $("impDrop").classList.remove("on"); }));
+$("impDrop").addEventListener("drop", (e) => caricaFileImport(e.dataTransfer.files[0]));
+
+// ------------------------------------------------------------------ inviti via email (a gruppi di 50, entro il limite giornaliero)
+let INV = null;
+async function apriInviti(preselezione) {
+  await caricaIscritti(true);
+  const { data: st } = await sb.rpc("admin_inviti_stato");
+  INV = { sel: new Set(preselezione || []), filtro: preselezione ? "sel" : "mai", q: "", stato: st || { limite: 90, oggi: 0, restanti: 90 }, invio: false };
+  disegnaInviti();
+  if (!$("dInv").open) $("dInv").showModal();
+}
+const invitabili = () => iscritti.filter((i) => !i.user_id && i.attivo);
+function disegnaInviti() {
+  const T = invitabili(), S = INV.stato, q = INV.q.toLowerCase();
+  const F = { mai: (i) => !i.inviti_n, gia: (i) => i.inviti_n > 0, tutti: () => true, sel: (i) => INV.sel.has(i.id) };
+  const vis = T.filter(F[INV.filtro] || F.tutti).filter((i) => !q || [i.nome, i.email].some((v) => String(v || "").toLowerCase().includes(q)));
+  const nSel = T.filter((i) => INV.sel.has(i.id)).length, oltre = Math.max(0, nSel - S.restanti), nInv = Math.min(nSel, S.restanti);
+  const chip = (f, t, v) => `<button class="chip" data-f="${f}" aria-pressed="${INV.filtro === f}">${t} ${v}</button>`;
+  $("invBody").innerHTML = `
+    <p class="mut">Ogni iscritto riceve un'email con un <b>codice nuovo</b> (valido 30 giorni) e il pulsante «Attiva l'app» con email e codice già inseriti. Un codice dato in precedenza smette di funzionare. Sono esclusi chi ha già l'app attiva e gli iscritti sospesi.</p>
+    <div class="limbox">Oggi puoi inviare ancora <b>${S.restanti}</b> inviti <span class="mut">(limite ${S.limite} al giorno, già inviati ${S.oggi})</span></div>
+    <label class="search" style="max-width:320px"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg><input id="invQ" type="search" placeholder="Cerca per nome o email" value="${esc(INV.q)}"></label>
+    <div class="chips" id="invF">${chip("mai", "Mai invitati", T.filter(F.mai).length)}${chip("gia", "Già invitati, app non attivata", T.filter(F.gia).length)}${chip("tutti", "Tutti senza app", T.length)}${chip("sel", "Selezionati", nSel)}</div>
+    <div class="wrap-tbl" style="max-height:330px"><table class="tbl"><thead><tr><th><input type="checkbox" id="invAll" aria-label="Seleziona tutti quelli in elenco" ${vis.length && vis.every((i) => INV.sel.has(i.id)) ? "checked" : ""}></th><th>Iscritto</th><th>Stato</th><th class="hm">Ultimo invito</th></tr></thead><tbody>${
+      vis.map((i) => `<tr><td><input type="checkbox" class="invSel" value="${i.id}" ${INV.sel.has(i.id) ? "checked" : ""}></td><td><b>${esc(i.nome)}</b><small style="display:block;color:var(--mut)">${esc(i.email)}</small></td>
+        <td><span class="pill ${(STATI[i.stato] || ["", ""])[1]}">${esc((STATI[i.stato] || [i.stato])[0])}</span></td><td class="hm">${i.invito_at ? `${fDate.format(new Date(i.invito_at))}${i.inviti_n > 1 ? ` <span class="mut">(${i.inviti_n} volte)</span>` : ""}` : '<span class="mut">mai</span>'}</td></tr>`).join("")
+      || '<tr><td colspan="4" class="mut">Nessun iscritto in questo elenco.</td></tr>'}</tbody></table></div>
+    ${oltre ? `<p class="msg ko">Hai selezionato ${nSel} iscritti ma oggi ne restano ${S.restanti}: partono i primi ${S.restanti} in ordine alfabetico, gli altri restano selezionati per domani.</p>` : ""}
+    <div class="acts end"><button class="ghost" type="button" id="invChiudi">Chiudi</button><button class="btn" type="button" id="invVai" ${nInv && !INV.invio ? "" : "disabled"}>Invia ${nInv} ${nInv === 1 ? "invito" : "inviti"}</button></div>
+    <p class="msg" id="invMsg" role="status"></p><div id="invEsito"></div>`;
+  $("invChiudi").onclick = () => $("dInv").close();
+  $("invQ").oninput = (e) => { INV.q = e.target.value; const p = e.target.selectionStart; disegnaInviti(); $("invQ").focus(); $("invQ").setSelectionRange(p, p); };
+  $("invF").onclick = (e) => { const b = e.target.closest("[data-f]"); if (b) { INV.filtro = b.dataset.f; disegnaInviti(); } };
+  $("invAll").onchange = (e) => { vis.forEach((i) => (e.target.checked ? INV.sel.add(i.id) : INV.sel.delete(i.id))); disegnaInviti(); };
+  $("invBody").querySelectorAll(".invSel").forEach((c) => (c.onchange = () => { c.checked ? INV.sel.add(c.value) : INV.sel.delete(c.value); disegnaInviti(); }));
+  $("invVai").onclick = inviaInviti;
+}
+async function inviaInviti() {
+  const T = invitabili().filter((i) => INV.sel.has(i.id)).sort((a, b) => a.nome.localeCompare(b.nome, "it"));
+  const ids = T.slice(0, INV.stato.restanti).map((i) => i.id);
+  if (!ids.length) return;
+  if (!(await ask(`Inviare ${ids.length} ${ids.length === 1 ? "invito" : "inviti"}?`, `Partono subito le email da noreply@whynotfitnessclub.com con codice e link per attivare l'app.${ids.length > 50 ? " L'invio avviene a gruppi di 50: non chiudere la pagina finché non finisce." : ""}`, "Invia"))) return;
+  INV.invio = true; $("invVai").disabled = true;
+  const tot = { inviati: 0, errori: [], esclusi: [] };
+  for (let k = 0; k < ids.length; k += 50) {
+    const gruppo = ids.slice(k, k + 50);
+    msg($("invMsg"), `Invio in corso… ${Math.min(k + 50, ids.length)} di ${ids.length}`, true);
+    try {
+      const r = await api("/api/inviti", { ids: gruppo });
+      tot.inviati += r.inviati || 0; tot.errori.push(...(r.errori || [])); tot.esclusi.push(...(r.esclusi || []));
+      if (r.stato) INV.stato = r.stato;
+      const ko = new Set([...(r.errori || []), ...(r.esclusi || [])].map((x) => x.id));
+      gruppo.forEach((id) => { if (!ko.has(id)) INV.sel.delete(id); });
+    } catch (err) { tot.errori.push({ email: `gruppo ${k / 50 + 1}`, errore: err.message }); break; }
+  }
+  INV.invio = false;
+  await caricaIscritti(tab !== "iscritti");
+  const { data: st } = await sb.rpc("admin_inviti_stato"); if (st) INV.stato = st;
+  disegnaInviti();
+  $("invEsito").innerHTML = `<div class="limbox"><span class="mut">Esito</span><p><b>${tot.inviati}</b> ${tot.inviati === 1 ? "invito inviato" : "inviti inviati"}${tot.errori.length ? ` · <b>${tot.errori.length}</b> non riusciti` : ""}${tot.esclusi.length ? ` · ${tot.esclusi.length} esclusi` : ""}.</p>
+    ${tot.errori.length ? `<p class="mut">Non riusciti (restano selezionati, puoi riprovare): ${tot.errori.slice(0, 15).map((x) => `${esc(x.email)} – ${esc(x.errore)}`).join("; ")}${tot.errori.length > 15 ? "…" : ""}</p>` : ""}
+    ${tot.esclusi.length ? `<p class="mut">Esclusi: ${tot.esclusi.slice(0, 15).map((x) => `${esc(x.nome)} (${esc(x.motivo)})`).join(", ")}${tot.esclusi.length > 15 ? "…" : ""}</p>` : ""}
+    <p class="mut">Le email rimbalzate (indirizzo inesistente o casella piena) si vedono nel pannello di Resend, sezione Emails.</p></div>`;
+}
+$("invIsc").onclick = () => apriInviti();

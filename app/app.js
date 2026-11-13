@@ -46,7 +46,19 @@ async function avvia() {
     form("fReset"); show("vAuth");
     return msg($("mReset"), "Il link è scaduto o è già stato usato: inserisci la tua email per riceverne uno nuovo.", false);
   }
-  if (!session) { form(new URLSearchParams(location.search).has("attiva") ? "fAtt" : "fLogin"); show("vAuth"); return; }
+  if (!session) {
+    const q = new URLSearchParams(location.search);
+    form(q.has("attiva") ? "fAtt" : "fLogin");
+    // link dell'email di invito: email e codice già inseriti, poi tolti dall'indirizzo
+    if (q.has("attiva") && (q.get("e") || q.get("c"))) {
+      const f = $("fAtt");
+      if (q.get("e")) f.email.value = q.get("e").trim().toLowerCase();
+      if (q.get("c")) f.codice.value = q.get("c").replace(/[^A-Za-z0-9]/g, "").toUpperCase().slice(0, 12);
+      history.replaceState(null, "", location.pathname + "?attiva");
+      setTimeout(() => f.password.focus(), 50);
+    }
+    show("vAuth"); return;
+  }
   await entra();
 }
 

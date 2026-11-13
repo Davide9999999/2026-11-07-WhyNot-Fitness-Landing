@@ -54,7 +54,7 @@
         <span data-for="home" class="acts"><button class="ghost sm" data-act="avviso"><svg viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg><span>Invia avviso</span></button></span>
         <span data-for="home cal" class="acts"><button class="ghost sm" data-act="genera"><svg viewBox="0 0 24 24"><path d="M4 4v6h6M20 20v-6h-6"/><path d="M20 10A8 8 0 0 0 6 6L4 10M4 14a8 8 0 0 0 14 4l2-4"/></svg><span>Genera dal palinsesto</span></button><button class="btn sm" data-act="nuova"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Nuova lezione</button></span>
         <span data-for="schede" class="acts"><button class="btn sm" id="newScheda"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Nuova scheda</button></span>
-        <span data-for="iscritti" class="acts"><button class="btn sm" id="newIsc"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Nuovo iscritto</button></span>
+        <span data-for="iscritti" class="acts"><button class="ghost sm" id="impIsc" title="Importa gli iscritti da un file CSV (es. esportato dal gestionale)"><svg viewBox="0 0 24 24"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>Importa CSV</button><button class="ghost sm" id="invIsc" title="Invia per email il codice e il link per attivare l'app"><svg viewBox="0 0 24 24"><path d="M3 6h18v12H3z"/><path d="m3 7 9 6 9-6"/></svg>Invia inviti</button><button class="btn sm" id="newIsc"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Nuovo iscritto</button></span>
         <span data-for="palinsesto" class="acts"><button class="ghost sm" id="addCorso">+ Corso</button><button class="btn sm" id="newSlot">+ Fascia oraria</button></span>
         <span data-for="bacheca" class="acts"><button class="btn sm" data-act="avviso">+ Nuovo avviso</button></span>
         <span data-for="stat" class="acts"><button class="ghost sm" id="expPren">Esporta prenotazioni (CSV)</button></span>
@@ -266,11 +266,36 @@
       <label>Nome e cognome<input name="nome" required minlength="2" maxlength="80" autocomplete="off"></label>
       <div class="row"><label>Email (accesso all'app)<input name="email" type="email" required autocomplete="off"></label><label>Telefono<input name="telefono" type="tel" autocomplete="off"></label></div>
       <label class="admin-only">Collaboratore<select name="ruolo"><option value="">No, solo iscritto</option><option value="staff">Staff (accesso all'area staff)</option><option value="admin">Admin</option><option value="istruttore">Istruttore (vede solo le sue lezioni)</option></select></label>
+      <label class="chk"><input type="checkbox" name="invia" checked> Invia subito l'invito via email (codice + link per attivare l'app)</label>
       <p class="mut">Dopo il salvataggio ricevi un codice di attivazione valido 30 giorni: l'iscritto lo usa con questa email per attivare l'app.</p>
       <div class="acts end"><button class="ghost" type="button" data-close>Annulla</button><button class="btn" type="submit">Crea e genera codice</button></div>
       <p class="msg" id="iscMsg" role="status"></p>
     </form>
     <div id="iscDone"></div>
+  </div>
+</dialog>
+
+<!-- IMPORTA ISCRITTI DA CSV -->
+<dialog id="dImp" class="sheet wide">
+  <div class="sheet-body">
+    <button class="close" type="button" data-close aria-label="Chiudi">&times;</button>
+    <h2>Importa iscritti da CSV</h2>
+    <div id="impPasso1">
+      <p class="mut">Esporta dal gestionale l'elenco degli iscritti in formato CSV (da Excel: <i>Salva con nome &rarr; CSV</i>). Servono almeno <b>nome</b> (o nome e cognome in due colonne) ed <b>email</b>; il telefono è facoltativo. La prima riga deve contenere i titoli delle colonne.</p>
+      <label class="drop" id="impDrop"><input type="file" id="impFile" accept=".csv,.txt,text/csv"><b>Scegli il file CSV</b><span class="mut">oppure trascinalo qui</span></label>
+      <p class="msg" id="impMsg" role="status"></p>
+    </div>
+    <div id="impPasso2" hidden></div>
+    <div id="impPasso3" hidden></div>
+  </div>
+</dialog>
+
+<!-- INVITI VIA EMAIL -->
+<dialog id="dInv" class="sheet wide">
+  <div class="sheet-body">
+    <button class="close" type="button" data-close aria-label="Chiudi">&times;</button>
+    <h2>Invia inviti all'app</h2>
+    <div id="invBody"></div>
   </div>
 </dialog>
 

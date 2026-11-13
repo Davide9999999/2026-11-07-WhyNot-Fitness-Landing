@@ -12,6 +12,7 @@
 
 import Anthropic from "@anthropic-ai/sdk";
 import { giroNotifiche, pulisci } from "./push.js";
+import { inviti } from "./inviti.js";
 
 const DEFAULT_MODEL = "claude-opus-5-5";
 const MAX_ITERAZIONI = 8;
@@ -363,6 +364,7 @@ export default {
       try {
         if (url.pathname === "/api/chat") return await chat(request, env);
         if (url.pathname === "/api/execute") return await execute(request, env);
+        if (url.pathname === "/api/inviti") return await inviti(request, env, json, autentica);
       } catch (e) {
         return json({ error: "Errore interno: " + String(e.message || e) }, 500);
       }

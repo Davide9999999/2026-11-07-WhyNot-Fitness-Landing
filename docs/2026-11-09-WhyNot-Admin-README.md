@@ -183,3 +183,20 @@ Collaudo del 2026-11-11 (account): 3 account ripristinati con impronta password 
   - Togliere la prenotazione: niente limite di posti; chi era in lista d'attesa nelle prossime lezioni entra subito tra i confermati.
   - La stessa scelta resta disponibile anche nella scheda del corso.
 - **Notifiche**: su Android l'icona piccola nella barra di stato ora è il simbolo «?» del logo (bianco su trasparente, come richiede Android); l'immagine grande della notifica resta il logo completo. Su iPhone iOS usa sempre l'icona dell'app installata. I telefoni prendono la nuova icona al prossimo aggiornamento dell'app (versione v16).
+
+## 18. Import iscritti da CSV e inviti via email (2026-11-13) — `supabase/2026-11-13-WhyNot-inviti-import.sql`
+
+**Importa CSV** (Iscritti → Importa CSV)
+- File CSV con la prima riga di titoli (da Excel: Salva con nome → CSV). Servono nome (o nome e cognome in due colonne) ed email; telefono e note facoltativi.
+- Le colonne vengono riconosciute da sole (Nome, Cognome, Nominativo, E-mail, Cellulare, Telefono, Abbonamento…); si possono correggere dai menu.
+- Gestiti: separatore `;` `,` tab; file UTF-8 o Windows (Excel italiano); nomi in MAIUSCOLO (convertibili in Maiuscole iniziali); email con spazi o più indirizzi nella cella (si usa la prima); telefoni in formato Excel `3,4E+09` (scartati con avviso); doppioni nel file (importati una volta); iscritti già presenti (saltati, oppure completati con telefono/note mancanti se spunti l'opzione).
+- Le righe senza email valida o senza nome non vengono importate: correggile nel file e reimportalo (le righe già importate risultano «già presenti»).
+- Gli importati sono «Da invitare»: non ricevono nulla finché non mandi l'invito. Massimo 5000 righe per file.
+
+**Invia inviti** (Iscritti → Invia inviti, oppure dalla scheda dell'iscritto, oppure spuntando «Invia subito l'invito» quando crei un iscritto)
+- Email da `noreply@whynotfitnessclub.com` con un codice nuovo (30 giorni) e il pulsante «Attiva l'app» che apre l'app con email e codice già inseriti, più le istruzioni per installarla su iPhone e Android.
+- Ogni invito sostituisce il codice precedente. Esclusi chi ha già l'app e gli iscritti sospesi.
+- Limite giornaliero: 90 inviti (impostazione `inviti_limite_giorno`; Resend gratuito = 100 email al giorno comprese quelle di reset password). Oltre il limite l'admin lo segnala e il resto si manda il giorno dopo.
+- Invio a gruppi di 50; chi non riceve l'email resta selezionato per riprovare. Le email rimbalzate si vedono nel pannello di Resend (Emails).
+- Nella lista iscritti compare «invitato il …»; filtri «Mai invitati» e «Già invitati, app non attivata» per i solleciti.
+- Richiede il secret `RESEND_API_KEY` nel Worker Cloudflare (Settings → Variables and Secrets): la chiave non è mai nel codice né nel browser.
