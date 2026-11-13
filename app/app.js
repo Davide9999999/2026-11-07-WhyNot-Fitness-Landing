@@ -10,7 +10,11 @@ let session = null, prof = null, lezioni = [], mie = [], giornoSel = null, catSe
 const show = (id) => ["vLoad", "vAuth", "vApp"].forEach((v) => ($(v).hidden = v !== id));
 function msg(el, t, ok) { el.className = "msg" + (t ? (ok ? " ok" : " ko") : ""); el.textContent = t || ""; }
 let tt;
-function toast(t, ok = true) { const el = $("toast"); el.textContent = t; el.className = "toast show " + (ok ? "ok" : "ko"); clearTimeout(tt); tt = setTimeout(() => (el.className = "toast"), 3000); }
+function toast(t, ok = true) {
+  // con una scheda aperta il messaggio va dentro la scheda, altrimenti resterebbe coperto
+  const el = $("toast"), sh = $("sheet"), host = sh?.open ? sh : document.body;
+  if (el.parentNode !== host) host.appendChild(el);
+  el.textContent = t; el.className = "toast show " + (ok ? "ok" : "ko"); clearTimeout(tt); tt = setTimeout(() => (el.className = "toast"), 3000); }
 function busy(b, on, t) { if (on) { b.dataset.t = b.textContent; b.textContent = t || "Attendere..."; } else b.textContent = b.dataset.t || b.textContent; b.disabled = on; }
 const mappa = (d) => ({ ...d, d: new Date(d.inizio), f: new Date(d.fine), col: catColor(d.categoria) });
 
@@ -571,45 +575,80 @@ function valuta(pid) {
 }
 
 // ------------------------------------------------------------------ schede: elenco
-let schede = [], cues = new Map();
+// I carichi registrati si leggono una volta con l'elenco: aprire una scheda è immediato.
+let schede = [], cues = new Map(), regCache = [];
+const WO_KEY = "whynot-allenamento";   // allenamento in corso (si riprende se si chiude la scheda)
+const leggiWo = () => { try { const v = JSON.parse(localStorage.getItem(WO_KEY) || "null"); return v && v.data === oggiK() ? v : null; } catch { return null; } };
+const salvaWo = (v) => { try { v ? localStorage.setItem(WO_KEY, JSON.stringify(v)) : localStorage.removeItem(WO_KEY); } catch {} };
+
 async function caricaSchede() {
-  const { data, error } = await sb.rpc("mie_schede");
-  if (error) { $("schedeList").innerHTML = `<p class="empty"><b>Impossibile caricare le schede</b>${esc(error.message)}</p>`; return; }
-  schede = data || [];
+  if (!schede.length) $("schedeList").innerHTML = '<div class="sch sk"></div><div class="sch sk"></div>';
+  const [a, b] = await Promise.all([sb.rpc("mie_schede"), sb.rpc("miei_carichi")]);
+  if (a.error) { $("schedeList").innerHTML = `<p class="empty"><b>Impossibile caricare le schede</b>${esc(a.error.message)}</p>`; return; }
+  schede = a.data || []; regCache = b.data || [];
+  disegnaElenco();
+}
+function giornoSuggerito(s) {
+  const G = s.struttura?.giorni || [];
+  if (G.length < 2) return 0;
+  const mie = regCache.filter((r) => r.scheda_id === s.id);
+  if (!mie.length) return 0;
+  const oggi = mie.find((r) => r.data === oggiK());
+  return oggi ? Math.min(oggi.giorno, G.length - 1) : (mie[0].giorno + 1) % G.length;
+}
+function disegnaElenco() {
+  const inCorso = leggiWo();
   $("schedeList").innerHTML = schede.map((s, k) => {
-    const g = s.struttura?.giorni || [], nEs = g.reduce((t, d) => t + (d.esercizi || []).length, 0);
-    const info = [g.length ? `${g.length} ${g.length === 1 ? "allenamento" : "allenamenti"}` : "", nEs ? `${nEs} esercizi` : "", s.struttura?.frequenza ? `${s.struttura.frequenza} volte a settimana` : "", s.struttura?.settimane ? `${s.struttura.settimane} settimane` : ""].filter(Boolean).join(" · ");
-    return `<button class="sch" data-sch="${k}"><span class="tag${s.personale ? " ok" : ""}">${s.personale ? "Per te" : "Per tutti"}</span>
-      <b>${esc(s.titolo)}</b><small>${esc([s.obiettivo, s.livello].filter(Boolean).join(" · ") || "Scheda di allenamento")}</small>${info ? `<small>${esc(info)}</small>` : ""}${s.descrizione ? `<p>${esc(s.descrizione)}</p>` : ""}</button>`;
+    const st = s.struttura, g = st?.giorni || [], nEs = g.reduce((t, d) => t + (d.esercizi || []).length, 0);
+    const meta = [g.length > 1 ? `${g.length} allenamenti` : "", nEs ? `${nEs} ${nEs === 1 ? "esercizio" : "esercizi"}` : "", st?.frequenza ? `${st.frequenza}× a settimana` : "", st?.settimane ? `${st.settimane} settimane` : ""].filter(Boolean);
+    const mie = regCache.filter((r) => r.scheda_id === s.id), ult = mie[0];
+    const live = inCorso && inCorso.id === s.id;
+    const prossimo = g.length ? (live ? `Riprendi: ${g[inCorso.g]?.nome || "allenamento"}` : g.length > 1 ? `Prossimo: ${g[giornoSuggerito(s)].nome}` : "Inizia l'allenamento") : "Leggi la scheda";
+    return `<button class="sch${live ? " live" : ""}" data-sch="${k}">
+      <span class="schtop"><span class="tag${s.personale ? " ok" : ""}">${s.personale ? "Per te" : "Per tutti"}</span>${live ? '<span class="tag live">In corso</span>' : ""}</span>
+      <b>${esc(s.titolo)}</b>
+      ${[s.obiettivo, s.livello].filter(Boolean).length ? `<small>${esc([s.obiettivo, s.livello].filter(Boolean).join(" · "))}</small>` : ""}
+      ${meta.length ? `<span class="schmeta">${meta.map((t) => `<span>${esc(t)}</span>`).join("")}</span>` : ""}
+      ${s.descrizione ? `<p>${esc(s.descrizione)}</p>` : ""}
+      ${ult ? `<small class="schlast">Ultimo allenamento: ${esc(fDataBreve.format(new Date(ult.data + "T12:00:00Z")))}${g.length > 1 && g[ult.giorno] ? ` · ${esc(g[ult.giorno].nome)}` : ""}</small>` : ""}
+      <span class="schgo">${esc(prossimo)}<svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></span></button>`;
   }).join("") || '<div class="empty"><b>Ancora nessuna scheda</b>Quando la palestra pubblica una scheda di allenamento per te o per tutti la trovi qui.</div>';
 }
 $("schedeList").addEventListener("click", (e) => { const b = e.target.closest("[data-sch]"); if (b) apriSchedaApp(schede[Number(b.dataset.sch)]); });
 
 // ------------------------------------------------------------------ schede: lettura e modalità allenamento (con carichi)
-let wo = null, timer = null;
+let wo = null, timer = null, recFine = 0, recTot = 0, wakeLock = null;
 const fmtRec = (s) => (!s ? "" : s >= 60 ? `${Math.floor(s / 60)}'${s % 60 ? String(s % 60).padStart(2, "0") + '"' : ""}` : `${s}"`);
 const fmtKg = (v) => (v == null || v === "" ? "" : String(Number(v)).replace(".", ","));
 const numero = (v) => { const n = parseFloat(String(v ?? "").replace(",", ".")); return Number.isFinite(n) ? n : null; };
 const conCarico = (x) => !x.tipo || x.tipo === "forza";
 const oggiK = () => dayKey(new Date());
 const fDataBreve = new Intl.DateTimeFormat("it-IT", { timeZone: "Europe/Rome", day: "numeric", month: "short" });
+const giorni = () => wo.s.struttura?.giorni || [];
+const esercizi = () => giorni()[wo.g]?.esercizi || [];
 
-async function apriSchedaApp(s) {
-  wo = { s, g: 0, attivo: false, reg: [], bozza: {} };
-  const ids = [...new Set((s.struttura?.giorni || []).flatMap((g) => (g.esercizi || []).map((x) => x.id)).filter((id) => id && !cues.has(id)))];
-  const [, r] = await Promise.all([
-    ids.length ? sb.from("esercizi").select("id,descrizione,attrezzo").in("id", ids).then(({ data }) => (data || []).forEach((x) => cues.set(x.id, x))) : null,
-    s.struttura?.giorni?.length ? sb.rpc("miei_carichi") : { data: [] },
-  ]);
-  wo.reg = r?.data || [];
+function apriSchedaApp(s) {
+  const ripresa = leggiWo();
+  const riprendi = ripresa && ripresa.id === s.id;
+  wo = { s, g: riprendi ? Math.min(ripresa.g, Math.max(0, (s.struttura?.giorni || []).length - 1)) : giornoSuggerito(s), attivo: !!riprendi, inizio: riprendi ? ripresa.inizio : 0, reg: regCache, bozza: {}, mano: new Set(), aperto: null };
+  if (wo.attivo) { wo.aperto = primoDaFare(); schermoAcceso(true); }
   sheet.classList.add("tall");
   disegnaScheda();
   if (!sheet.open) sheet.showModal();
+  sheet.querySelector(".sh").scrollTop = 0;
+  // spiegazioni degli esercizi: arrivano dopo, senza bloccare l'apertura
+  const ids = [...new Set((s.struttura?.giorni || []).flatMap((g) => (g.esercizi || []).map((x) => x.id)).filter((id) => id && !cues.has(id)))];
+  if (ids.length) sb.from("esercizi").select("id,descrizione,attrezzo").in("id", ids).then(({ data }) => { (data || []).forEach((x) => cues.set(x.id, x)); if (wo?.s === s) riempiCues(); });
 }
-sheet.addEventListener("close", () => { sheet.classList.remove("tall"); fermaTimer(); wo = null; });
+sheet.addEventListener("close", () => {
+  if (!wo) return;
+  sheet.classList.remove("tall"); fermaTimer(); schermoAcceso(false); wo = null;
+  if (pagina === "pSchede" && schede.length) disegnaElenco();
+});
 
-// serie già fatte oggi (dal database) per l'esercizio i del giorno corrente
+// serie già fatte oggi per l'esercizio i del giorno corrente
 const fatteOggi = (i) => wo.reg.filter((r) => r.scheda_id === wo.s.id && r.giorno === wo.g && r.esercizio_idx === i && r.data === oggiK());
+const completo = (i) => fatteOggi(i).length >= (Number(esercizi()[i]?.serie) || 1);
 // ultima sessione precedente dello stesso esercizio (anche da altre schede)
 function ultimaVolta(x) {
   const prima = wo.reg.filter((r) => r.data < oggiK() && (x.id ? r.esercizio_id === x.id : r.esercizio === x.nome));
@@ -622,119 +661,244 @@ function suggerimento(x, uv) {
   const obiettivo = Math.max(...String(x.rip || "").split(/[^0-9]+/).map(Number).filter(Boolean), 0);
   const kg = Math.max(...uv.serie.map((r) => Number(r.kg) || 0));
   if (!obiettivo || !kg || uv.serie.length < (Number(x.serie) || 1)) return "";
-  return uv.serie.every((r) => (r.rip || 0) >= obiettivo) ? `Ultima volta hai completato tutte le ripetizioni: prova ${fmtKg(kg + (kg >= 40 ? 2.5 : 1))} kg.` : "";
+  return uv.serie.every((r) => (r.rip || 0) >= obiettivo) ? `L'ultima volta hai completato tutte le ripetizioni: prova ${fmtKg(kg + (kg >= 40 ? 2.5 : 1))} kg.` : "";
 }
 function etichette(L) {
+  // 1, 2, 3A, 3B, 4: gli esercizi in superserie hanno lo stesso numero e una lettera
   let gr = 0, pos = 0;
-  return L.map((x, k) => { if (k === 0 || !L[k - 1].ss) { gr++; pos = 1; } else pos++; return x.ss || (k > 0 && L[k - 1].ss) ? `${"ABCDEFGHIJ"[(gr - 1) % 10]}${pos}` : String(k + 1); });
+  return L.map((x, k) => { if (k === 0 || !L[k - 1].ss) { gr++; pos = 1; } else pos++; return x.ss || (k > 0 && L[k - 1].ss) ? `${gr}${"ABCDEFGHIJ"[(pos - 1) % 10]}` : String(gr); });
 }
+// esercizi in superserie: si mostrano aperti insieme
+function gruppo(i) {
+  const L = esercizi(); if (i == null || !L[i]) return [];
+  let a = i, b = i;
+  while (a > 0 && L[a - 1].ss) a--;
+  while (b < L.length - 1 && L[b].ss) b++;
+  return Array.from({ length: b - a + 1 }, (_, k) => a + k);
+}
+function primoDaFare() { const L = esercizi(); const i = L.findIndex((x, k) => !completo(k)); return i < 0 ? null : i; }
+
 function disegnaScheda() {
-  const s = wo.s, st = s.struttura, G = st?.giorni || [];
-  const testa = `<span class="k" style="color:var(--red-hi)">${s.personale ? "Scheda per te" : "Scheda"}</span><h2>${esc(s.titolo)}</h2>
-    <div class="kv">${[s.obiettivo, s.livello, st?.frequenza ? `${st.frequenza}× a settimana` : "", st?.settimane ? `${st.settimane} settimane` : ""].filter(Boolean).map((t) => `<span>${esc(t)}</span>`).join("")}</div>`;
+  const s = wo.s, st = s.struttura, G = giorni();
+  const testa = `<div class="whead"><span class="k" style="color:var(--red-hi)">${s.personale ? "Scheda per te" : "Scheda"}</span><h2>${esc(s.titolo)}</h2>
+    ${wo.attivo ? "" : `<div class="kv">${[s.obiettivo, s.livello, st?.frequenza ? `${st.frequenza}× a settimana` : "", st?.settimane ? `${st.settimane} settimane` : ""].filter(Boolean).map((t) => `<span>${esc(t)}</span>`).join("")}</div>`}</div>`;
   if (!G.length) {   // vecchia scheda di solo testo
-    $("shBody").innerHTML = testa + `${s.descrizione ? `<p class="sdesc">${esc(s.descrizione)}</p>` : ""}<div class="schtxt">${esc(s.contenuto || "")}</div><div class="btns"><button class="btn ghost" id="shNo">Chiudi</button></div>`;
+    $("shBody").innerHTML = testa + `${s.descrizione ? `<p class="sdesc">${esc(s.descrizione)}</p>` : ""}<div class="schtxt">${esc(s.contenuto || "")}</div><div class="wfoot"><div class="btns"><button class="btn ghost" id="shNo">Chiudi</button></div></div>`;
     $("shNo").onclick = () => sheet.close(); return;
   }
   const g = G[wo.g], L = g.esercizi || [], et = etichette(L);
-  const totSerie = L.reduce((t, x) => t + (Number(x.serie) || 1), 0), fatte = L.reduce((t, x, i) => t + fatteOggi(i).length, 0);
+  const ultimoGiorno = (i) => { const r = wo.reg.find((r) => r.scheda_id === s.id && r.giorno === i); return r ? (r.data === oggiK() ? "oggi" : fDataBreve.format(new Date(r.data + "T12:00:00Z"))) : ""; };
   $("shBody").innerHTML = testa
     + (s.descrizione && !wo.attivo ? `<p class="sdesc">${esc(s.descrizione)}</p>` : "")
-    + (G.length > 1 ? `<div class="seg sm wseg">${G.map((d, i) => `<button type="button" data-wg="${i}" aria-selected="${i === wo.g}">${esc(d.nome)}</button>`).join("")}</div>` : "")
-    + (wo.attivo || fatte ? `<div class="wprog"><span>${fatte} di ${totSerie} serie oggi</span><i><b style="width:${Math.round((100 * fatte) / Math.max(1, totSerie))}%"></b></i></div>` : "")
+    + (G.length > 1 ? `<div class="wdays" role="tablist">${G.map((d, i) => { const u = ultimoGiorno(i); return `<button type="button" role="tab" data-wg="${i}" aria-selected="${i === wo.g}"><b>${esc(d.nome)}</b><small>${u ? (u === "oggi" ? "fatto oggi" : `ultimo ${esc(u)}`) : `${(d.esercizi || []).length} ${(d.esercizi || []).length === 1 ? "esercizio" : "esercizi"}`}</small></button>`; }).join("")}</div>` : "")
+    + '<div id="wProg"></div>'
     + (g.note ? `<p class="wnote">${esc(g.note)}</p>` : "")
-    + `<div class="wl">${L.map((x, i) => cardEsercizio(x, i, et[i])).join("")}</div>`
+    + `<div class="wl" id="wList">${L.map((x, i) => cardEsercizio(x, i, et[i])).join("")}</div>`
     + (st.note && !wo.attivo ? `<p class="wnote">${esc(st.note)}</p>` : "")
-    + `<div class="btns">${wo.attivo ? `<button class="btn" id="woFine">Termina allenamento</button>` : `<button class="btn" id="woVia">▶ ${fatte ? "Continua" : "Inizia"} allenamento</button>`}<button class="btn ghost" id="shNo">Chiudi</button></div>`
-    + '<div class="wtimer" id="wTimer" hidden><span id="wTxt"></span><button type="button" id="wSkip">Salta</button></div>';
+    + `<div class="wfoot">
+        <div class="wtimer" id="wTimer"${timer ? "" : " hidden"}><i id="wBar"></i><button type="button" data-rec="-15" aria-label="Togli 15 secondi">−15</button><span id="wTxt"></span><button type="button" data-rec="15" aria-label="Aggiungi 15 secondi">+15</button><button type="button" id="wSkip">Salta</button></div>
+        <div class="btns two">${wo.attivo ? `<button class="btn ghost" id="shNo">Chiudi</button><button class="btn" id="woFine">Termina</button>` : `<button class="btn ghost" id="shNo">Chiudi</button><button class="btn" id="woVia">▶ ${L.some((x, i) => fatteOggi(i).length) ? "Continua" : "Inizia"}</button>`}</div>
+      </div>`;
+  aggiornaProgresso(); riempiCues();
   $("shNo").onclick = () => sheet.close();
-  $("woVia")?.addEventListener("click", () => { wo.attivo = true; disegnaScheda(); });
-  $("woFine")?.addEventListener("click", () => {
-    const n = L.reduce((t, x, i) => t + fatteOggi(i).length, 0);
-    const vol = L.reduce((t, x, i) => t + fatteOggi(i).reduce((a, r) => a + (Number(r.kg) || 0) * (r.rip || 0), 0), 0);
-    toast(n ? `Allenamento completato: ${n} serie${vol ? ` · ${Math.round(vol).toLocaleString("it-IT")} kg sollevati` : ""}. Ottimo lavoro!` : "Allenamento chiuso.");
-    wo.attivo = false; fermaTimer(); disegnaScheda();
-  });
+  $("woVia")?.addEventListener("click", iniziaAllenamento);
+  $("woFine")?.addEventListener("click", terminaAllenamento);
   $("wSkip").onclick = fermaTimer;
 }
+function aggiornaProgresso() {
+  const L = esercizi(), box = $("wProg"); if (!box) return;
+  const tot = L.reduce((t, x) => t + (Number(x.serie) || 1), 0), fatte = L.reduce((t, x, i) => t + Math.min(fatteOggi(i).length, Number(x.serie) || 1), 0);
+  const nEs = L.filter((x, i) => completo(i)).length;
+  box.innerHTML = wo.attivo || fatte ? `<div class="wprog"><span>${nEs}/${L.length} esercizi · ${fatte}/${tot} serie</span><i><b style="width:${Math.round((100 * fatte) / Math.max(1, tot))}%"></b></i></div>` : "";
+}
+function riempiCues() {
+  document.querySelectorAll("#wList [data-cue]").forEach((d) => {
+    const c = cues.get(Number(d.dataset.cue)) || cues.get(d.dataset.cue);
+    if (c?.descrizione && d.hidden) { d.querySelector("p").textContent = c.descrizione; d.hidden = false; }
+    const a = d.closest(".wx")?.querySelector(".watt");
+    if (a && c?.attrezzo && !a.textContent) a.textContent = ` · ${c.attrezzo}`;
+  });
+}
+
 function cardEsercizio(x, i, etichetta) {
-  const c = cues.get(x.id), n = Number(x.serie) || 1, oggi = fatteOggi(i), uv = ultimaVolta(x), sug = suggerimento(x, uv);
+  const n = Number(x.serie) || 1, oggi = fatteOggi(i), fatto = oggi.length >= n;
+  const aperto = !wo.attivo || gruppo(wo.aperto).includes(i);
   const param = [`${n} × ${esc(x.rip || "")}`, x.carico ? esc(x.carico) : "", x.rec ? `rec ${fmtRec(x.rec)}` : ""].filter(Boolean).join(" · ");
+  const stato = wo.attivo ? `<span class="wst${fatto ? " ok" : oggi.length ? " part" : ""}">${fatto ? "✓" : `${oggi.length}/${n}`}</span>` : "";
+  const testa = `<span class="wn">${etichetta}</span><span class="wt"><b>${esc(x.nome)}</b><small>${esc(x.gruppo || "")}<span class="watt"></span></small><span class="wp">${param}</span></span>${stato}`;
+  if (wo.attivo && !aperto) {
+    return `<article class="wx chiuso${fatto ? " ok" : ""}${x.ss ? " ss" : ""}" data-i="${i}"><button type="button" class="wh" data-apri="${i}" aria-expanded="false">${testa}</button></article>`;
+  }
+  const uv = ultimaVolta(x), sug = suggerimento(x, uv);
   const ultima = uv && conCarico(x) ? `<p class="wlast">Ultima volta (${esc(fDataBreve.format(new Date(uv.data + "T12:00:00Z")))}): ${uv.serie.map((r) => `${r.kg != null ? fmtKg(r.kg) + " kg" : "—"}${r.rip != null ? ` × ${r.rip}` : ""}`).join(" · ")}</p>` : "";
   let serie = "";
   if (wo.attivo && conCarico(x)) {
     const pianificati = numero(x.carico), obiettivo = (String(x.rip || "").match(/\d+/g) || []).map(Number).pop() ?? "";
-    serie = `<div class="srows">${Array.from({ length: n }, (_, j) => {
+    const prossima = Array.from({ length: n }, (_, j) => j).find((j) => !oggi.some((r) => r.serie === j + 1));
+    serie = `<div class="srows"><div class="shd"><span></span><span>kg</span><span>rip</span><span></span></div>${Array.from({ length: n }, (_, j) => {
       const fatta = oggi.find((r) => r.serie === j + 1), b = wo.bozza[`${i}:${j}`] || {}, prec = uv?.serie[Math.min(j, uv.serie.length - 1)];
       const kg = fatta ? fmtKg(fatta.kg) : b.kg ?? fmtKg(prec?.kg ?? pianificati ?? ""), rip = fatta ? fatta.rip ?? "" : b.rip ?? (prec?.rip ?? obiettivo);
-      return `<div class="srow${fatta ? " fatta" : ""}"><span class="sn">${j + 1}</span>
-        <label><input inputmode="decimal" data-kg="${i}:${j}" value="${esc(kg)}" placeholder="kg" aria-label="Chili serie ${j + 1}" ${fatta ? "disabled" : ""}><small>kg</small></label><span class="sx">×</span>
-        <label><input inputmode="numeric" data-rp="${i}:${j}" value="${esc(rip)}" placeholder="rip" aria-label="Ripetizioni serie ${j + 1}" ${fatta ? "disabled" : ""}><small>rip</small></label>
+      return `<div class="srow${fatta ? " fatta" : ""}${j === prossima ? " ora" : ""}"><span class="sn">${j + 1}</span>
+        <span class="stp"><button type="button" data-st="kg:${i}:${j}:-1" aria-label="Meno chili" ${fatta ? "disabled" : ""}>−</button><input inputmode="decimal" data-kg="${i}:${j}" value="${esc(kg)}" placeholder="–" aria-label="Chili serie ${j + 1}" ${fatta ? "disabled" : ""}><button type="button" data-st="kg:${i}:${j}:1" aria-label="Più chili" ${fatta ? "disabled" : ""}>+</button></span>
+        <input class="rip" inputmode="numeric" data-rp="${i}:${j}" value="${esc(rip)}" placeholder="–" aria-label="Ripetizioni serie ${j + 1}" ${fatta ? "disabled" : ""}>
         <button type="button" class="sok" data-ok="${i}:${j}" aria-pressed="${!!fatta}" aria-label="${fatta ? "Annulla serie" : "Serie fatta"} ${j + 1}">✓</button></div>`;
     }).join("")}</div>`;
   } else if (wo.attivo) {
     serie = `<div class="sets">${Array.from({ length: n }, (_, j) => { const f = oggi.some((r) => r.serie === j + 1); return `<button type="button" data-set="${i}:${j}" aria-pressed="${f}" aria-label="Serie ${j + 1}">${f ? "✓" : j + 1}</button>`; }).join("")}</div>`;
   }
-  return `<div class="wx${x.ss ? " ss" : ""}${oggi.length >= n ? " ok" : ""}">
-    <span class="wn">${etichetta}</span>
-    <div class="wb"><b>${esc(x.nome)}</b><small>${esc(x.gruppo || "")}${c?.attrezzo ? ` · ${esc(c.attrezzo)}` : ""}</small>
-      <p class="wp">${param}</p>${x.ss ? '<p class="wss">in superserie con il successivo: niente recupero in mezzo</p>' : ""}
+  const c = cues.get(x.id);
+  return `<article class="wx${wo.attivo ? " aperto" : ""}${x.ss ? " ss" : ""}${fatto ? " ok" : ""}" data-i="${i}">
+    ${wo.attivo ? `<button type="button" class="wh" data-apri="${i}" aria-expanded="true">${testa}</button>` : `<div class="wh">${testa}</div>`}
+    <div class="wb">${x.ss ? '<p class="wss">In superserie con il successivo: niente recupero in mezzo</p>' : ""}
       ${x.note ? `<p class="wnn">${esc(x.note)}</p>` : ""}${ultima}${sug && wo.attivo ? `<p class="wsug">${esc(sug)}</p>` : ""}
-      ${c?.descrizione ? `<details><summary>Come si esegue</summary><p>${esc(c.descrizione)}</p></details>` : ""}${serie}
-    </div></div>`;
+      ${x.id ? `<details data-cue="${x.id}"${c?.descrizione ? "" : " hidden"}><summary>Come si esegue</summary><p>${esc(c?.descrizione || "")}</p></details>` : ""}${serie}
+    </div></article>`;
 }
+// ridisegna solo le schede degli esercizi toccati (niente salti della pagina)
+function aggiornaCards(idx) {
+  const L = esercizi(), et = etichette(L);
+  [...new Set(idx)].forEach((i) => { const el = document.querySelector(`#wList [data-i="${i}"]`); if (el && L[i]) el.outerHTML = cardEsercizio(L[i], i, et[i]); });
+  aggiornaProgresso(); riempiCues();
+}
+function apriEs(i, scorri) {
+  const prima = gruppo(wo.aperto);
+  wo.aperto = i;
+  aggiornaCards([...prima, ...gruppo(i)]);
+  if (scorri && i != null) requestAnimationFrame(() => document.querySelector(`#wList [data-i="${gruppo(i)[0]}"]`)?.scrollIntoView({ behavior: "smooth", block: "start" }));
+}
+
+function iniziaAllenamento() {
+  wo.attivo = true; wo.inizio = wo.inizio || Date.now(); wo.aperto = primoDaFare() ?? 0;
+  salvaWo({ id: wo.s.id, g: wo.g, inizio: wo.inizio, data: oggiK() });
+  schermoAcceso(true);
+  disegnaScheda();
+  requestAnimationFrame(() => document.querySelector(`#wList [data-i="${gruppo(wo.aperto)[0]}"]`)?.scrollIntoView({ behavior: "smooth", block: "start" }));
+}
+function terminaAllenamento() {
+  const L = esercizi(), g = giorni()[wo.g];
+  const n = L.reduce((t, x, i) => t + fatteOggi(i).length, 0);
+  const vol = L.reduce((t, x, i) => t + fatteOggi(i).reduce((a, r) => a + (Number(r.kg) || 0) * (r.rip || 0), 0), 0);
+  const min = wo.inizio ? Math.max(1, Math.round((Date.now() - wo.inizio) / 60000)) : 0;
+  salvaWo(null); fermaTimer(); schermoAcceso(false);
+  wo.attivo = false; wo.inizio = 0;
+  if (!n) { disegnaScheda(); return toast("Allenamento chiuso."); }
+  $("shBody").innerHTML = `<div class="done wdone"><div class="ic">${ICO_OK}</div><h3>Ottimo lavoro!</h3><p>${esc(g?.nome || "Allenamento")} completato</p>
+    <div class="wsum"><div><b>${n}</b><small>serie</small></div>${vol ? `<div><b>${Math.round(vol).toLocaleString("it-IT")}</b><small>kg sollevati</small></div>` : ""}${min && min < 300 ? `<div><b>${min}'</b><small>durata</small></div>` : ""}</div></div>
+    <div class="btns"><button class="btn" id="shNo">Chiudi</button><button class="btn ghost" id="woRivedi">Rivedi la scheda</button></div>`;
+  $("shNo").onclick = () => sheet.close();
+  $("woRivedi").onclick = () => disegnaScheda();
+}
+
 // valori scritti ma non ancora confermati: non si perdono quando la scheda si ridisegna
 document.addEventListener("input", (e) => {
   if (!wo) return;
   const k = e.target.dataset.kg || e.target.dataset.rp; if (!k) return;
-  wo.bozza[k] = wo.bozza[k] || {}; wo.bozza[k][e.target.dataset.kg ? "kg" : "rip"] = e.target.value;
+  const campo = e.target.dataset.kg ? "kg" : "rip", attr = campo === "kg" ? "data-kg" : "data-rp";
+  wo.bozza[k] = wo.bozza[k] || {}; wo.bozza[k][campo] = e.target.value; wo.mano.add(campo + k);
+  // il valore cambiato passa anche alle serie successive non ancora fatte (se non toccate a mano)
+  const [i, j] = k.split(":").map(Number), n = Number(esercizi()[i]?.serie) || 1;
+  for (let j2 = j + 1; j2 < n; j2++) {
+    const kk = `${i}:${j2}`, el = document.querySelector(`[${attr}="${kk}"]`);
+    if (wo.mano.has(campo + kk) || !el || el.disabled) continue;
+    el.value = e.target.value; (wo.bozza[kk] ??= {})[campo] = e.target.value;
+  }
 });
-async function registraSerie(i, j, fatta, kg, rip) {
-  const x = wo.s.struttura.giorni[wo.g].esercizi[i];
-  const args = { p_scheda_id: wo.s.id, p_giorno: wo.g, p_idx: i, p_serie: j + 1 };
-  const { error } = fatta
-    ? await sb.rpc("salva_carico", { ...args, p_esercizio_id: x.id || null, p_esercizio: x.nome, p_kg: kg, p_rip: rip })
-    : await sb.rpc("togli_carico", args);
-  if (error) { toast(error.message, false); return false; }
-  wo.reg = wo.reg.filter((r) => !(r.scheda_id === wo.s.id && r.giorno === wo.g && r.esercizio_idx === i && r.serie === j + 1 && r.data === oggiK()));
-  if (fatta) wo.reg.unshift({ scheda_id: wo.s.id, giorno: wo.g, esercizio_idx: i, esercizio_id: x.id || null, esercizio: x.nome, data: oggiK(), serie: j + 1, kg, rip });
-  return true;
+// tocco su un campo: seleziona il numero per riscriverlo subito
+document.addEventListener("focusin", (e) => { if (wo && (e.target.dataset?.kg || e.target.dataset?.rp)) setTimeout(() => e.target.select?.(), 0); });
+
+function aggiornaLocale(i, j, fatta, kg, rip) {
+  const x = esercizi()[i];
+  const resto = wo.reg.filter((r) => !(r.scheda_id === wo.s.id && r.giorno === wo.g && r.esercizio_idx === i && r.serie === j + 1 && r.data === oggiK()));
+  wo.reg = fatta ? [{ scheda_id: wo.s.id, giorno: wo.g, esercizio_idx: i, esercizio_id: x.id || null, esercizio: x.nome, data: oggiK(), serie: j + 1, kg, rip }, ...resto] : resto;
+  regCache = wo.reg;
 }
-document.addEventListener("click", async (e) => {
-  if (!wo) return;
-  const t = e.target.closest("[data-wg]"); if (t) { wo.g = Number(t.dataset.wg); fermaTimer(); disegnaScheda(); return; }
-  const ok = e.target.closest("[data-ok]"), bub = e.target.closest("[data-set]");
-  if (!ok && !bub) return;
-  const [i, j] = (ok || bub).dataset[ok ? "ok" : "set"].split(":").map(Number);
-  const x = wo.s.struttura.giorni[wo.g].esercizi[i];
+async function segnaSerie(i, j, el) {
+  const L = esercizi(), x = L[i], g0 = wo.g, s0 = wo.s;
   const gia = fatteOggi(i).some((r) => r.serie === j + 1);
   let kg = null, rip = null;
-  if (ok && !gia) {
+  if (el.dataset.ok && !gia) {
     kg = numero(document.querySelector(`[data-kg="${i}:${j}"]`)?.value);
     rip = numero(document.querySelector(`[data-rp="${i}:${j}"]`)?.value);
     if (kg != null && (kg < 0 || kg > 1000)) return toast("Controlla i chili: valore non valido.", false);
-    if (rip != null) rip = Math.round(rip);
+    if (rip != null) { rip = Math.round(rip); if (rip < 0 || rip > 500) return toast("Controlla le ripetizioni.", false); }
   }
-  (ok || bub).disabled = true;
-  if (!(await registraSerie(i, j, !gia, kg, rip))) { (ok || bub).disabled = false; return; }
-  delete wo.bozza[`${i}:${j}`];
-  disegnaScheda();
-  if (!gia && x.rec && !x.ss) avviaTimer(x.rec);
+  const prima = wo.reg, bozza = wo.bozza[`${i}:${j}`];
+  // subito a video, poi il salvataggio: se fallisce si torna indietro
+  aggiornaLocale(i, j, !gia, kg, rip); delete wo.bozza[`${i}:${j}`];
+  try { navigator.vibrate?.(15); } catch {}
+  let dopo = [i];
+  if (!gia) {
+    const gr = gruppo(i), finito = gr.every((k) => completo(k));
+    if (finito) { const nx = primoDaFare(); dopo = [...dopo, ...gr]; if (nx != null) { apriEs(nx, true); } else { wo.aperto = null; } }
+    // recupero: dopo l'ultimo esercizio della superserie (o dopo un esercizio singolo)
+    const rec = Number(L[gr[gr.length - 1]].rec) || 0;
+    if (rec && (!x.ss || i === gr[gr.length - 1]) && primoDaFare() != null) avviaTimer(rec);
+  }
+  aggiornaCards(dopo);
+  const args = { p_scheda_id: s0.id, p_giorno: g0, p_idx: i, p_serie: j + 1 };
+  const { error } = !gia
+    ? await sb.rpc("salva_carico", { ...args, p_esercizio_id: x.id || null, p_esercizio: x.nome, p_kg: kg, p_rip: rip })
+    : await sb.rpc("togli_carico", args);
+  if (error) {
+    toast("Serie non salvata: " + error.message, false);
+    if (wo && wo.s === s0) {
+      wo.reg = regCache = prima; if (bozza) wo.bozza[`${i}:${j}`] = bozza;
+      if (wo.g === g0) { if (!gia) fermaTimer(); if (wo.attivo && !gruppo(wo.aperto).includes(i)) apriEs(i, true); else aggiornaCards([i]); }
+    }
+    return;
+  }
+  if (!gia && wo && wo.attivo && primoDaFare() == null && wo.g === g0) { fermaTimer(); toast("Tutti gli esercizi fatti: tocca «Termina» per il riepilogo."); }
+}
+document.addEventListener("click", (e) => {
+  if (!wo) return;
+  const t = e.target.closest("[data-wg]");
+  if (t) {
+    wo.g = Number(t.dataset.wg); wo.bozza = {}; wo.mano = new Set(); fermaTimer();
+    if (wo.attivo) { wo.aperto = primoDaFare(); salvaWo({ id: wo.s.id, g: wo.g, inizio: wo.inizio, data: oggiK() }); }
+    disegnaScheda(); return;
+  }
+  const ap = e.target.closest("[data-apri]");
+  if (ap) { const i = Number(ap.dataset.apri); apriEs(gruppo(wo.aperto).includes(i) ? null : i, false); return; }
+  const st = e.target.closest("[data-st]");
+  if (st) {
+    const [, i, j, d] = st.dataset.st.split(":"), inp = document.querySelector(`[data-kg="${i}:${j}"]`);
+    const v = numero(inp.value) ?? 0, passo = v >= 20 ? 2.5 : 1;
+    const nv = Math.max(0, Math.round((v + Number(d) * passo) * 10) / 10);
+    inp.value = fmtKg(nv); inp.dispatchEvent(new Event("input", { bubbles: true })); return;
+  }
+  const rc = e.target.closest("[data-rec]");
+  if (rc && timer) { recFine += Number(rc.dataset.rec) * 1000; recTot = Math.max(recTot + Number(rc.dataset.rec), 1); return; }
+  const ok = e.target.closest("[data-ok],[data-set]");
+  if (ok) { const [i, j] = (ok.dataset.ok || ok.dataset.set).split(":").map(Number); segnaSerie(i, j, ok); }
 });
+
+// recupero: barra fissa in basso con −15 / +15 / Salta
 function avviaTimer(sec) {
   fermaTimer();
-  const fine = Date.now() + sec * 1000, box = $("wTimer");
-  if (!box) return;
-  box.hidden = false;
+  recFine = Date.now() + sec * 1000; recTot = sec;
+  const box = $("wTimer"); if (box) box.hidden = false;
   const tick = () => {
-    const r = Math.max(0, Math.round((fine - Date.now()) / 1000));
+    const r = Math.max(0, Math.round((recFine - Date.now()) / 1000));
     if (!$("wTxt")) return fermaTimer();
-    $("wTxt").textContent = r ? `Recupero ${Math.floor(r / 60)}:${String(r % 60).padStart(2, "0")}` : "Recupero finito: vai!";
+    $("wTimer").hidden = false;
+    $("wTxt").textContent = r ? `Recupero ${Math.floor(r / 60)}:${String(r % 60).padStart(2, "0")}` : "Vai!";
+    $("wBar").style.width = `${Math.max(0, Math.min(100, (100 * r) / Math.max(1, recTot)))}%`;
+    $("wTimer").classList.toggle("fine", !r);
     if (!r) { clearInterval(timer); timer = null; try { navigator.vibrate?.([200, 100, 200]); } catch {} setTimeout(() => { if (!timer && $("wTimer")) $("wTimer").hidden = true; }, 2500); }
   };
-  tick(); timer = setInterval(tick, 250);
+  timer = setInterval(tick, 250); tick();
 }
-function fermaTimer() { if (timer) clearInterval(timer); timer = null; if ($("wTimer")) $("wTimer").hidden = true; }
+function fermaTimer() { if (timer) clearInterval(timer); timer = null; if ($("wTimer")) { $("wTimer").hidden = true; $("wTimer").classList.remove("fine"); } }
+
+// schermo sempre acceso durante l'allenamento (dove il telefono lo consente)
+async function schermoAcceso(on) {
+  try {
+    if (!on) { await wakeLock?.release(); wakeLock = null; return; }
+    if (!wakeLock && navigator.wakeLock && document.visibilityState === "visible") { wakeLock = await navigator.wakeLock.request("screen"); wakeLock.addEventListener("release", () => { wakeLock = null; }); }
+  } catch { wakeLock = null; }
+}
+document.addEventListener("visibilitychange", () => { if (wo?.attivo && document.visibilityState === "visible") schermoAcceso(true); });
+
 
 // ------------------------------------------------------------------ bacheca
 const LETTO = "whynot-bacheca-letto";
