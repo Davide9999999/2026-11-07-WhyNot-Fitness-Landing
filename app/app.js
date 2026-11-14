@@ -289,6 +289,48 @@ $("slots").addEventListener("click", (e) => { const b = e.target.closest(".les[d
 // ------------------------------------------------------------------ scheda prenotazione
 const sheet = $("sheet");
 sheet.addEventListener("click", (e) => { if (e.target === sheet) sheet.close(); });
+// Chiusura trascinando la tendina verso il basso, come quelle native. Parte dalla maniglia in alto oppure da qualsiasi
+// punto quando il contenuto è già in cima (così lo scorrimento normale del contenuto non viene disturbato).
+(function () {
+  const sh = sheet.querySelector(".sh");
+  let y0 = null, dy = 0, t0 = 0, trascina = false, daManiglia = false;
+  sh.addEventListener("touchstart", (e) => {
+    if (e.touches.length !== 1 || e.target.closest("input, textarea, select")) { y0 = null; return; }
+    if (!e.target.closest(".grip") && sh.scrollTop > 0) { y0 = null; return; }
+    daManiglia = !!e.target.closest(".grip");
+    y0 = e.touches[0].clientY; dy = 0; t0 = Date.now(); trascina = false;
+  }, { passive: true });
+  sh.addEventListener("touchmove", (e) => {
+    if (y0 === null) return;
+    const d = e.touches[0].clientY - y0;
+    if (!trascina) {
+      if (d < -4) { y0 = null; return; }                 // verso l'alto: è uno scorrimento del contenuto
+      if (d < 8 || (sh.scrollTop > 0 && !daManiglia)) return;   // dalla maniglia (sempre visibile in cima) chiude anche a contenuto scorso
+      trascina = true; sh.style.transition = "none";
+    }
+    dy = Math.max(0, d - 8);
+    sh.style.transform = `translateY(${dy}px)`;
+    sheet.style.setProperty("--fondo", String(Math.max(0, 0.65 * (1 - dy / 400))));
+    if (e.cancelable) e.preventDefault();
+  }, { passive: false });
+  const fine = () => {
+    if (y0 === null) return;
+    y0 = null;
+    if (!trascina) return;
+    trascina = false;
+    const veloce = dy / Math.max(1, Date.now() - t0) > 0.5;   // gesto rapido verso il basso
+    sh.style.transition = "transform .22s ease";
+    if (dy > 110 || (veloce && dy > 30)) {
+      sh.style.transform = "translateY(100%)";
+      setTimeout(() => { sheet.close(); sh.style.transition = ""; sh.style.transform = ""; sheet.style.removeProperty("--fondo"); }, 220);
+    } else {
+      sh.style.transform = ""; sheet.style.removeProperty("--fondo");
+      setTimeout(() => { sh.style.transition = ""; }, 220);
+    }
+  };
+  sh.addEventListener("touchend", fine);
+  sh.addEventListener("touchcancel", fine);
+})();
 function testa(l) {
   const cid = corsoId(l);
   return `${cid ? `<button class="favbtn${preferiti.has(cid) ? " on" : ""}" data-fav="${cid}" type="button">${preferiti.has(cid) ? "♥ Preferito" : "♡ Preferito"}</button>` : ""}<span class="k" style="color:${l.col}">${esc(l.categoria)}</span><h2 id="shTitle">${esc(l.corso)}</h2>

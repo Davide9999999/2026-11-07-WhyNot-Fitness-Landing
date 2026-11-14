@@ -151,11 +151,13 @@ label.check a{text-decoration:underline}
 
 /* scheda dal basso */
 dialog.sheet{border:0;padding:0;margin:auto auto 0;width:100%;max-width:560px;max-height:92vh;background:transparent;color:var(--txt)}
-dialog.sheet::backdrop{background:rgba(0,0,0,.65)}
+dialog.sheet::backdrop{background:rgba(0,0,0,var(--fondo,.65))}
 dialog.sheet[open]{animation:up .25s ease-out}
 @keyframes up{from{transform:translateY(40px);opacity:.4}}
 .sh{background:#1d1d1d;border:1px solid var(--line);border-bottom:0;border-radius:24px 24px 0 0;padding:10px 18px calc(20px + var(--sb));max-height:92vh;overflow:auto}
-.grip{display:block;width:42px;height:5px;border-radius:9px;background:rgba(255,255,255,.2);margin:0 auto 14px}
+/* maniglia: fascia fissa in cima alla tendina, sempre visibile e afferrabile per trascinarla giù */
+.grip{position:sticky;top:-10px;z-index:5;display:block;height:29px;margin:-10px -18px 4px;background:#1d1d1d;border-radius:24px 24px 0 0;touch-action:none;cursor:grab}
+.grip::before{content:"";position:absolute;left:50%;top:12px;width:42px;height:5px;margin-left:-21px;border-radius:9px;background:rgba(255,255,255,.28)}
 .sh .k{font-size:11px;font-weight:800;letter-spacing:2px;text-transform:uppercase}
 .sh h2{font-family:"Permanent Marker",cursive;font-weight:400;font-size:26px;line-height:1.1;text-transform:uppercase;margin:2px 0 10px}
 .kv{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px}
@@ -364,3 +366,4 @@ dialog .toast{bottom:auto;top:calc(14px + var(--st))}
 .ghost-btn{display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:6px 12px;border-radius:999px;border:1px solid var(--line2);font-size:13px;font-weight:700;color:#ddd}
 .evpay{font-size:13.5px;color:#e6e6e6}.evpay .pay-ok{color:#c5f2b8;font-weight:800}.evpay .pay-no{color:#ffe2a6;font-weight:800}
 .evhint{font-size:12px;color:var(--mut);line-height:1.4}
+.sh{overscroll-behavior:contain}
