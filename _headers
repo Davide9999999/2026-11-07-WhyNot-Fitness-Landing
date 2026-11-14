@@ -38,3 +38,5 @@
   Cache-Control: public, max-age=2592000
 /app/icons/*
   Cache-Control: public, max-age=2592000
+/favicon.ico
+  Cache-Control: public, max-age=2592000

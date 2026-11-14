@@ -97,6 +97,9 @@
   }
 }
 </script>
+<link rel="preload" href="assets/fonts/inter-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="assets/fonts/anton-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="assets/fonts/permanent-marker-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="assets/fonts/fonts.css">
 <style>
 :root{
@@ -108,7 +111,8 @@ html{scroll-behavior:smooth;overflow-x:hidden;-webkit-text-size-adjust:100%;text
 @supports (overflow:clip){html{overflow-x:clip}}
 body{background:var(--bg);color:var(--txt);font-family:Inter,system-ui,sans-serif;line-height:1.55;overflow-x:hidden}
 a{color:inherit;text-decoration:none}
-#bg3d{position:fixed;inset:0;width:100vw;height:100vh;z-index:0;display:block}
+#bg3d{position:fixed;inset:0;width:100vw;height:100vh;z-index:0;display:block;opacity:0;transition:opacity .9s ease}
+#bg3d.on{opacity:1}
 .blob{position:fixed;z-index:0;pointer-events:none;fill:var(--red);opacity:.9;will-change:transform}
 .blob.b1{width:min(46vw,620px);right:-14vw;top:-8vh;animation:morph 18s ease-in-out infinite alternate}
 .blob.b2{width:min(60vw,760px);left:-22vw;bottom:-30vh;animation:morph 22s ease-in-out infinite alternate-reverse}
@@ -725,7 +729,6 @@ address{font-style:normal}
 </footer>
 <script src="assets/consenso.js" defer></script>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
 /* ===== CONTENUTI =====
    Corsi e orari sono scritti direttamente nell'HTML (sezioni #corsi e #orari) così Google li legge senza eseguire JS.
@@ -910,14 +913,24 @@ if(!reduce && matchMedia('(hover:hover)').matches){
   });
 }
 
-/* ===== THREE.JS SCENE ===== */
-(function(){
+/* ===== THREE.JS SCENE =====
+   La libreria 3D (circa 120 KB) si scarica solo a pagina caricata, quando il browser è libero:
+   testi, foto e pulsanti sono subito utilizzabili e lo sfondo compare dopo con una dissolvenza. */
+function carica3D(){
+  const s=document.createElement('script');
+  s.src='https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js';
+  s.onload=scena3D; document.head.appendChild(s);
+}
+if(document.readyState==='complete') setTimeout(carica3D,200);
+else addEventListener('load',()=>{ (window.requestIdleCallback||((f)=>setTimeout(f,300)))(carica3D,{timeout:1500}); });
+
+function scena3D(){
   if(typeof THREE==='undefined') return;
   const canvas=document.getElementById('bg3d');
   const lowEnd=innerWidth<820||(navigator.hardwareConcurrency||8)<=4;
   const renderer=new THREE.WebGLRenderer({canvas,antialias:devicePixelRatio<1.5&&!lowEnd,alpha:true,powerPreference:'high-performance'});
   // Risoluzione adattiva: parte da un massimo ragionevole e scende se i frame rallentano
-  const maxDpr=Math.min(devicePixelRatio,lowEnd?1.25:1.5);
+  const maxDpr=Math.min(devicePixelRatio,lowEnd?1:1.5);
   let dpr=maxDpr; renderer.setPixelRatio(dpr);
   renderer.outputEncoding=THREE.sRGBEncoding;
   const scene=new THREE.Scene();
@@ -977,7 +990,7 @@ if(!reduce && matchMedia('(hover:hover)').matches){
   }
 
   // --- Particelle ---
-  const N=lowEnd?450:800, pos=new Float32Array(N*3);
+  const N=lowEnd?300:800, pos=new Float32Array(N*3);
   for(let i=0;i<N;i++){pos[i*3]=(Math.random()-.5)*40;pos[i*3+1]=(Math.random()-.5)*60-10;pos[i*3+2]=(Math.random()-.5)*20-4;}
   const pg=new THREE.BufferGeometry(); pg.setAttribute('position',new THREE.BufferAttribute(pos,3));
   const stars=new THREE.Points(pg,new THREE.PointsMaterial({color:0xffffff,size:.04,transparent:true,opacity:.55}));
@@ -1001,10 +1014,16 @@ if(!reduce && matchMedia('(hover:hover)').matches){
   const ease=x=>x<.5?2*x*x:1-Math.pow(-2*x+2,2)/2;
   let sp=0, hp=0, ema=16.7, slow=0, warm=0;
   const clock=new THREE.Clock();
-  function frame(){
+  // Telefoni e computer poco potenti: 30 fotogrammi al secondo (metà lavoro per il processore, movimento lento comunque fluido)
+  const passo=lowEnd?1000/30:0, soglia=lowEnd?40:20;
+  let ultimo=0, primo=true;
+  function frame(now){
+    requestAnimationFrame(frame);
+    if(passo && now && now-ultimo<passo-2) return;
+    ultimo=now||0;
     const raw=clock.getDelta()*1000, dt=Math.min(3,raw/16.667), t=clock.elapsedTime, m=reduce?0:1;
-    // Qualità adattiva: se la media dei frame supera ~20 ms (sotto 50 fps) per mezzo secondo, abbassa la risoluzione
-    if(raw<250){ ema+=(raw-ema)*.1; if(++warm>60){ slow=ema>20?slow+1:0;
+    // Qualità adattiva: se la media dei frame supera la soglia (20 ms a 60 fps, 40 ms a 30 fps) per un po', abbassa la risoluzione
+    if(raw<250){ ema+=(raw-ema)*.1; if(++warm>60){ slow=ema>soglia?slow+1:0;
       if(slow>30 && dpr>.75){dpr=Math.max(.75,dpr-.25);renderer.setPixelRatio(dpr);renderer.setSize(W,H,false);slow=0;} } }
     const k8=1-Math.pow(.92,dt), k5=1-Math.pow(.95,dt); // smussature indipendenti dal refresh rate
     sp=lerp(sp,scrollY/maxScroll,k8);              // progresso pagina
@@ -1041,10 +1060,10 @@ if(!reduce && matchMedia('(hover:hover)').matches){
     red.position.x=-4+Math.sin(t*.6)*2;
 
     renderer.render(scene,camera);
-    requestAnimationFrame(frame);
+    if(primo){ primo=false; canvas.classList.add('on'); }
   }
   frame();
-})();
+}
 </script>
 </body>
 </html>
