@@ -97,11 +97,11 @@
   }
 }
 </script>
-<link rel="preload" href="assets/fonts/inter-latin.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="preload" href="assets/fonts/anton-latin.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="preload" href="assets/fonts/permanent-marker-latin.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="assets/fonts/fonts.css">
 <style>
+/* Caratteri ospitati sul sito (copia di assets/fonts/fonts.css, scritta qui per non attendere un file in più). Licenza: SIL Open Font License 1.1 */
+@font-face{font-family:'Anton';font-style:normal;font-weight:400;font-display:swap;src:url(assets/fonts/anton-latin.woff2) format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:'Inter';font-style:normal;font-weight:400 800;font-display:swap;src:url(assets/fonts/inter-latin.woff2) format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:'Permanent Marker';font-style:normal;font-weight:400;font-display:swap;src:url(assets/fonts/permanent-marker-latin.woff2) format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
 :root{
   --bg:#121212; --bg2:#181818; --card:rgba(24,24,24,.92); --line:rgba(255,255,255,.1);
   --txt:#f5f5f5; --mut:#a3a3a3; --red:#b61927; --red-hi:#e02233; --radius:20px;
@@ -921,8 +921,17 @@ function carica3D(){
   s.src='https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js';
   s.onload=scena3D; document.head.appendChild(s);
 }
-if(document.readyState==='complete') setTimeout(carica3D,200);
-else addEventListener('load',()=>{ (window.requestIdleCallback||((f)=>setTimeout(f,300)))(carica3D,{timeout:1500}); });
+// Sui dispositivi lenti (telefoni, pochi processori) l'avvio del 3D è un lavoro pesante: parte al primo tocco/scorrimento
+// oppure dopo 6 secondi, così nei primi istanti la pagina risponde subito. Sui computer parte appena il browser è libero.
+const lento3D=innerWidth<820||(navigator.hardwareConcurrency||8)<=4;
+let avviato3D=false;
+function via3D(){ if(avviato3D) return; avviato3D=true; carica3D(); }
+function pronto3D(){
+  if(!lento3D){ (window.requestIdleCallback||((f)=>setTimeout(f,300)))(via3D,{timeout:1500}); return; }
+  ['pointerdown','touchstart','scroll','keydown','wheel'].forEach(ev=>addEventListener(ev,via3D,{once:true,passive:true}));
+  setTimeout(via3D,6000);
+}
+if(document.readyState==='complete') pronto3D(); else addEventListener('load',pronto3D);
 
 function scena3D(){
   if(typeof THREE==='undefined') return;
