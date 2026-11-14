@@ -355,13 +355,22 @@ export default {
     if (url.pathname.startsWith("/api/")) {
       // COLLAUDO TEMPORANEO (test di carico 2026-11-14): finto "servizio push" che accetta la notifica come farebbe Google.
       // Usato solo dagli iscritti di prova; non legge né salva nulla. Da togliere a fine collaudo.
-      if (url.pathname === "/api/push-collaudo") return new Response(null, { status: request.method === "POST" ? 201 : 405 });
+      // Accetta (201) solo notifiche costruite come per Google: firma VAPID, cifratura aes128gcm, contenuto cifrato; altrimenti 400.
+      // Con ?k=verifica risponde 410 (dispositivo non più valido): il Worker cancella quell'abbonamento = prova che la notifica era valida.
+      if (url.pathname === "/api/push-collaudo") {
+        if (request.method !== "POST") return new Response(null, { status: 405 });
+        const corpo = await request.arrayBuffer();
+        const valida = /^vapid t=[\w-]+\.[\w-]+\.[\w-]+, k=[\w-]+$/.test(request.headers.get("authorization") || "") && request.headers.get("content-encoding") === "aes128gcm" && corpo.byteLength >= 100;
+        if (!valida) return new Response("notifica non valida", { status: 400 });
+        return new Response(null, { status: url.searchParams.get("k") === "verifica" ? 410 : 201 });
+      }
       if (!env.SUPABASE_URL || !env.SUPABASE_ANON_KEY) return json({ error: "Supabase non configurato nel Worker" }, 500);
       if (request.method !== "POST") return json({ error: "Metodo non consentito" }, 405);
       // giro di invio notifiche a richiesta (diagnosi): serve lo stesso PUSH_SECRET del Worker
       if (url.pathname === "/api/push/giro") {
         const conf = { PUSH_SECRET: !!env.PUSH_SECRET, VAPID_PRIVATE_KEY: !!env.VAPID_PRIVATE_KEY, VAPID_PUBLIC_KEY: !!env.VAPID_PUBLIC_KEY, lunghezzaChiavePrivata: pulisci(env.VAPID_PRIVATE_KEY, "VAPID_PRIVATE_KEY").length, attesa: 43, versione: "2026-11-10-lotto45" };
-        if (!env.PUSH_SECRET || request.headers.get("x-push-secret") !== env.PUSH_SECRET) return json({ error: "Non autorizzato", configurato: conf }, 401);
+        // senza il segreto giusto nessun dettaglio della configurazione (collaudo sicurezza 2026-11-14)
+        if (!env.PUSH_SECRET || request.headers.get("x-push-secret") !== env.PUSH_SECRET) return json({ error: "Non autorizzato" }, 401);
         try { return json({ configurato: conf, esito: await giroNotifiche(env) }); } catch (e) { return json({ configurato: conf, error: String(e.message || e) }, 500); }
       }
       try {
