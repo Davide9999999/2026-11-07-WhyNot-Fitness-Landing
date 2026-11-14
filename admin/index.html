@@ -323,11 +323,12 @@
       <button class="icon" type="button" data-close aria-label="Chiudi">&times;</button>
       <input class="ed-titolo" name="titolo" maxlength="120" placeholder="Titolo della scheda (es. Tonificazione 3 giorni)" required>
       <span class="st" id="schStato">bozza</span>
+      <span class="dirty" id="schDirty" hidden>Modifiche non salvate</span><small class="mut schagg" id="schAgg"></small>
       <div class="ed-acts">
         <label class="chk schnot" title="Notifica sul telefono agli iscritti a cui è assegnata (o a tutti se non ha destinatari)"><input type="checkbox" name="notifica" checked> <span id="schNotL">Avvisa con una notifica</span></label>
         <button class="ghost sm" type="submit" data-stato="archiviata">Archivia</button>
-        <button class="ghost sm" type="submit" data-stato="bozza">Salva bozza</button>
-        <button class="btn sm" type="submit" data-stato="pubblicata">Pubblica</button>
+        <button class="ghost sm" type="submit" data-stato="bozza" id="schBozzaBtn">Salva bozza</button>
+        <button class="btn sm" type="submit" data-stato="pubblicata" id="schPubBtn">Pubblica</button>
       </div>
     </header>
     <div class="ed-body">

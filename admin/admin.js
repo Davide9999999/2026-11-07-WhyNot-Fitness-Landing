@@ -711,9 +711,44 @@ async function apriScheda(id) {
   aggiornaScad();
   disegnaDest();
   disegnaEditor(); disegnaLibreria();
+  $("schAgg").textContent = "";
+  etichetteScheda(f.elements.id.value ? $("schStato").textContent : "nuova");
+  schFoto = fotoScheda(); statoModifiche();
   $("dSch").showModal();
   if (!id) f.titolo.focus();
 }
+// ---- modifiche percepibili: confronto con l'ultima versione salvata
+let schFoto = "";
+function fotoScheda() {
+  const f = $("schForm");
+  return JSON.stringify([f.titolo.value, f.obiettivo.value, f.livello.value, f.descrizione.value, f.settimane.value, f.frequenza.value, f.inizio.value, f.note.value,
+    f.istruttore_id.value, destSel, ed.giorni]);
+}
+// scheda pubblicata: «Aggiorna» (attivo solo con modifiche non salvate) e «Riporta in bozza»; altrimenti «Pubblica» e «Salva bozza»
+function etichetteScheda(stato) {
+  const pub = stato === "pubblicata";
+  $("schPubBtn").textContent = pub ? "Aggiorna" : "Pubblica";
+  $("schBozzaBtn").textContent = pub ? "Riporta in bozza" : "Salva bozza";
+  $("schPubBtn").title = pub ? "Salva le modifiche nella scheda pubblicata (e avvisa gli iscritti se la casella è spuntata)" : "";
+}
+function statoModifiche() {
+  if (!schFoto) return;
+  const sporca = fotoScheda() !== schFoto, pub = $("schStato").textContent === "pubblicata";
+  $("schDirty").hidden = !sporca;
+  $("schPubBtn").disabled = pub && !sporca;
+  if (sporca) $("schAgg").textContent = "";
+}
+$("schForm").addEventListener("input", statoModifiche);
+// Invio in un campo non deve salvare (il browser userebbe il primo pulsante del modulo, «Archivia»)
+$("schForm").addEventListener("keydown", (e) => { if (e.key === "Enter" && e.target.tagName === "INPUT" && e.target.id !== "schDest") e.preventDefault(); });
+$("schForm").addEventListener("change", statoModifiche);
+// chiudere con modifiche non salvate chiede conferma (pulsante × ed Esc)
+async function chiudiEditor() {
+  if (schFoto && fotoScheda() !== schFoto && !(await ask("Chiudere senza salvare?", "Le modifiche alla scheda non ancora salvate andranno perse.", "Chiudi senza salvare"))) return;
+  schFoto = ""; $("dSch").close();
+}
+$("dSch").addEventListener("click", (e) => { if (e.target.closest(".ed-top [data-close]")) { e.preventDefault(); e.stopImmediatePropagation(); chiudiEditor(); } }, true);
+$("dSch").addEventListener("cancel", (e) => { e.preventDefault(); chiudiEditor(); });
 const lettere = "ABCDEFGHIJ";
 function testoScheda() {
   return ed.giorni.map((g) => [g.nome + (g.note ? ` — ${g.note}` : ""), ...g.esercizi.map((x, k) =>
@@ -737,6 +772,8 @@ $("schForm").addEventListener("submit", async (e) => {
   const res = f.elements.id.value ? await sb.from("schede").update(row).eq("id", f.elements.id.value).select("id").single() : await sb.from("schede").insert(row).select("id").single();
   if (res.error) return msg($("schMsg"), res.error.message);
   f.elements.id.value = res.data.id; $("schStato").textContent = stato; $("schStato").className = "st " + stato; msg($("schMsg"), "");
+  schFoto = fotoScheda(); etichetteScheda(stato); statoModifiche();
+  $("schAgg").textContent = `${stato === "pubblicata" ? (primaPubblicazione ? "Pubblicata" : "Aggiornata") : stato === "archiviata" ? "Archiviata" : "Salvata"} alle ${fTime.format(new Date())}`;
   // notifica agli iscritti (nuova scheda o modifiche), se spuntata
   let avvisati = null, errNotifica = null;
   if (stato === "pubblicata" && f.notifica.checked) {
@@ -760,6 +797,7 @@ function disegnaEditor() {
   $("edDayNome").value = g.nome; $("edDayNote").value = g.note || "";
   $("edDayDel").disabled = ed.giorni.length < 2;
   disegnaEsercizi(); riepilogo();
+  statoModifiche();   // etichetta «Modifiche non salvate» e pulsante Aggiorna
 }
 function disegnaEsercizi() {
   const L = ed.giorni[gSel].esercizi;
@@ -783,6 +821,7 @@ function disegnaEsercizi() {
         <button type="button" class="icon danger" data-a="del" title="Rimuovi">✕</button>
       </div></div>`).join("")
     : '<p class="empty">Nessun esercizio in questo giorno. Aggiungili dalla libreria a destra (su telefono: «+ Aggiungi esercizio») oppure parti da un modello.</p>';
+  statoModifiche();   // etichetta «Modifiche non salvate» e pulsante Aggiorna
 }
 // stima durata: serie x (40 s di lavoro o durata indicata) + recuperi; superserie: recupero solo a fine gruppo
 function secondiDi(rip) {
@@ -1727,6 +1766,7 @@ function disegnaDest() {
   $("destInfo").textContent = destSel.length ? `${destSel.length} ${destSel.length === 1 ? "iscritto" : "iscritti"}` : "nessuno = tutti gli iscritti";
   // nei suggerimenti solo chi ha l'app attiva e non è già scelto
   $("schDestList").innerHTML = (iscritti || []).filter((i) => i.user_id && i.attivo && !destSel.includes(i.user_id)).map((i) => `<option value="${esc(i.email)}">${esc(i.nome)}</option>`).join("");
+  statoModifiche();   // etichetta «Modifiche non salvate» e pulsante Aggiorna
 }
 function aggiungiDest() {
   const campo = $("schDest"), voci = campo.value.split(/[\s,;]+/).map((x) => x.trim().toLowerCase()).filter(Boolean);

@@ -367,3 +367,6 @@ dialog .toast{bottom:auto;top:calc(14px + var(--st))}
 .evpay{font-size:13.5px;color:#e6e6e6}.evpay .pay-ok{color:#c5f2b8;font-weight:800}.evpay .pay-no{color:#ffe2a6;font-weight:800}
 .evhint{font-size:12px;color:var(--mut);line-height:1.4}
 .sh{overscroll-behavior:contain}
+.schpt,.wpt{display:flex;align-items:center;gap:6px;color:#d6d6d6}.sch .schpt{font-size:13px;color:#d6d6d6}
+.schpt svg,.wpt svg{width:15px;height:15px;flex:none;fill:none;stroke:var(--red-hi);stroke-width:2;stroke-linecap:round}
+.wpt{font-size:13.5px;margin:-4px 0 12px}.sch .schagg{color:#ffe2a6}

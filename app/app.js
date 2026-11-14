@@ -622,6 +622,9 @@ function valuta(pid) {
 }
 
 // ------------------------------------------------------------------ schede: elenco
+// nome del personal (icona) e «aggiornata» se modificata almeno un'ora dopo la pubblicazione
+const ICO_PT = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>';
+const aggiornataDopo = (s) => s.aggiornata_il && s.pubblicata_il && new Date(s.aggiornata_il) - new Date(s.pubblicata_il) > 3600e3;
 // I carichi registrati si leggono una volta con l'elenco: aprire una scheda è immediato.
 let schede = [], cues = new Map(), regCache = [];
 const WO_KEY = "whynot-allenamento";   // allenamento in corso (si riprende se si chiude la scheda)
@@ -654,9 +657,11 @@ function disegnaElenco() {
     return `<button class="sch${live ? " live" : ""}" data-sch="${k}">
       <span class="schtop"><span class="tag${s.personale ? " ok" : ""}">${s.personale ? "Per te" : "Per tutti"}</span>${live ? '<span class="tag live">In corso</span>' : ""}</span>
       <b>${esc(s.titolo)}</b>
+      ${s.istruttore ? `<small class="schpt">${ICO_PT}Preparata da <b>${esc(s.istruttore)}</b></small>` : ""}
       ${[s.obiettivo, s.livello].filter(Boolean).length ? `<small>${esc([s.obiettivo, s.livello].filter(Boolean).join(" · "))}</small>` : ""}
       ${meta.length ? `<span class="schmeta">${meta.map((t) => `<span>${esc(t)}</span>`).join("")}</span>` : ""}
       ${s.descrizione ? `<p>${esc(s.descrizione)}</p>` : ""}
+      ${aggiornataDopo(s) ? `<small class="schagg">Aggiornata il ${esc(fDataBreve.format(new Date(s.aggiornata_il)))}</small>` : ""}
       ${ult ? `<small class="schlast">Ultimo allenamento: ${esc(fDataBreve.format(new Date(ult.data + "T12:00:00Z")))}${g.length > 1 && g[ult.giorno] ? ` · ${esc(g[ult.giorno].nome)}` : ""}</small>` : ""}
       <span class="schgo">${esc(prossimo)}<svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></span></button>`;
   }).join("") || '<div class="empty"><b>Ancora nessuna scheda</b>Quando la palestra pubblica una scheda di allenamento per te o per tutti la trovi qui.</div>';
@@ -737,6 +742,7 @@ function primoDaFare() { const L = esercizi(); const i = L.findIndex((x, k) => !
 function disegnaScheda() {
   const s = wo.s, st = s.struttura, G = giorni();
   const testa = `<div class="whead"><span class="k" style="color:var(--red-hi)">${s.personale ? "Scheda per te" : "Scheda"}</span><h2>${esc(s.titolo)}</h2>
+    ${s.istruttore ? `<p class="wpt">${ICO_PT}Scheda preparata da <b>${esc(s.istruttore)}</b>${aggiornataDopo(s) ? ` · aggiornata il ${esc(fDataBreve.format(new Date(s.aggiornata_il)))}` : ""}</p>` : aggiornataDopo(s) ? `<p class="wpt">Aggiornata il ${esc(fDataBreve.format(new Date(s.aggiornata_il)))}</p>` : ""}
     ${wo.attivo ? "" : `<div class="kv">${[s.obiettivo, s.livello, st?.frequenza ? `${st.frequenza}× a settimana` : "", st?.settimane ? `${st.settimane} settimane` : ""].filter(Boolean).map((t) => `<span>${esc(t)}</span>`).join("")}</div>`}</div>`;
   if (!G.length) {   // vecchia scheda di solo testo
     $("shBody").innerHTML = testa + `${s.descrizione ? `<p class="sdesc">${esc(s.descrizione)}</p>` : ""}<div class="schtxt">${esc(s.contenuto || "")}</div><div class="wfoot"><div class="btns"><button class="btn ghost" id="shNo">Chiudi</button></div></div>`;

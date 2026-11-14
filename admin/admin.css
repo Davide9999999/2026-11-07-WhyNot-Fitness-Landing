@@ -497,3 +497,7 @@ dialog.sheet.wide{width:min(860px,96vw)}
 .schcerca .mini{display:flex;flex-direction:row;align-items:center;gap:6px;font-size:13px;color:var(--mut);margin:0}.schcerca .mini input{width:auto;padding:8px 10px}
 .schnot{font-size:12.5px;margin-right:6px;white-space:nowrap}
 .sc .ist{color:#cfe0ff}.sc .attesa{color:#ffe2a6}
+.dirty{font-size:11.5px;font-weight:800;letter-spacing:.4px;padding:4px 10px;border-radius:999px;background:rgba(240,179,60,.18);color:#ffe2a6;white-space:nowrap;animation:pulsa 1.6s ease-in-out infinite}
+@keyframes pulsa{50%{opacity:.6}}
+.schagg{font-size:12px;white-space:nowrap}
+#schPubBtn:disabled{opacity:.45;cursor:default}
