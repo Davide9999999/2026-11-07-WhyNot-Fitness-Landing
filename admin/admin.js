@@ -485,11 +485,28 @@ async function apriIscritto(id, codice) {
         <div class="acts-row" style="margin-top:10px"><button class="btn sm" type="submit">Salva</button></div></form>
     </div>`;
   $("lezBody").querySelector("[data-x]").onclick = () => $("dLez").close();
-  $("iscReset")?.addEventListener("click", async () => {
-    if (!(await ask("Reimpostare l'accesso?", `L'account dell'app di ${i.nome} viene rimosso e generi un nuovo codice da consegnargli. Lo storico delle prenotazioni resta.`, "Reimposta"))) return;
+  $("iscReset")?.addEventListener("click", async (e) => {
+    if (!(await ask("Reimpostare l'accesso?", `L'account dell'app di ${i.nome} viene rimosso e riceve a ${i.email} un'email con il nuovo codice per riattivarlo. Schede, pesi registrati, prenotazioni e risposte in bacheca restano e tornano quando riattiva l'app.`, "Reimposta e invia"))) return;
+    e.target.disabled = true;
     const { data, error } = await sb.rpc("admin_reimposta_accesso", { p_id: i.id });
-    if (error) return toast(error.message, false);
-    await caricaIscritti(); apriIscritto(i.id, data);
+    if (error) { e.target.disabled = false; return toast(error.message, false); }
+    // nuovo codice per email con Resend (dal Worker); se l'invio non riesce resta il codice da consegnare a mano
+    let mostra = data;
+    try {
+      const r = await api("/api/inviti", { ids: [i.id], tipo: "reimposta" });
+      if (r.inviati) { toast(`Accesso reimpostato: email con il nuovo codice inviata a ${i.email}.`); mostra = undefined; }
+      else {
+        const motivo = r.errori?.[0]?.errore || r.esclusi?.[0]?.motivo || "errore";
+        const c = await sb.rpc("admin_nuovo_codice", { p_id: i.id });   // il codice potrebbe essere stato sostituito: ne serve uno valido da mostrare
+        if (!c.error) mostra = c.data;
+        toast(`Accesso reimpostato, ma email non inviata (${motivo}): consegna il codice qui sotto.`, false);
+      }
+    } catch (err) {
+      const c = await sb.rpc("admin_nuovo_codice", { p_id: i.id });
+      if (!c.error) mostra = c.data;
+      toast(`Accesso reimpostato, ma email non inviata (${err.message}): consegna il codice qui sotto.`, false);
+    }
+    await caricaIscritti(); apriIscritto(i.id, mostra);
   });
   $("iscRuoloOk")?.addEventListener("click", async () => {
     const r = $("iscRuolo").value || null;
@@ -553,23 +570,43 @@ $("iscForm").addEventListener("submit", async (e) => {
 
 // ------------------------------------------------------------------ schede: elenco
 async function caricaSchede() {
-  let q = sb.from("schede").select("id,titolo,obiettivo,livello,stato,updated_at,pubblicata_il,member_id,destinatari,struttura,contenuto").order("updated_at", { ascending: false });
   const filtroScad = schFiltro === "scadenza" || schFiltro === "scadute";
-  if (filtroScad) q = q.eq("stato", "pubblicata"); else if (schFiltro) q = q.eq("stato", schFiltro);
-  const [{ data, error }] = await Promise.all([q, iscritti ? null : caricaIscritti(true)]);
+  const cerca = $("schCerca").value.trim(), da = $("schDa").value, a = $("schA").value, istr = $("schIstrF").value;
+  $("schAzzera").hidden = !(cerca || da || a || istr);
+  if (!istruttori.length) caricaIstruttori().then(riempiFiltroIstr);
+  else if ($("schIstrF").options.length !== istruttori.length + 1) riempiFiltroIstr();   // elenco già caricato da un'altra pagina
+  // ricerca nel database: titolo, nome/email dell'iscritto, periodo, istruttore, stato
+  let { data, error } = await sb.rpc("admin_schede", { p_cerca: cerca || null, p_da: da || null, p_a: a || null, p_istruttore: istr || null,
+    p_stato: filtroScad ? "pubblicata" : schFiltro || null });
+  if (error && /admin_schede|PGRST202|schema cache/i.test(error.message + (error.code || ""))) {   // database non ancora aggiornato
+    let q = sb.from("schede").select("id,titolo,obiettivo,livello,stato,updated_at,pubblicata_il,member_id,destinatari,struttura,contenuto").order("updated_at", { ascending: false });
+    if (filtroScad) q = q.eq("stato", "pubblicata"); else if (schFiltro) q = q.eq("stato", schFiltro);
+    ({ data, error } = await q);
+  }
+  if (!iscritti) await caricaIscritti(true);
   if (error) { $("schede").innerHTML = `<p class="msg ko">${esc(error.message)}</p>`; return; }
-  const nomeDi = (uid) => (iscritti || []).find((i) => i.user_id === uid)?.email || "un iscritto";
   let lista = data || [];
   if (filtroScad) lista = lista.map((s) => ({ s, sc: scadenzaScheda(s) })).filter((x) => x.sc && (schFiltro === "scadute" ? x.sc.giorni < 0 : x.sc.giorni >= 0 && x.sc.giorni <= 7)).sort((a, b) => a.sc.giorni - b.sc.giorni).map((x) => x.s);
+  const filtri = cerca || da || a || istr;
   $("schede").innerHTML = lista.map((s) => {
     const g = s.struttura?.giorni || [], nEs = g.reduce((t, d) => t + (d.esercizi || []).length, 0);
     return `<button class="sc" data-id="${s.id}"><span class="st ${s.stato}">${s.stato}</span><h3>${esc(s.titolo)}</h3>
       <span class="mut">${esc([s.obiettivo, s.livello].filter(Boolean).join(" · ") || "—")}</span>
       <span class="mut">${g.length ? `${g.length} ${g.length === 1 ? "giorno" : "giorni"} · ${nEs} esercizi` : s.contenuto ? "scheda di solo testo" : "vuota"} · ${destTesto(s)}</span>
+      ${s.istruttore ? `<span class="mut ist">Istruttore: ${esc(s.istruttore)}</span>` : ""}
       ${etichettaScad(s)}
-      <span class="mut">Aggiornata ${fa(s.updated_at)}</span></button>`;
-  }).join("") || `<p class="empty" style="grid-column:1/-1">${schFiltro === "scadenza" ? "Nessuna scheda scade nei prossimi 7 giorni" : schFiltro === "scadute" ? "Nessuna scheda scaduta" : `Nessuna scheda${schFiltro ? " in questo stato" : ""}`}. Creane una con «Nuova scheda»: puoi partire da un modello.</p>`;
+      <span class="mut">${s.pubblicata_il ? `Pubblicata ${esc(fDT.format(new Date(s.pubblicata_il)))} · ` : ""}aggiornata ${fa(s.updated_at)}</span></button>`;
+  }).join("") || `<p class="empty" style="grid-column:1/-1">${filtri ? "Nessuna scheda con questi filtri" : schFiltro === "scadenza" ? "Nessuna scheda scade nei prossimi 7 giorni" : schFiltro === "scadute" ? "Nessuna scheda scaduta" : `Nessuna scheda${schFiltro ? " in questo stato" : ""}`}. ${filtri ? "" : "Creane una con «Nuova scheda»."}</p>`;
 }
+function riempiFiltroIstr() {
+  const sel = $("schIstrF"), v = sel.value;
+  sel.innerHTML = '<option value="">Tutti gli istruttori</option>' + istruttori.map((i) => `<option value="${i.user_id}">${esc(i.nome)}${i.ruolo !== "istruttore" ? ` (${esc(i.ruolo)})` : ""}</option>`).join("");
+  sel.value = v;
+}
+let tCercaSch = 0;
+$("schCerca").addEventListener("input", () => { clearTimeout(tCercaSch); tCercaSch = setTimeout(caricaSchede, 300); });
+["schDa", "schA", "schIstrF"].forEach((k) => $(k).addEventListener("change", caricaSchede));
+$("schAzzera").onclick = () => { $("schCerca").value = ""; $("schDa").value = ""; $("schA").value = ""; $("schIstrF").value = ""; caricaSchede(); };
 $("schFilter").addEventListener("click", (e) => {
   const b = e.target.closest(".chip"); if (!b) return;
   schFiltro = b.dataset.f; $("schFilter").querySelectorAll(".chip").forEach((x) => x.setAttribute("aria-pressed", x === b)); caricaSchede();
@@ -647,8 +684,10 @@ $("edModelli").addEventListener("click", async (e) => {
 
 // ---- apertura e salvataggio
 async function apriScheda(id) {
-  await Promise.all([caricaCatalogo(), iscritti ? null : caricaIscritti(true)]);
+  await Promise.all([caricaCatalogo(), iscritti ? null : caricaIscritti(true), istruttori.length ? null : caricaIstruttori()]);
   const f = $("schForm"); f.reset(); msg($("schMsg"), "");
+  $("schIstr").innerHTML = opzioniIstr(null);
+  $("schNotL").textContent = "Avvisa gli iscritti alla pubblicazione"; f.notifica.checked = true;
   $("schDestList").innerHTML = (iscritti || []).filter((i) => i.user_id && i.attivo).map((i) => `<option value="${esc(i.email)}">${esc(i.nome)}</option>`).join("");
   ed = { giorni: [{ nome: "Giorno A", note: "", esercizi: [] }] };
   destSel = []; $("schDest").value = "";
@@ -664,6 +703,9 @@ async function apriScheda(id) {
     else if (data.contenuto) ed.giorni[0].note = data.contenuto;   // vecchia scheda di solo testo: il testo finisce nelle note
     f.settimane.value = s?.settimane || ""; f.frequenza.value = s?.frequenza || ""; f.note.value = s?.note || "";
     f.inizio.value = s?.inizio || (data.pubblicata_il ? ymdRome(new Date(data.pubblicata_il)) : ""); ed.pubblicata_il = data.pubblicata_il;
+    $("schIstr").innerHTML = opzioniIstr(data.istruttore_id || null);
+    // scheda già pubblicata: la notifica delle modifiche è una scelta (spenta di default)
+    if (data.stato === "pubblicata") { $("schNotL").textContent = "Avvisa gli iscritti delle modifiche"; f.notifica.checked = false; }
   }
   gSel = 0; libGruppo = ""; $("libQ").value = ""; $("libAttr").value = "";
   aggiornaScad();
@@ -688,12 +730,24 @@ $("schForm").addEventListener("submit", async (e) => {
     giorni: ed.giorni.map((g) => ({ nome: g.nome.trim() || "Giorno", note: g.note.trim() || null, esercizi: g.esercizi.map(({ id, nome, gruppo, tipo, serie, rip, carico, rec, note, ss }) =>
       ({ id, nome, gruppo, tipo, serie: Number(serie) || 1, rip: String(rip || "").trim(), carico: String(carico || "").trim() || null, rec: Number(rec) || 0, note: String(note || "").trim() || null, ss: !!ss })) })) };
   const row = { titolo: f.titolo.value.trim(), obiettivo: f.obiettivo.value.trim() || null, livello: f.livello.value || null, descrizione: f.descrizione.value.trim() || null,
-    member_id: null, destinatari: destSel.length ? destSel : null, stato, struttura, contenuto: testoScheda() };
-  if (stato === "pubblicata" && !ed.pubblicata_il) row.pubblicata_il = ed.pubblicata_il = new Date().toISOString();   // la prima pubblicazione resta
+    member_id: null, destinatari: destSel.length ? destSel : null, stato, struttura, contenuto: testoScheda(),
+    istruttore_id: f.istruttore_id.value && !f.istruttore_id.value.startsWith("libero:") ? f.istruttore_id.value : null };
+  const primaPubblicazione = stato === "pubblicata" && !ed.pubblicata_il;
+  if (primaPubblicazione) row.pubblicata_il = ed.pubblicata_il = new Date().toISOString();   // la prima pubblicazione resta
   const res = f.elements.id.value ? await sb.from("schede").update(row).eq("id", f.elements.id.value).select("id").single() : await sb.from("schede").insert(row).select("id").single();
   if (res.error) return msg($("schMsg"), res.error.message);
   f.elements.id.value = res.data.id; $("schStato").textContent = stato; $("schStato").className = "st " + stato; msg($("schMsg"), "");
-  toast(stato === "pubblicata" ? `Scheda pubblicata: la vedono ${destSel.length ? `${destSel.length} ${destSel.length === 1 ? "iscritto" : "iscritti"}` : "tutti gli iscritti"} nell'app.` : stato === "archiviata" ? "Scheda archiviata." : "Bozza salvata.");
+  // notifica agli iscritti (nuova scheda o modifiche), se spuntata
+  let avvisati = null, errNotifica = null;
+  if (stato === "pubblicata" && f.notifica.checked) {
+    const n = await sb.rpc("admin_notifica_scheda", { p_id: res.data.id, p_tipo: primaPubblicazione ? "nuova" : "aggiornata" });
+    if (n.error) errNotifica = n.error.message; else avvisati = n.data || 0;
+    $("schNotL").textContent = "Avvisa gli iscritti delle modifiche"; f.notifica.checked = false;   // le volte successive è una scelta
+  }
+  if (errNotifica) toast("Scheda salvata, ma notifica non inviata: " + errNotifica, false);
+  else
+    toast((stato === "pubblicata" ? `Scheda ${primaPubblicazione ? "pubblicata" : "aggiornata"}: la vedono ${destSel.length ? `${destSel.length} ${destSel.length === 1 ? "iscritto" : "iscritti"}` : "tutti gli iscritti"} nell'app` : stato === "archiviata" ? "Scheda archiviata" : "Bozza salvata")
+      + (avvisati ? ` · notifica inviata a ${avvisati} ${avvisati === 1 ? "persona" : "persone"}` : avvisati === 0 ? " · nessuno da avvisare con le notifiche attive" : "") + ".");
   caricaSchede();
 });
 
@@ -1656,6 +1710,12 @@ function disegnaValutazioni(V) {
 let destSel = [];
 const iscrittoDi = (uid) => (iscritti || []).find((i) => i.user_id === uid);
 function destTesto(s) {
+  // dal database arrivano già nome ed email (anche di chi ha l'accesso reimpostato e non ha ancora riattivato l'app)
+  if (Array.isArray(s.persone)) {
+    if (!s.persone.length) return "per tutti";
+    const nomi = s.persone.slice(0, 2).map((p) => `${esc(p.nome || p.email || "iscritto rimosso")}${p.in_attesa ? ' <span class="attesa">(accesso da riattivare)</span>' : ""}`).join(", ");
+    return `per ${nomi}${s.persone.length > 2 ? ` e altri ${s.persone.length - 2}` : ""}`;
+  }
   const L = s.destinatari?.length ? s.destinatari : s.member_id ? [s.member_id] : [];
   if (!L.length) return "per tutti";
   const prime = L.slice(0, 2).map((u) => esc(iscrittoDi(u)?.email || "iscritto rimosso")).join(", ");

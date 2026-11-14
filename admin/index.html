@@ -101,6 +101,12 @@
 
     <!-- SCHEDE -->
     <section id="tab-schede" class="page" hidden>
+      <div class="calbar schcerca">
+        <label class="search" aria-label="Cerca scheda" style="flex-basis:320px"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg><input id="schCerca" type="search" placeholder="Cerca per titolo, nome o email dell'iscritto"></label>
+        <label class="mini" title="Data di pubblicazione (o di creazione per le bozze)">Dal<input type="date" id="schDa"></label><label class="mini">Al<input type="date" id="schA"></label>
+        <select id="schIstrF" aria-label="Istruttore" style="width:auto"><option value="">Tutti gli istruttori</option></select>
+        <button class="link" type="button" id="schAzzera" hidden>Azzera filtri</button>
+      </div>
       <div class="chips" id="schFilter">
         <button class="chip" data-f="" aria-pressed="true">Tutte</button><button class="chip" data-f="bozza" aria-pressed="false">Bozze</button>
         <button class="chip" data-f="pubblicata" aria-pressed="false">Pubblicate</button><button class="chip" data-f="archiviata" aria-pressed="false">Archiviate</button><button class="chip" data-f="scadenza" aria-pressed="false">In scadenza (7 gg)</button><button class="chip" data-f="scadute" aria-pressed="false">Scadute</button>
@@ -316,6 +322,7 @@
       <input class="ed-titolo" name="titolo" maxlength="120" placeholder="Titolo della scheda (es. Tonificazione 3 giorni)" required>
       <span class="st" id="schStato">bozza</span>
       <div class="ed-acts">
+        <label class="chk schnot" title="Notifica sul telefono agli iscritti a cui è assegnata (o a tutti se non ha destinatari)"><input type="checkbox" name="notifica" checked> <span id="schNotL">Avvisa con una notifica</span></label>
         <button class="ghost sm" type="submit" data-stato="archiviata">Archivia</button>
         <button class="ghost sm" type="submit" data-stato="bozza">Salva bozza</button>
         <button class="btn sm" type="submit" data-stato="pubblicata">Pubblica</button>
@@ -327,6 +334,7 @@
           <label>Obiettivo<input name="obiettivo" list="obList" maxlength="60" placeholder="es. tonificazione"></label>
           <datalist id="obList"><option>Tonificazione</option><option>Forza</option><option>Ipertrofia</option><option>Dimagrimento</option><option>Resistenza</option><option>Mobilità e postura</option><option>Ricondizionamento</option></datalist>
           <label>Livello<select name="livello"><option value="">—</option><option>principiante</option><option>intermedio</option><option>avanzato</option></select></label>
+          <label>Istruttore<select name="istruttore_id" id="schIstr"><option value="">—</option></select></label>
           <div class="full destbox"><label for="schDest">Destinatari (email) <span class="mut" id="destInfo">nessuno = tutti gli iscritti</span></label>
             <div class="destwrap"><span id="destChips"></span><input id="schDest" type="email" list="schDestList" autocomplete="off" placeholder="scrivi un'email e premi Invio"><button class="ghost sm" type="button" id="destAdd">Aggiungi</button></div>
             <datalist id="schDestList"></datalist></div>

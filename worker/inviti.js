@@ -8,34 +8,43 @@ const MITTENTE = "WHY NOT Fitness Club <noreply@whynotfitnessclub.com>";
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 const data = (iso) => new Intl.DateTimeFormat("it-IT", { timeZone: "Europe/Rome", day: "numeric", month: "long", year: "numeric" }).format(new Date(iso));
 
-function email(x) {
+// tipo "invito" (prima attivazione) o "reimposta" (accesso reimpostato dallo staff: stesso codice+link, testi diversi)
+function email(x, tipo = "invito") {
+  const re = tipo === "reimposta";
   const nome = String(x.nome || "").trim().split(/\s+/)[0] || "";
   const link = `${APP}?attiva&e=${encodeURIComponent(x.email)}&c=${encodeURIComponent(x.codice)}`;
   const scade = data(x.scade);
+  const titolo = re ? "ecco il tuo nuovo accesso all'app" : "la palestra ora è anche nel tuo telefono";
+  const intro = re
+    ? "Lo staff ha reimpostato il tuo accesso all'app di WHY NOT Fitness Club. Riattivala con il codice qui sotto e una nuova password: ritrovi le tue schede di allenamento, i pesi che hai registrato e le prenotazioni."
+    : "Con l'app di WHY NOT Fitness Club vedi gli orari dei corsi, prenoti H.E.A.T. e Step Coreo, segni la partecipazione agli altri corsi e ricevi gli avvisi della palestra.";
+  const bottone = re ? "Riattiva l'app" : "Attiva l'app";
   const html = `<div style="background:#121212;padding:32px 16px;font-family:Arial,Helvetica,sans-serif"><div style="max-width:480px;margin:0 auto;background:#1c1c1c;border-radius:16px;padding:28px;color:#f2f2f2">
 <img src="${LOGO}" width="72" height="72" alt="WHY NOT Fitness Club" style="display:block;border-radius:14px;margin:0 0 18px">
-<h1 style="font-size:22px;margin:0 0 12px">${nome ? `Ciao ${esc(nome)}, ` : ""}la palestra ora è anche nel tuo telefono</h1>
-<p style="font-size:15px;line-height:1.6;color:#d4d4d4">Con l'app di WHY NOT Fitness Club vedi gli orari dei corsi, prenoti H.E.A.T. e Step Coreo, segni la partecipazione agli altri corsi e ricevi gli avvisi della palestra.</p>
+<h1 style="font-size:22px;margin:0 0 12px">${nome ? `Ciao ${esc(nome)}, ` : ""}${titolo}</h1>
+<p style="font-size:15px;line-height:1.6;color:#d4d4d4">${intro}</p>
 <p style="font-size:13px;color:#9d9d9d;margin:20px 0 6px">Il tuo codice di attivazione</p>
 <p style="font-size:30px;letter-spacing:6px;font-weight:bold;font-family:'Courier New',monospace;margin:0 0 6px;color:#fff">${esc(x.codice)}</p>
 <p style="font-size:13px;color:#9d9d9d;margin:0">Valido fino al ${esc(scade)}, da usare con questa email: <b style="color:#d4d4d4">${esc(x.email)}</b></p>
-<p style="margin:24px 0"><a href="${esc(link)}" style="background:#b61927;color:#fff;text-decoration:none;font-weight:bold;padding:13px 22px;border-radius:999px;display:inline-block">Attiva l'app</a></p>
+<p style="margin:24px 0"><a href="${esc(link)}" style="background:#b61927;color:#fff;text-decoration:none;font-weight:bold;padding:13px 22px;border-radius:999px;display:inline-block">${bottone}</a></p>
 <p style="font-size:15px;line-height:1.6;color:#d4d4d4;margin:0 0 6px"><b>Come fare</b></p>
 <ol style="font-size:14px;line-height:1.6;color:#d4d4d4;padding-left:20px;margin:0 0 16px">
-<li>Tocca «Attiva l'app»: email e codice sono già inseriti.</li>
+<li>Tocca «${bottone}»: email e codice sono già inseriti.</li>
 <li>Scegli una password (almeno 8 caratteri) e conferma.</li>
 <li>Mettila nella schermata Home: su <b>iPhone</b> apri il link con Safari, tocca Condividi e poi «Aggiungi alla schermata Home»; su <b>Android</b> con Chrome tocca «Installa app» (o il menu ⋮ e «Installa app»).</li>
 </ol>
 <p style="font-size:13px;color:#9d9d9d;line-height:1.5">Se il pulsante non funziona apri ${esc(APP)} e scegli «Primo accesso». Per qualsiasi problema chiedi in reception.<br><br>
 WHY NOT Fitness Club · Via Emma e Cerino Zegna 7, Biella · <a href="https://whynotfitnessclub.com/privacy/" style="color:#9d9d9d">Privacy</a><br>
-Ricevi questa email perché sei iscritto alla palestra. Se non ti interessa, ignorala: senza attivazione non viene creato nessun account.</p>
+${re ? "Se non hai chiesto tu un nuovo accesso, avvisa la reception: senza il codice nessuno può entrare nel tuo account." : "Ricevi questa email perché sei iscritto alla palestra. Se non ti interessa, ignorala: senza attivazione non viene creato nessun account."}</p>
 </div></div>`;
-  const text = `${nome ? `Ciao ${nome}, ` : ""}la palestra ora è anche nel tuo telefono.
+  const text = `${nome ? `Ciao ${nome}, ` : ""}${titolo}.
+
+${intro}
 
 Il tuo codice di attivazione: ${x.codice}
 Valido fino al ${scade}, con questa email: ${x.email}
 
-Attiva l'app: ${link}
+${bottone}: ${link}
 
 1) Apri il link: email e codice sono già inseriti.
 2) Scegli una password (almeno 8 caratteri).
@@ -43,7 +52,7 @@ Attiva l'app: ${link}
 
 Per qualsiasi problema chiedi in reception.
 WHY NOT Fitness Club - Via Emma e Cerino Zegna 7, Biella - https://whynotfitnessclub.com/privacy/`;
-  return { from: MITTENTE, to: [x.email], subject: "Il tuo invito all'app di WHY NOT Fitness Club", html, text, tags: [{ name: "tipo", value: "invito" }] };
+  return { from: MITTENTE, to: [x.email], subject: re ? "Il tuo nuovo accesso all'app di WHY NOT Fitness Club" : "Il tuo invito all'app di WHY NOT Fitness Club", html, text, tags: [{ name: "tipo", value: re ? "reimposta" : "invito" }] };
 }
 
 export async function inviti(request, env, json, autentica) {
@@ -51,6 +60,7 @@ export async function inviti(request, env, json, autentica) {
   if (a.errore) return a.errore;
   if (!env.RESEND_API_KEY) return json({ error: "Invio email non configurato: manca il secret RESEND_API_KEY nel Worker Cloudflare." }, 500);
   const body = await request.json().catch(() => null);
+  const tipo = body?.tipo === "reimposta" ? "reimposta" : "invito";
   const ids = Array.isArray(body?.ids) ? [...new Set(body.ids.filter((x) => /^[0-9a-f-]{36}$/i.test(String(x))))] : [];
   if (!ids.length) return json({ error: "Nessun iscritto selezionato" }, 400);
   if (ids.length > 100) return json({ error: "Massimo 100 inviti per volta" }, 400);
@@ -69,7 +79,7 @@ export async function inviti(request, env, json, autentica) {
     const r = await fetch("https://api.resend.com/emails/batch", {
       method: "POST",
       headers: { authorization: `Bearer ${env.RESEND_API_KEY}`, "content-type": "application/json", "idempotency-key": `inviti-${crypto.randomUUID()}` },
-      body: JSON.stringify(lista.map(email)),
+      body: JSON.stringify(lista.map((x) => email(x, tipo))),
     });
     const out = await r.json().catch(() => ({}));
     if (!r.ok) {

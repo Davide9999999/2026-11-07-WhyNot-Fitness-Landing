@@ -157,9 +157,9 @@ async function entra() {
   const iso = (new Date(new Date().toLocaleString("en-US", { timeZone: "Europe/Rome" })).getDay() + 6) % 7;
   $("hrs").querySelectorAll("tr").forEach((r, k) => r.classList.toggle("today", k === iso));
   $("hDate").textContent = cap(fmt.day.format(new Date()));
-  // aperta da una notifica della bacheca (…/app/?p=bacheca): si va lì e si pulisce l'indirizzo
-  const qp = new URLSearchParams(location.search);
-  if (qp.get("p") === "bacheca") { pagina = "pBacheca"; qp.delete("p"); history.replaceState(null, "", location.pathname + (qp.toString() ? "?" + qp : "")); }
+  // aperta da una notifica (…/app/?p=bacheca o ?p=schede): si va lì e si pulisce l'indirizzo
+  const qp = new URLSearchParams(location.search), DEST = { bacheca: "pBacheca", schede: "pSchede" };
+  if (DEST[qp.get("p")]) { pagina = DEST[qp.get("p")]; qp.delete("p"); history.replaceState(null, "", location.pathname + (qp.toString() ? "?" + qp : "")); }
   show("vApp"); vai(pagina);
   installa(); statoNotifiche();
   await ricarica();
@@ -1171,4 +1171,7 @@ $("bachecaList").addEventListener("input", (e) => {
   if (s) s.hidden = (b.note || "") === (a.mia?.note || "") && (b.ospiti || 0) === (a.mia?.ospiti || 0);
 });
 // la notifica di un post apre la bacheca anche con l'app già aperta
-navigator.serviceWorker?.addEventListener("message", (e) => { if (String(e.data?.url || "").includes("p=bacheca") && session && !$("vApp").hidden) vai("pBacheca"); });
+navigator.serviceWorker?.addEventListener("message", (e) => {
+  const u = String(e.data?.url || ""); if (!session || $("vApp").hidden) return;
+  if (u.includes("p=bacheca")) vai("pBacheca"); else if (u.includes("p=schede")) vai("pSchede");
+});

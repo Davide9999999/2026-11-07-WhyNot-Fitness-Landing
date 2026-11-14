@@ -492,3 +492,8 @@ dialog.sheet.wide{width:min(860px,96vw)}
 @media(max-width:600px){.br{grid-template-columns:1fr auto}.br i{grid-column:1/-1;order:3}}
 .bev span.pay{background:rgba(240,179,60,.12);color:#ffe2a6}.bev span.warn{background:rgba(224,34,51,.15);color:#ffb3b8}
 .pagbtn{min-width:104px;justify-content:center}.pagbtn.on{background:#1f4d1a;border-color:#3d8a33;color:#c5f2b8}.pagbtn.rimb{background:#4d1a1f;border-color:#8a333d;color:#ffb3b8}
+/* schede: ricerca e istruttore */
+.schcerca{flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:12px}
+.schcerca .mini{display:flex;flex-direction:row;align-items:center;gap:6px;font-size:13px;color:var(--mut);margin:0}.schcerca .mini input{width:auto;padding:8px 10px}
+.schnot{font-size:12.5px;margin-right:6px;white-space:nowrap}
+.sc .ist{color:#cfe0ff}.sc .attesa{color:#ffe2a6}
