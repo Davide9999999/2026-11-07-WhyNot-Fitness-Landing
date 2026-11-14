@@ -39,6 +39,7 @@
       <button data-tab="bacheca" class="staff-only"><svg viewBox="0 0 24 24"><path d="M4 5h16v11H8l-4 4z"/></svg>Bacheca</button>
       <button data-tab="stat" class="staff-only"><svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Statistiche</button>
       <button data-tab="ai" class="ai-only"><svg viewBox="0 0 24 24"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/></svg>Assistente</button>
+      <button data-tab="guida" class="tutti"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6V14M12 17.5v.01"/></svg>Guida</button>
     </nav>
     <div class="side-foot">
       <a href="../app/" target="_blank" rel="noopener"><svg viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>App iscritti</a>
@@ -61,6 +62,7 @@
         <span data-for="stat" class="acts"><button class="ghost sm" id="expPren">Esporta prenotazioni (CSV)</button></span>
         <span data-for="iscritti" class="acts"><button class="ghost sm" id="expIsc">Esporta (CSV)</button></span>
         <span data-for="ai" class="acts"><button class="ghost sm" id="aiReset">Nuova chat</button></span>
+        <button class="link" id="guidaM" data-tab="guida" style="display:none">Guida</button>
         <button class="link" id="logoutM" style="display:none">Esci</button>
       </div>
     </header>
@@ -148,6 +150,114 @@
       <div class="panel" style="margin-top:16px"><h2>Iscritti che non vengono da 3 settimane <button class="btn sm" id="richiamoBtn" disabled>Invia richiamo</button></h2><div id="statInatt"></div></div>
     </section>
 
+    <!-- GUIDA -->
+    <section id="tab-guida" class="page" hidden>
+      <div class="calbar"><label class="search" aria-label="Cerca nella guida" style="flex-basis:340px"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg><input id="guidaCerca" type="search" placeholder="Cerca: invito, password, settimana, scheda…"></label><span class="mut" id="guidaN"></span></div>
+      <div class="guida" id="guida">
+
+        <details class="gd istr-only" open><summary>Le mie lezioni e l'appello</summary><div>
+          <p>Nella pagina <b>Le mie lezioni</b> trovi le lezioni assegnate a te, settimana per settimana (frecce ‹ › e «Oggi»).</p>
+          <ol><li>Tocca una lezione per vedere chi è prenotato o ha segnato la partecipazione, con le eventuali note per l'istruttore.</li>
+          <li>Da 30 minuti prima dell'inizio puoi segnare <b>Presente</b> o <b>Assente</b> per ciascuno: serve per le presenze e le statistiche.</li></ol>
+          <p class="gn">Non vedi email e telefoni degli iscritti: per qualsiasi contatto rivolgiti alla reception.</p>
+        </div></details>
+
+        <details class="gd staff-only" open><summary>Prima di tutto: cosa si fa ogni settimana</summary><div>
+          <ol><li><b>Entro venerdì</b> genera le lezioni della settimana successiva: <b>Calendario</b> → vai alla settimana con › → <b>Genera dal palinsesto</b> → Genera.</li>
+          <li>Il <b>sabato alle 9:00</b> si aprono le prenotazioni di quella settimana nell'app. Una settimana non generata nell'app resta vuota.</li>
+          <li>La prima volta che generi una settimana, chi ha le notifiche attive riceve l'avviso «nuova settimana» con i suoi corsi preferiti.</li>
+          <li>Ogni tanto controlla in <b>Panoramica</b> gli avvisi (es. schede in scadenza) e in <b>Iscritti</b> chi non ha ancora attivato l'app.</li></ol>
+          <p class="gn">Generare due volte la stessa settimana non crea doppioni: aggiunge solo le lezioni mancanti.</p>
+        </div></details>
+
+        <details class="gd staff-only"><summary>Calendario e lezioni</summary><div>
+          <ul><li><b>Nuova lezione</b>: per una lezione fuori palinsesto (corso, giorno, ora, sala, istruttore).</li>
+          <li>Tocca una lezione per aprire il dettaglio: posti, prenotati, lista d'attesa, note degli iscritti.</li>
+          <li><b>Aggiungi partecipante</b>: per segnare chi prenota in reception o al telefono.</li>
+          <li><b>Presente / Assente</b>: da 30 minuti prima della lezione.</li>
+          <li><b>Annulla lezione</b>: chi era segnato e ha le notifiche attive riceve subito l'avviso; gli altri vanno contattati a mano (il messaggio di conferma ti dice quanti sono). Con <b>Ripristina lezione</b> torna attiva.</li></ul>
+          <p class="gn">Corsi <b>su prenotazione</b> (oggi H.E.A.T. Program e Step Coreo): posti limitati, poi lista d'attesa; quando si libera un posto il primo in attesa entra da solo e riceve la notifica. Corsi <b>a partecipazione</b>: nessun limite, l'iscritto tocca «Partecipo» così sapete in quanti verranno.</p>
+        </div></details>
+
+        <details class="gd staff-only"><summary>Nuovo iscritto e invito all'app</summary><div>
+          <ol><li><b>Iscritti</b> → <b>Nuovo iscritto</b>: nome e cognome, email (è quella con cui entrerà nell'app), telefono.</li>
+          <li>Lascia spuntato <b>Invia subito l'invito via email</b>: riceve un'email con il codice e il pulsante «Attiva l'app» (email e codice già inseriti) e le istruzioni per installarla su iPhone e Android.</li>
+          <li>Se l'email non arriva o l'iscritto è davanti a te: nella sua scheda usa <b>Genera codice da consegnare a mano</b> e daglielo. Il codice vale 30 giorni.</li></ol>
+          <p class="gn">Nessuno può registrarsi da solo: senza email e codice validi l'app non si attiva. Ogni nuovo invito sostituisce il codice precedente.</p>
+        </div></details>
+
+        <details class="gd staff-only"><summary>Importare gli iscritti da Excel e mandare gli inviti a tutti</summary><div>
+          <ol><li><b>Iscritti</b> → <b>Importa</b> → <b>Scarica il modello Excel</b>, oppure usa l'esportazione del gestionale (Excel .xlsx o CSV con la prima riga di titoli).</li>
+          <li>Servono nome (o nome e cognome in due colonne) ed email; telefono e note sono facoltativi. Le colonne vengono riconosciute da sole, puoi correggerle dai menu.</li>
+          <li>Controlla l'anteprima: righe da importare, già presenti, da correggere. Le righe senza email valida non entrano: correggile nel file e reimportalo.</li>
+          <li>Gli importati risultano <b>Da invitare</b> e non ricevono nulla. Quando sei pronto: <b>Invia inviti</b>, scegli chi, conferma.</li></ol>
+          <p class="gn">Massimo <b>90 inviti al giorno</b> (limite del servizio email, che serve anche per i reset password): oltre il limite il pannello te lo dice e il resto si manda il giorno dopo. Per i solleciti usa i filtri «Mai invitati» e «Già invitati, app non attivata».</p>
+        </div></details>
+
+        <details class="gd staff-only"><summary>Password dimenticata, iscritto sospeso, dati da cambiare</summary><div>
+          <ul><li><b>Password dimenticata</b>: l'iscritto può usare «Password dimenticata?» nell'app (riceve un link per email). Se non funziona: scheda dell'iscritto → <b>Reimposta accesso</b> → nuovo codice; riattiva l'app con la stessa email e una nuova password, le sue prenotazioni restano.</li>
+          <li><b>Sospendere</b> (abbonamento scaduto, pausa): togli la spunta <b>Iscrizione attiva</b> nella sua scheda. Entra nell'app ma non può prenotare. Rimetti la spunta per riattivarlo.</li>
+          <li><b>Correggere nome, telefono o note</b>: dalla scheda dell'iscritto. L'email di accesso è legata all'account dell'app.</li></ul>
+        </div></details>
+
+        <details class="gd admin-only"><summary>Collaboratori e rimozione iscritti <span class="gt">solo admin</span></summary><div>
+          <ul><li><b>Nuovo collaboratore</b>: Nuovo iscritto → campo <b>Collaboratore</b> (Staff, Admin o Istruttore). Per chi ha già l'app: sua scheda → Collaboratore → Applica.</li>
+          <li><b>Istruttore</b>: vede solo «Le mie lezioni» e l'appello, senza recapiti. Le lezioni si assegnano nelle fasce di Corsi e orari o nella singola lezione.</li>
+          <li><b>Rimuovere un iscritto</b>: sua scheda → <b>Rimuovi definitivamente</b>, oppure spunta più iscritti nell'elenco e usa la barra rossa (scrivi RIMUOVI per confermare). Le prenotazioni future vengono annullate, lo storico resta anonimo nelle statistiche, account e dati personali vengono cancellati.</li></ul>
+          <p class="gn">La rimozione non si può annullare (resta solo il backup notturno). Per una pausa usa la sospensione.</p>
+        </div></details>
+
+        <details class="gd staff-only"><summary>Schede di allenamento</summary><div>
+          <ol><li><b>Schede</b> → <b>Nuova scheda</b>. Puoi partire da un modello (Full body principiante, Upper/Lower, Push/Pull/Legs, Circuito funzionale, Mobilità e postura) o da zero.</li>
+          <li>Organizza i giorni (Giorno A, B, C… con <b>Duplica giorno</b> per fare prima) e aggiungi gli esercizi dalla libreria: serie, ripetizioni o durata, carico, recupero, note. Il simbolo ⛓ unisce due esercizi in <b>superserie</b> (senza recupero in mezzo).</li>
+          <li><b>Destinatari</b>: una o più email di iscritti; vuoto = scheda per tutti.</li>
+          <li><b>Inizio</b> e <b>settimane</b>: dopo quella data la scheda risulta scaduta (filtri «In scadenza (7 gg)» e «Scadute», avviso in Panoramica).</li>
+          <li><b>Salva bozza</b> per lavorarci ancora, <b>Pubblica</b> per mandarla nell'app, <b>Archivia</b> quando non serve più.</li></ol>
+          <p class="gn">Cosa vede l'iscritto: la scheda divisa per giorni con «Come si esegue»; con <b>Inizia</b> fa un esercizio alla volta, segna chili e ripetizioni di ogni serie (con «ultima volta» e suggerimento di aumento), ha il recupero automatico con pausa e ±15 secondi, e alla fine un riepilogo. I carichi registrati li vedi nella sua scheda in Iscritti (ultimi 90 giorni). Le indicazioni degli esercizi del catalogo sono generiche: falle rivedere a un istruttore.</p>
+        </div></details>
+
+        <details class="gd staff-only"><summary>Avvisi e bacheca</summary><div>
+          <ol><li><b>Invia avviso</b> (da Panoramica) o <b>Bacheca</b> → <b>+ Nuovo avviso</b>: titolo e testo.</li>
+          <li>Con la spunta <b>Invia anche come notifica</b> arriva sul telefono di chi ha attivato le notifiche; senza, resta solo in bacheca.</li></ol>
+          <p class="gn">Gli avvisi restano visibili nell'app per 60 giorni, anche per chi non ha le notifiche. Per una lezione annullata non serve l'avviso: la notifica parte da sola.</p>
+        </div></details>
+
+        <details class="gd staff-only"><summary>Corsi e orari</summary><div>
+          <ul><li><b>Corsi</b>: capienza, sala, attivo/non attivo. L'interruttore nella colonna <b>Prenotazione</b> rende il corso «Su prenotazione» o «A partecipazione» (chiede conferma). Capienza e sala valgono per le settimane generate da quel momento.</li>
+          <li><b>Palinsesto settimanale</b>: è il modello usato da «Genera dal palinsesto». <b>+ Fascia oraria</b> per aggiungere un orario, tocca una fascia per cambiare corso, istruttore o disattivarla.</li>
+          <li class="admin-only"><b>Regole prenotazioni</b> (solo admin): fino a quante ore prima un confermato può annullare dall'app.</li></ul>
+          <p class="gn">Le modifiche al palinsesto non toccano le settimane già generate: correggi quelle singole lezioni dal Calendario.</p>
+        </div></details>
+
+        <details class="gd staff-only"><summary>Statistiche ed esportazioni</summary><div>
+          <ul><li>Scegli il periodo (Oggi, Ieri, Settimana, Mese, Anno o date Dal/Al) e scorri con ‹ ›.</li>
+          <li><b>Confronta con</b> settimana, mese o anno prima, o un periodo a scelta: verde = meglio, rosso = peggio.</li>
+          <li><b>Partecipazione per corso</b>: persone e quota sul totale. <b>Partecipanti per giorno e ora</b>: media per lezione, utile per decidere gli orari.</li>
+          <li><b>Iscritti che non vengono da 3 settimane</b>: con <b>Invia richiamo</b> ricevono una notifica.</li>
+          <li><b>Esporta</b>: prenotazioni del periodo (Statistiche) e iscritti (Iscritti) in un file che si apre con Excel.</li></ul>
+          <p class="gn">I file esportati contengono dati personali: non inoltrarli fuori dalla palestra.</p>
+        </div></details>
+
+        <details class="gd staff-only"><summary>Se un iscritto chiede aiuto</summary><div>
+          <ul><li><b>«Non mi è arrivata l'email»</b>: controlla l'indirizzo nella sua scheda e la cartella spam; poi reinvia l'invito o dagli il codice a mano.</li>
+          <li><b>«Non riesco a entrare»</b>: deve usare la stessa email dell'invito. Se ha perso la password: «Password dimenticata?» nell'app o Reimposta accesso.</li>
+          <li><b>«Non trovo le lezioni della prossima settimana»</b>: la settimana non è ancora generata, oppure è prima di sabato alle 9:00.</li>
+          <li><b>«Non posso prenotare»</b>: corso pieno (può mettersi in lista d'attesa), prenotazioni non ancora aperte, oppure iscrizione sospesa.</li>
+          <li><b>«Non ricevo le notifiche»</b>: nell'app Profilo → Notifiche → Attiva. Su iPhone servono iOS 16.4 o successivo e l'app aggiunta alla schermata Home (Condividi → Aggiungi alla schermata Home). Su Android conviene togliere il risparmio batteria per Chrome.</li>
+          <li><b>«Come installo l'app?»</b>: apre <b>whynotfitnessclub.com/app</b>; su Android con Chrome «Installa app», su iPhone con Safari Condividi → «Aggiungi alla schermata Home».</li></ul>
+        </div></details>
+
+        <details class="gd"><summary>Accesso al pannello e sicurezza</summary><div>
+          <ul><li>Si entra con la stessa email e password dell'app. Esci dal pannello (in basso a sinistra, o in alto sul telefono) se usi un computer condiviso.</li>
+          <li>Non condividere il tuo accesso: ogni collaboratore ha il suo.</li>
+          <li>Ogni notte viene fatto un backup cifrato dei dati.</li>
+          <li>Problemi tecnici o errori strani: segnalali con data, ora e una foto dello schermo.</li></ul>
+        </div></details>
+
+      </div>
+      <p class="mut" id="guidaVuota" hidden style="margin-top:12px">Nessun argomento trovato. Prova con un'altra parola.</p>
+    </section>
+
     <!-- ASSISTENTE AI -->
     <section id="tab-ai" class="page" hidden>
       <div class="ai">
@@ -169,6 +279,7 @@
     <button data-tab="bacheca" class="staff-only"><svg viewBox="0 0 24 24"><path d="M4 5h16v11H8l-4 4z"/></svg>Bacheca</button>
     <button data-tab="stat" class="staff-only"><svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Statistiche</button>
     <button data-tab="ai" class="ai-only"><svg viewBox="0 0 24 24"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/></svg>AI</button>
+    <button data-tab="guida" class="tutti"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6V14M12 17.5v.01"/></svg>Guida</button>
   </nav>
 </div>
 

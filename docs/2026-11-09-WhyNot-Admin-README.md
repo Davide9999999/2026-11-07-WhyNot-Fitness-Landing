@@ -210,3 +210,23 @@ Solo gli **admin**. Due modi:
 
 Cosa succede: prenotazioni future annullate (chi è in lista d'attesa entra e riceve la notifica); prenotazioni passate conservate ma anonime («Iscritto rimosso», senza email/telefono/note), così presenze e statistiche non cambiano; commenti delle valutazioni cancellati (i voti restano nelle medie); account dell'app, profilo, ruolo staff, notifiche, preferiti e carichi cancellati; anagrafica e storico inviti cancellati. Le schede di allenamento restano, senza iscritto collegato.
 Non si può rimuovere se stessi. Non è annullabile (resta solo il backup notturno). Per una pausa temporanea usare invece «Iscrizione attiva» (sospensione).
+
+## 20. Favicon e logo nelle email (2026-11-13)
+- Favicon: marchio «?» ingrandito su fondo pieno, in `assets/img/favicon/` (48, 96, 192, 512 px e `apple-touch-icon.png` 180 px) più `/favicon.ico` alla radice (16, 32, 48 px), che Google cerca per primo. Tutte le pagine del sito e l'admin lo usano; l'app iscritti tiene la sua icona (`app/icons/`). Google aggiorna l'icona nei risultati quando ripassa sul sito.
+- Email: il logo è nei modelli di Supabase (conferma account, cambio email, recupero password: `supabase/2026-11-09-WhyNot-email-templates.json`, allineato alla versione attiva) e negli inviti (`worker/inviti.js`).
+- Logo accanto al mittente nella casella di posta: non si imposta da Resend. Opzioni: BIMI (record DMARC restrittivo + logo SVG Tiny PS + certificato VMC/CMC a pagamento per Gmail e Apple) oppure, gratis ma senza garanzia, un account Google con l'indirizzo `noreply@whynotfitnessclub.com` e la foto profilo. Da fare comunque: record TXT `_dmarc` su Cloudflare (oggi assente), es. `v=DMARC1; p=none; rua=mailto:whynotfitnessclubbiella@gmail.com`.
+
+## 21. Schede nell'app iscritti (2026-11-13/14, app v19) — nessuna modifica al database
+- **Elenco**: per ogni scheda ultimo allenamento, prossimo giorno da fare (quello dopo l'ultimo svolto) ed etichetta «In corso» con «Riprendi» se l'allenamento di oggi è rimasto aperto. I carichi si leggono una volta con l'elenco: l'apertura della scheda è immediata, le spiegazioni degli esercizi arrivano dopo.
+- **Allenamento**: un esercizio alla volta (le superserie aperte insieme, numerate 2A/2B); finite le serie si apre da solo il successivo. Chili con −/+ (passo 1 kg sotto i 20 kg, 2,5 kg sopra); un valore cambiato passa alle serie successive non ancora fatte e non modificate a mano.
+- **Salvataggio**: la serie si segna subito a video e poi si salva (`salva_carico` / `togli_carico`); i salvataggi partono in fila, così con un doppio tocco arrivano nell'ordine giusto; se uno fallisce torna com'era solo quella serie, con un messaggio.
+- **Recupero**: barra fissa in basso con −15 s, pausa/riprendi, +15 s, Salta; parte dopo un esercizio singolo o dopo l'ultimo della superserie, con vibrazione a fine tempo.
+- **Ripresa**: l'allenamento in corso è ricordato sul telefono per la giornata (`localStorage` «whynot-allenamento»); chiudendo e riaprendo la scheda si riparte da lì. «Termina» mostra serie, chili sollevati e durata.
+- **Schermo acceso** durante l'allenamento dove il browser lo consente (Screen Wake Lock).
+- Corretto anche: i messaggi dell'app (conferme ed errori) restavano nascosti sotto i pannelli aperti; la chiusura del pannello ora pulisce subito lo stato, anche con Indietro/Esc.
+- Collaudo: 91 controlli automatici su una copia locale con dati finti (rete lenta, doppio tocco, errore di salvataggio, chiusura e ripresa, superserie, pausa), tutti superati; non sostituisce una prova su telefono vero (schermo acceso, vibrazione, tasto Indietro di Android).
+
+## 22. Guida nel pannello (2026-11-14)
+- Voce **Guida** nel menu (su telefono anche in alto, accanto a «Esci»): argomenti apribili con ricerca (senza badare ad accenti e maiuscole).
+- Ogni ruolo vede la sua parte: staff tutto tranne la sezione solo admin; admin anche collaboratori, rimozione e regole prenotazioni; istruttore solo appello e accesso.
+- Il testo è in `admin/index.html` (sezione `tab-guida`): quando cambia una funzione del pannello va aggiornato anche lì.

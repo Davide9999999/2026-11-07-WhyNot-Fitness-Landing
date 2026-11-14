@@ -105,10 +105,11 @@ const TITOLI = {
   palinsesto: ["Corsi e orari", () => "Corsi, capienze, palinsesto settimanale e regole"],
   bacheca: ["Bacheca", () => "Avvisi visibili nell'app"],
   stat: ["Statistiche", () => "Riempimento, andamento e iscritti da richiamare"],
+  guida: ["Guida", () => "Come si usa il pannello, passo per passo"],
 };
 function vai(t) {
   if (!TITOLI[t] || (t === "ai" && !cfg.aiEnabled)) t = "home";
-  if (mioRuolo === "istruttore") t = "mie"; else if (t === "mie") t = "home";
+  if (mioRuolo === "istruttore") { if (t !== "guida") t = "mie"; } else if (t === "mie") t = "home";
   tab = t; history.replaceState(null, "", "#" + t);
   document.querySelectorAll("[data-tab]").forEach((b) => (b.dataset.tab === t ? b.setAttribute("aria-current", "page") : b.removeAttribute("aria-current")));
   Object.keys(TITOLI).forEach((k) => ($(`tab-${k}`).hidden = k !== t));
@@ -1807,3 +1808,19 @@ async function rimuoviIscritti(ids) {
   await caricaIscritti();
   return true;
 }
+
+// ------------------------------------------------------------------ guida
+// ricerca: mostra solo gli argomenti che contengono tutte le parole scritte (senza badare ad accenti e maiuscole)
+const normGuida = (s) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+$("guidaCerca").addEventListener("input", (e) => {
+  const parole = normGuida(e.target.value).split(/\s+/).filter(Boolean);
+  let n = 0;
+  document.querySelectorAll("#guida .gd").forEach((d) => {
+    const si = parole.every((p) => normGuida(d.textContent).includes(p));
+    d.hidden = !si;
+    if (parole.length) d.open = si;
+    if (si && d.offsetParent !== null) n++;   // conta solo gli argomenti visibili per il proprio ruolo
+  });
+  $("guidaN").textContent = parole.length ? `${n} ${n === 1 ? "argomento" : "argomenti"}` : "";
+  $("guidaVuota").hidden = !parole.length || n > 0;
+});
