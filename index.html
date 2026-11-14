@@ -33,7 +33,7 @@
   "alternateName": ["Why Not Biella", "Why Not Fitness Biella"],
   "description": "Palestra a Biella dal 2010 con sala pesi e oltre 20 corsi fitness: Pilates, Hatha Yoga, Zumba, Cross Training, Body Pump, Step e altri.",
   "url": "https://whynotfitnessclub.com/",
-  "image": "https://whynotfitnessclub.com/2026-11-07-Logo-WhyNot.png",
+  "image": ["https://whynotfitnessclub.com/2026-11-07-Logo-WhyNot.png", "https://whynotfitnessclub.com/assets/img/sale/2026-11-14-WhyNot-sala-attrezzi-1-1050.jpg", "https://whynotfitnessclub.com/assets/img/sale/2026-11-14-WhyNot-sala-1-1-1050.jpg", "https://whynotfitnessclub.com/assets/img/sale/2026-11-14-WhyNot-sala-2-1-1050.jpg"],
   "logo": "https://whynotfitnessclub.com/2026-11-07-Logo-WhyNot.png",
   "telephone": "+39 333 793 3400",
   "email": "whynotfitnessclubbiella@gmail.com",
@@ -200,6 +200,36 @@ section{padding:110px clamp(16px,6vw,90px)}
 .stat .n{font-family:Anton,sans-serif;font-size:clamp(44px,5vw,64px);line-height:1;color:var(--red-hi)}
 .stat .d{color:var(--mut);font-size:14px;margin-top:8px}
 @media(max-width:900px){.about{grid-template-columns:1fr}}
+
+/* SALE */
+.sale{display:flex;flex-direction:column;gap:22px}
+.sale-due{display:grid;grid-template-columns:1fr 1fr;gap:22px}
+.sala{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:26px;display:flex;flex-direction:column;gap:20px;min-width:0}
+.sala-big{display:grid;grid-template-columns:minmax(220px,.75fr) 2.25fr;align-items:center;gap:28px}
+.sala-n{font-family:Anton,sans-serif;font-size:15px;color:var(--red-hi);letter-spacing:2px}
+.sala h3{font-family:Anton,sans-serif;font-weight:400;font-size:clamp(28px,3vw,40px);text-transform:uppercase;line-height:1;margin:6px 0 10px}
+.sala p{color:#cfcfcf;font-size:16px}
+.fotos{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);gap:12px}
+.foto{display:block;padding:0;border:0;background:#222;border-radius:16px;overflow:hidden;cursor:zoom-in;aspect-ratio:3/4;position:relative}
+.foto img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .5s cubic-bezier(.2,.8,.2,1)}
+.foto:hover img,.foto:focus-visible img{transform:scale(1.05)}
+.foto:focus-visible{outline:3px solid var(--red-hi);outline-offset:2px}
+@media(max-width:1000px){.sala-big{grid-template-columns:1fr}.sale-due{grid-template-columns:1fr}}
+@media(max-width:700px){
+  .sala{padding:20px 0 20px 20px}.sala-txt{padding-right:20px}
+  .fotos{grid-auto-columns:72%;overflow-x:auto;scroll-snap-type:x mandatory;padding-right:20px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+  .fotos::-webkit-scrollbar{display:none}.foto{scroll-snap-align:start}
+}
+/* foto a tutto schermo */
+.lb{border:0;padding:0;margin:0;width:100vw;height:100vh;height:100dvh;max-width:none;max-height:none;background:rgba(0,0,0,.94);color:#fff}
+.lb[open]{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px}
+.lb::backdrop{background:rgba(0,0,0,.94)}
+.lb img{max-width:min(92vw,900px);max-height:82vh;max-height:82dvh;object-fit:contain;border-radius:12px}
+.lb p{color:#cfcfcf;font-size:14px;max-width:92vw;text-align:center;padding:0 16px}
+.lb button{position:absolute;display:grid;place-items:center;width:52px;height:52px;border-radius:50%;border:1px solid rgba(255,255,255,.25);background:rgba(20,20,20,.7);color:#fff;font-size:30px;line-height:1;cursor:pointer}
+.lb-x{top:max(16px,env(safe-area-inset-top));right:16px}
+.lb-prev{left:16px;top:50%;transform:translateY(-50%)}.lb-next{right:16px;top:50%;transform:translateY(-50%)}
+@media(max-width:700px){.lb-prev,.lb-next{top:auto;bottom:max(20px,env(safe-area-inset-bottom));transform:none}.lb-prev{left:calc(50% - 64px)}.lb-next{right:calc(50% - 64px)}}
 
 /* COURSES */
 .filters{display:flex;flex-wrap:wrap;gap:10px;margin:-24px 0 34px}
@@ -393,7 +423,7 @@ address{font-style:normal}
 <nav id="nav">
   <a href="#top" class="logo"><img id="logoImg" src="assets/img/logo-192.jpg" alt="Logo WHY NOT Fitness Club" width="44" height="44"><b>WHY NOT<small>FITNESS CLUB</small></b></a>
   <div class="navlinks">
-    <a href="#club">Il club</a><a href="#corsi">Corsi</a><a href="#prezzi">Prezzi</a><a href="#orari">Orari</a><a href="#faq">FAQ</a><a href="#contatti">Contatti</a>
+    <a href="#club">Il club</a><a href="#sale">Le sale</a><a href="#corsi">Corsi</a><a href="#prezzi">Prezzi</a><a href="#orari">Orari</a><a href="#faq">FAQ</a><a href="#contatti">Contatti</a>
   </div>
   <a class="btn nav-cta" href="tel:+393337933400">Chiama</a>
 </nav>
@@ -435,6 +465,49 @@ address{font-style:normal}
     <div class="stat rv"><div class="n">AICS</div><div class="d">affiliazione sportiva</div></div>
   </div>
 </section>
+
+<section id="sale" class="sale-sec">
+  <div class="sec-head rv">
+    <span class="eyebrow">Gli spazi</span>
+    <h2>Le nostre<br><em>sale</em></h2>
+    <p>Una sala attrezzi e due sale corsi, tutte nella stessa palestra in Via Emma e Cerino Zegna&nbsp;7.</p>
+  </div>
+  <div class="sale">
+    <article class="sala sala-big rv">
+      <div class="sala-txt"><span class="sala-n">01</span><h3>Sala attrezzi</h3><p>Macchine a carico guidato, stazioni ai cavi, rack, bilancieri, manubri e attrezzi cardio come air bike e vogatore. Aperta 7 giorni su 7, dalle 6:00 nei giorni feriali.</p></div>
+      <div class="fotos">
+        <button type="button" class="foto" data-big="assets/img/sale/2026-11-14-WhyNot-sala-attrezzi-1-1050.jpg" aria-label="Ingrandisci: Sala attrezzi WHY NOT con rack, panche e manubri, parete rossa con il logo del club"><img src="assets/img/sale/2026-11-14-WhyNot-sala-attrezzi-1-600.jpg" srcset="assets/img/sale/2026-11-14-WhyNot-sala-attrezzi-1-600.jpg 600w, assets/img/sale/2026-11-14-WhyNot-sala-attrezzi-1-1050.jpg 1050w" sizes="(max-width:700px) 78vw, (max-width:1100px) 24vw, 300px" width="600" height="800" loading="lazy" decoding="async" alt="Sala attrezzi WHY NOT con rack, panche e manubri, parete rossa con il logo del club"></button>
+        <button type="button" class="foto" data-big="assets/img/sale/2026-11-14-WhyNot-sala-attrezzi-2-1050.jpg" aria-label="Ingrandisci: Sala attrezzi con air bike, vogatore, pressa per le gambe e macchine a carico guidato"><img src="assets/img/sale/2026-11-14-WhyNot-sala-attrezzi-2-600.jpg" srcset="assets/img/sale/2026-11-14-WhyNot-sala-attrezzi-2-600.jpg 600w, assets/img/sale/2026-11-14-WhyNot-sala-attrezzi-2-1050.jpg 1050w" sizes="(max-width:700px) 78vw, (max-width:1100px) 24vw, 300px" width="600" height="800" loading="lazy" decoding="async" alt="Sala attrezzi con air bike, vogatore, pressa per le gambe e macchine a carico guidato"></button>
+        <button type="button" class="foto" data-big="assets/img/sale/2026-11-14-WhyNot-sala-attrezzi-3-1050.jpg" aria-label="Ingrandisci: Stazione multipla ai cavi e rastrelliera con bilancieri nella sala attrezzi"><img src="assets/img/sale/2026-11-14-WhyNot-sala-attrezzi-3-600.jpg" srcset="assets/img/sale/2026-11-14-WhyNot-sala-attrezzi-3-600.jpg 600w, assets/img/sale/2026-11-14-WhyNot-sala-attrezzi-3-1050.jpg 1050w" sizes="(max-width:700px) 78vw, (max-width:1100px) 24vw, 300px" width="600" height="800" loading="lazy" decoding="async" alt="Stazione multipla ai cavi e rastrelliera con bilancieri nella sala attrezzi"></button>
+        <button type="button" class="foto" data-big="assets/img/sale/2026-11-14-WhyNot-sala-attrezzi-4-1050.jpg" aria-label="Ingrandisci: Macchine ai cavi, panca e bilancieri nella sala attrezzi"><img src="assets/img/sale/2026-11-14-WhyNot-sala-attrezzi-4-600.jpg" srcset="assets/img/sale/2026-11-14-WhyNot-sala-attrezzi-4-600.jpg 600w, assets/img/sale/2026-11-14-WhyNot-sala-attrezzi-4-1050.jpg 1050w" sizes="(max-width:700px) 78vw, (max-width:1100px) 24vw, 300px" width="600" height="800" loading="lazy" decoding="async" alt="Macchine ai cavi, panca e bilancieri nella sala attrezzi"></button>
+      </div>
+    </article>
+    <div class="sale-due">
+      <article class="sala rv">
+        <div class="sala-txt"><span class="sala-n">02</span><h3>Sala 1</h3><p>La sala dei corsi di gruppo: ampia, con parquet, specchi e attrezzatura per tonificazione e allenamento funzionale.</p></div>
+        <div class="fotos">
+        <button type="button" class="foto" data-big="assets/img/sale/2026-11-14-WhyNot-sala-1-1-1050.jpg" aria-label="Ingrandisci: Sala 1 per i corsi di gruppo con pavimento in parquet e pareti rosse e bianche"><img src="assets/img/sale/2026-11-14-WhyNot-sala-1-1-600.jpg" srcset="assets/img/sale/2026-11-14-WhyNot-sala-1-1-600.jpg 600w, assets/img/sale/2026-11-14-WhyNot-sala-1-1-1050.jpg 1050w" sizes="(max-width:700px) 78vw, (max-width:1100px) 24vw, 300px" width="600" height="800" loading="lazy" decoding="async" alt="Sala 1 per i corsi di gruppo con pavimento in parquet e pareti rosse e bianche"></button>
+        <button type="button" class="foto" data-big="assets/img/sale/2026-11-14-WhyNot-sala-1-2-1050.jpg" aria-label="Ingrandisci: Sala 1 con la parete a specchio e la rastrelliera di bilancieri e dischi"><img src="assets/img/sale/2026-11-14-WhyNot-sala-1-2-600.jpg" srcset="assets/img/sale/2026-11-14-WhyNot-sala-1-2-600.jpg 600w, assets/img/sale/2026-11-14-WhyNot-sala-1-2-1050.jpg 1050w" sizes="(max-width:700px) 78vw, (max-width:1100px) 24vw, 300px" width="600" height="800" loading="lazy" decoding="async" alt="Sala 1 con la parete a specchio e la rastrelliera di bilancieri e dischi"></button>
+        </div>
+      </article>
+      <article class="sala rv">
+        <div class="sala-txt"><span class="sala-n">03</span><h3>Sala 2</h3><p>La sala dell'H.E.A.T. Program: tapis roulant non motorizzati per l'allenamento di gruppo basato sulla camminata e le sue varianti potenziate.</p></div>
+        <div class="fotos">
+        <button type="button" class="foto" data-big="assets/img/sale/2026-11-14-WhyNot-sala-2-1-1050.jpg" aria-label="Ingrandisci: Sala 2 con i tapis roulant per l'H.E.A.T. Program"><img src="assets/img/sale/2026-11-14-WhyNot-sala-2-1-600.jpg" srcset="assets/img/sale/2026-11-14-WhyNot-sala-2-1-600.jpg 600w, assets/img/sale/2026-11-14-WhyNot-sala-2-1-1050.jpg 1050w" sizes="(max-width:700px) 78vw, (max-width:1100px) 24vw, 300px" width="600" height="800" loading="lazy" decoding="async" alt="Sala 2 con i tapis roulant per l'H.E.A.T. Program"></button>
+        <button type="button" class="foto" data-big="assets/img/sale/2026-11-14-WhyNot-sala-2-2-1050.jpg" aria-label="Ingrandisci: Fila di tapis roulant non motorizzati nella Sala 2"><img src="assets/img/sale/2026-11-14-WhyNot-sala-2-2-600.jpg" srcset="assets/img/sale/2026-11-14-WhyNot-sala-2-2-600.jpg 600w, assets/img/sale/2026-11-14-WhyNot-sala-2-2-1050.jpg 1050w" sizes="(max-width:700px) 78vw, (max-width:1100px) 24vw, 300px" width="600" height="800" loading="lazy" decoding="async" alt="Fila di tapis roulant non motorizzati nella Sala 2"></button>
+        </div>
+      </article>
+    </div>
+  </div>
+</section>
+
+<dialog id="lb" class="lb" aria-label="Foto della palestra">
+  <img id="lbImg" alt="">
+  <p id="lbCap"></p>
+  <button type="button" class="lb-x" id="lbX" aria-label="Chiudi">&times;</button>
+  <button type="button" class="lb-n lb-prev" id="lbPrev" aria-label="Foto precedente">&lsaquo;</button>
+  <button type="button" class="lb-n lb-next" id="lbNext" aria-label="Foto successiva">&rsaquo;</button>
+</dialog>
 
 <section id="corsi">
   <div class="sec-head rv">
@@ -750,6 +823,22 @@ addEventListener('scroll',()=>nav.classList.toggle('scrolled',scrollY>40),{passi
   })(prev);
 })();
 
+// Le sale: foto a tutto schermo con frecce (anche da tastiera) e scorrimento col dito
+(function(){
+  const lb=document.getElementById('lb'); if(!lb||!lb.showModal) return;
+  const foto=[...document.querySelectorAll('#sale .foto')], img=document.getElementById('lbImg'), cap=document.getElementById('lbCap');
+  let i=0;
+  const mostra=(k)=>{ i=(k+foto.length)%foto.length; const f=foto[i], a=f.querySelector('img').alt; img.src=f.dataset.big; img.alt=a; cap.textContent=a+' · '+(i+1)+'/'+foto.length; };
+  foto.forEach((f,k)=>f.addEventListener('click',()=>{ mostra(k); lb.showModal(); }));
+  document.getElementById('lbX').onclick=()=>lb.close();
+  document.getElementById('lbPrev').onclick=()=>mostra(i-1);
+  document.getElementById('lbNext').onclick=()=>mostra(i+1);
+  lb.addEventListener('click',e=>{ if(e.target===lb) lb.close(); });
+  lb.addEventListener('keydown',e=>{ if(e.key==='ArrowLeft') mostra(i-1); else if(e.key==='ArrowRight') mostra(i+1); });
+  let x0=null;
+  lb.addEventListener('touchstart',e=>{ x0=e.touches[0].clientX; },{passive:true});
+  lb.addEventListener('touchend',e=>{ if(x0===null) return; const dx=e.changedTouches[0].clientX-x0; if(Math.abs(dx)>50) mostra(i+(dx<0?1:-1)); x0=null; });
+})();
 const io = new IntersectionObserver(es=>es.forEach(e=>{
   if(!e.isIntersecting) return;
   const el=e.target; el.classList.add('in'); io.unobserve(el);
