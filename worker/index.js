@@ -353,6 +353,9 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     if (url.pathname.startsWith("/api/")) {
+      // COLLAUDO TEMPORANEO (test di carico 2026-11-14): finto "servizio push" che accetta la notifica come farebbe Google.
+      // Usato solo dagli iscritti di prova; non legge né salva nulla. Da togliere a fine collaudo.
+      if (url.pathname === "/api/push-collaudo") return new Response(null, { status: request.method === "POST" ? 201 : 405 });
       if (!env.SUPABASE_URL || !env.SUPABASE_ANON_KEY) return json({ error: "Supabase non configurato nel Worker" }, 500);
       if (request.method !== "POST") return json({ error: "Metodo non consentito" }, 405);
       // giro di invio notifiche a richiesta (diagnosi): serve lo stesso PUSH_SECRET del Worker
