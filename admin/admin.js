@@ -103,7 +103,7 @@ const TITOLI = {
   ai: ["Assistente", () => "Le modifiche vengono eseguite solo dopo la tua conferma"],
   mie: ["Le mie lezioni", () => "Appello e partecipanti delle tue lezioni"],
   palinsesto: ["Corsi e orari", () => "Corsi, capienze, palinsesto settimanale e regole"],
-  bacheca: ["Bacheca", () => "Avvisi visibili nell'app"],
+  bacheca: ["Bacheca", () => "Avvisi, sondaggi ed eventi visibili nell'app"],
   stat: ["Statistiche", () => "Riempimento, andamento e iscritti da richiamare"],
   guida: ["Guida", () => "Come si usa il pannello, passo per passo"],
 };
@@ -880,22 +880,83 @@ function proposta(p) {
 
 avvia();
 
-// ------------------------------------------------------------------ avvisi push agli iscritti
-async function apriAvviso() {
-  const f = $("avvForm"); f.reset(); msg($("avvMsg"), "");
+// ------------------------------------------------------------------ bacheca: pubblicare avvisi, sondaggi ed eventi
+let avvTipo = "avviso";
+const avvF = () => $("avvForm");
+function avvSetTipo(t) {
+  avvTipo = t;
+  $("avvTipo").querySelectorAll("[data-tipo]").forEach((b) => b.setAttribute("aria-pressed", b.dataset.tipo === t));
+  $("avvPoll").hidden = t !== "sondaggio"; $("avvEv").hidden = t !== "evento";
+  $("avvTestoL").textContent = t === "avviso" ? "Testo" : t === "sondaggio" ? "Spiegazione (facoltativa)" : "Descrizione (facoltativa)";
+  avvF().titolo.placeholder = t === "avviso" ? "es. Palestra chiusa lunedì" : t === "sondaggio" ? "es. Che orario preferisci per il nuovo corso?" : "es. Cena di Natale WHY NOT";
+  if (t === "sondaggio" && $("avvOpz").children.length < 2) { $("avvOpz").innerHTML = ""; avvOpz(""); avvOpz(""); }
+}
+function avvOpz(v) {
+  if ($("avvOpz").children.length >= 10) return;
+  const d = document.createElement("div"); d.className = "avvo";
+  d.innerHTML = `<input maxlength="80" placeholder="Risposta ${$("avvOpz").children.length + 1}" aria-label="Risposta"><button type="button" class="icon" aria-label="Togli risposta">&times;</button>`;
+  d.querySelector("input").value = v || "";
+  $("avvOpz").appendChild(d);
+}
+$("avvTipo").addEventListener("click", (e) => { const b = e.target.closest("[data-tipo]"); if (b) avvSetTipo(b.dataset.tipo); });
+$("avvOpzAdd").onclick = () => { avvOpz(""); $("avvOpz").lastElementChild.querySelector("input").focus(); };
+$("avvOpz").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b && $("avvOpz").children.length > 2) b.parentElement.remove(); });
+// data e ora per i campi datetime-local (ora italiana): prossimo giorno della settimana alle hh:mm
+const dtLocale = (giorniAvanti, hh, mm = 0) => { const d = new Date(Date.now() + giorniAvanti * 864e5); return `${ymdRome(d)}T${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}`; };
+const prossimo = (dow) => { const oggi = (new Date().getDay() + 6) % 7; let k = (dow - oggi + 7) % 7; return k === 0 ? 7 : k; };   // 0 = lunedì
+const MODELLI_BAC = {
+  cena: () => ({ tipo: "evento", titolo: "Cena sociale WHY NOT", testo: "Una serata tutti insieme fuori dalla palestra: iscritti, istruttori e staff. Conferma qui la tua presenza così prenotiamo il tavolo giusto.", inizio: dtLocale(prossimo(4) + 7, 20, 30), luogo: "", prezzo: "Quota da definire, da pagare in reception", ospiti_max: "1", chiude_ev: dtLocale(prossimo(4) + 4, 20, 0) }),
+  openday: () => ({ tipo: "evento", titolo: "Open day: porta un amico", testo: "Lezioni aperte a tutti e prova gratuita della sala attrezzi. Porta chi vuoi: segnati e indica quanti ospiti porti.", inizio: dtLocale(prossimo(5) + 7, 9, 0), fine: dtLocale(prossimo(5) + 7, 13, 0), luogo: "WHY NOT Fitness Club, Via Emma e Cerino Zegna 7", prezzo: "Gratuito", ospiti_max: "3" }),
+  orari: () => ({ tipo: "sondaggio", titolo: "Quale fascia oraria preferisci per i corsi?", testo: "Ci aiuti a organizzare il prossimo palinsesto.", opzioni: ["Mattina presto (7:00–9:00)", "Pausa pranzo (12:30–14:00)", "Tardo pomeriggio (17:00–19:00)", "Sera (19:00–21:00)"], multipla: true, risultati: "dopo_voto", chiude: dtLocale(14, 21, 0) }),
+  corso: () => ({ tipo: "sondaggio", titolo: "Quale nuovo corso ti piacerebbe?", testo: "Stiamo pensando di aggiungere un corso: diccelo tu.", opzioni: ["Yoga dinamico", "Functional training", "Pilates con attrezzi", "Boxe fitness"], multipla: false, risultati: "dopo_voto", chiude: dtLocale(14, 21, 0) }),
+};
+$("avvForm").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-mod]"); if (!b) return;
+  const m = MODELLI_BAC[b.dataset.mod](), f = avvF();
+  avvSetTipo(m.tipo);
+  ["titolo", "testo", "inizio", "fine", "luogo", "prezzo", "ospiti_max", "chiude_ev", "chiude", "risultati"].forEach((k) => { if (m[k] != null && f.elements[k]) f.elements[k].value = m[k]; });
+  if (m.opzioni) { $("avvOpz").innerHTML = ""; m.opzioni.forEach(avvOpz); }
+  if (m.multipla != null) f.multipla.checked = m.multipla;
+  f.titolo.focus();
+});
+async function apriAvviso(tipo = "avviso") {
+  const f = avvF(); f.reset(); msg($("avvMsg"), ""); $("avvOpz").innerHTML = "";
+  avvSetTipo(tipo);
   const { data } = await sb.rpc("admin_stato_notifiche");
   $("avvInfo").textContent = data
-    ? `Notifica sul telefono agli iscritti attivi con le notifiche attive nell'app: oggi sono ${data.iscritti_con_notifiche}.`
+    ? `Notifica sul telefono a chi ha le notifiche attive nell'app: oggi ${data.iscritti_con_notifiche} iscritti.`
     : "Notifica sul telefono agli iscritti attivi che hanno attivato le notifiche nell'app.";
   $("dAvv").showModal();
 }
 $("avvForm").addEventListener("submit", async (e) => {
-  e.preventDefault(); const f = e.target;
-  if (f.titolo.value.trim().length < 3 || f.testo.value.trim().length < 3) return msg($("avvMsg"), "Scrivi titolo e testo.");
-  if (!(await ask("Pubblicare l'avviso?", `«${f.titolo.value.trim()}» comparirà nella bacheca dell'app${f.notifica.checked ? " e arriverà come notifica a chi le ha attive" : ""}.`, "Pubblica"))) return;
-  const { data, error } = await sb.rpc("admin_invia_avviso", { p_titolo: f.titolo.value.trim(), p_testo: f.testo.value.trim(), p_notifica: f.notifica.checked });
+  e.preventDefault(); const f = e.target, tit = f.titolo.value.trim(), txt = f.testo.value.trim();
+  if (tit.length < 3) return msg($("avvMsg"), "Scrivi un titolo (almeno 3 caratteri).");
+  if (avvTipo === "avviso" && txt.length < 3) return msg($("avvMsg"), "Scrivi il testo dell'avviso.");
+  const dati = {}; let chiude = "", inizio = "", fine = "";
+  if (avvTipo === "sondaggio") {
+    dati.opzioni = [...$("avvOpz").querySelectorAll("input")].map((i) => i.value.trim()).filter(Boolean);
+    if (dati.opzioni.length < 2) return msg($("avvMsg"), "Scrivi almeno 2 risposte.");
+    if (new Set(dati.opzioni.map((o) => o.toLowerCase())).size !== dati.opzioni.length) return msg($("avvMsg"), "Ci sono risposte uguali.");
+    dati.multipla = f.multipla.checked; dati.anonimo = f.anonimo.checked; dati.risultati = f.risultati.value; chiude = f.chiude.value;
+  } else if (avvTipo === "evento") {
+    inizio = f.inizio.value; fine = f.fine.value; chiude = f.chiude_ev.value;
+    if (!inizio) return msg($("avvMsg"), "Indica data e ora di inizio dell'evento.");
+    dati.luogo = f.luogo.value.trim(); dati.prezzo = f.prezzo.value.trim(); dati.ospiti_max = Number(f.ospiti_max.value) || 0;
+    if (f.posti.value) dati.posti = Number(f.posti.value);
+  }
+  const nomi = { avviso: "l'avviso", sondaggio: "il sondaggio", evento: "l'evento" };
+  if (!(await ask(`Pubblicare ${nomi[avvTipo]}?`, `«${tit}» comparirà nella bacheca dell'app${f.destinatari.value === "staff" ? " solo per i collaboratori" : ""}${f.notifica.checked ? " e arriverà come notifica a chi le ha attive" : ""}.`, "Pubblica"))) return;
+  let { data, error } = await sb.rpc("admin_pubblica_bacheca", { p_tipo: avvTipo, p_titolo: tit, p_testo: txt, p_dati: dati, p_fissato: f.fissato.checked,
+    p_chiude: chiude || null, p_inizio: inizio || null, p_fine: fine || null, p_destinatari: f.destinatari.value, p_notifica: f.notifica.checked });
+  // database non ancora aggiornato: gli avvisi semplici funzionano come prima, il resto richiede il file SQL
+  if (error && /admin_pubblica_bacheca|PGRST202|does not exist|schema cache/i.test(error.message + (error.code || ""))) {
+    if (avvTipo !== "avviso" || f.fissato.checked || f.destinatari.value !== "tutti") return msg($("avvMsg"), "Sondaggi, eventi, «in evidenza» e «solo collaboratori» saranno disponibili dopo l'aggiornamento del database.");
+    ({ data, error } = await sb.rpc("admin_invia_avviso", { p_titolo: tit, p_testo: txt, p_notifica: f.notifica.checked }));
+  }
   if (error) return msg($("avvMsg"), error.message);
-  $("dAvv").close(); toast(`Avviso pubblicato in bacheca${data.notifiche ? ` e inviato come notifica a ${data.notifiche} ${data.notifiche === 1 ? "iscritto" : "iscritti"}` : ""}.`); if (tab === "bacheca") caricaBacheca();
+  $("dAvv").close();
+  toast(`${avvTipo === "avviso" ? "Avviso pubblicato" : avvTipo === "sondaggio" ? "Sondaggio pubblicato" : "Evento pubblicato"}${data?.notifiche ? ` e inviato come notifica a ${data.notifiche} ${data.notifiche === 1 ? "persona" : "persone"}` : ""}.`);
+  if (tab === "bacheca") caricaBacheca();
 });
 
 // ================================================================== funzioni v2
@@ -1085,21 +1146,87 @@ $("slotDel").onclick = async () => {
   $("dSlot").close(); toast("Fascia eliminata."); caricaPalinsesto();
 };
 
-// ------------------------------------------------------------------ bacheca
+// ------------------------------------------------------------------ bacheca: elenco, risultati, risposte
+let postBac = [];
+const STATO_EV = { si: "Partecipa", forse: "Forse", no: "Non può" };
+function visibileApp(a) {
+  const t = (x) => (x ? new Date(x).getTime() : 0), ora = Date.now();
+  return t(a.created_at) > ora - 60 * 864e5 || a.fissato || (a.tipo === "evento" && t(a.evento_fine || a.evento_at) > ora - 864e5) || t(a.chiude_at) > ora;
+}
 async function caricaBacheca() {
-  const { data, error } = await sb.from("avvisi").select("id,titolo,testo,created_at").order("created_at", { ascending: false }).limit(100);
+  let { data, error } = await sb.rpc("admin_bacheca");
+  if (error) {   // database non ancora aggiornato: solo avvisi di testo
+    ({ data, error } = await sb.from("avvisi").select("id,titolo,testo,created_at").order("created_at", { ascending: false }).limit(100));
+  }
   if (error) { $("avvisiList").innerHTML = `<p class="empty">${esc(error.message)}</p>`; return; }
-  const limite = Date.now() - 60 * 86400000;
-  $("avvisiList").innerHTML = (data || []).map((a) => `<div class="fi panel" style="align-items:flex-start${new Date(a.created_at).getTime() < limite ? ";opacity:.5" : ""}"><div><b>${esc(a.titolo)}</b>
-    <small style="white-space:normal">${esc(a.testo)}</small><small>${esc(fDT.format(new Date(a.created_at)))}${new Date(a.created_at).getTime() < limite ? " · non più visibile nell'app" : ""}</small></div>
-    <button class="ghost sm danger" data-delav="${a.id}">Elimina</button></div>`).join("") || '<p class="empty">Nessun avviso. Pubblicane uno con «+ Nuovo avviso».</p>';
+  postBac = data || [];
+  $("avvisiList").innerHTML = postBac.map(cardPost).join("") || '<p class="empty">La bacheca è vuota. Pubblica un avviso, un sondaggio o un evento con «+ Nuovo».</p>';
+}
+function cardPost(a) {
+  const tipo = a.tipo || "avviso", d = a.dati || {}, es = a.esiti || {}, vis = visibileApp(a);
+  const tag = [`<span class="bt bt-${tipo}">${({ avviso: "Avviso", sondaggio: "Sondaggio", evento: "Evento" })[tipo]}</span>`,
+    a.fissato ? '<span class="bt bt-fix">In evidenza</span>' : "", a.destinatari === "staff" ? '<span class="bt">Solo collaboratori</span>' : "",
+    tipo !== "avviso" ? (a.chiuso ? '<span class="bt">Chiuso</span>' : '<span class="bt bt-on">Aperto</span>') : "",
+    !vis ? '<span class="bt">Non più visibile nell\'app</span>' : ""].join("");
+  let corpo = "";
+  if (tipo === "sondaggio") {
+    const v = es.votanti || 0, mx = Math.max(1, ...(es.conteggi || [0]));
+    corpo = `<div class="bres">${(d.opzioni || []).map((o, i) => { const c = es.conteggi?.[i] || 0, p = v ? Math.round((100 * c) / v) : 0;
+      return `<div class="br"><span>${esc(o)}</span><i><b style="width:${(100 * c) / mx}%"></b></i><em>${c} · ${p}%</em></div>`; }).join("")}</div>
+      <small>${v} ${v === 1 ? "voto" : "voti"}${d.multipla ? " · scelta multipla" : ""}${d.anonimo ? " · anonimo" : ""} · risultati agli iscritti: ${({ dopo_voto: "dopo il voto", sempre: "sempre", fine: "alla chiusura", staff: "mai" })[d.risultati || "dopo_voto"]}${a.chiude_at ? ` · chiude ${esc(fDT.format(new Date(a.chiude_at)))}` : ""}</small>`;
+  } else if (tipo === "evento") {
+    corpo = `<small>${esc(cap1(fFull.format(new Date(a.evento_at))))} alle ${esc(fTime.format(new Date(a.evento_at)))}${a.evento_fine ? `–${esc(fTime.format(new Date(a.evento_fine)))}` : ""}${d.luogo ? ` · ${esc(d.luogo)}` : ""}${d.prezzo ? ` · ${esc(d.prezzo)}` : ""}</small>
+      <div class="bev"><span class="ok"><b>${es.si || 0}</b> partecipano${es.ospiti ? ` + ${es.ospiti} ospiti` : ""}</span><span><b>${es.forse || 0}</b> forse</span><span><b>${es.no || 0}</b> non possono</span>
+      ${d.posti ? `<span><b>${es.occupati || 0}/${d.posti}</b> posti</span>` : ""}</div>
+      ${a.chiude_at ? `<small>Adesioni entro ${esc(fDT.format(new Date(a.chiude_at)))}</small>` : ""}`;
+  }
+  const azioni = [
+    tipo !== "avviso" ? `<button class="ghost sm" data-bact="risposte" data-id="${a.id}">Risposte (${a.risposte || 0})</button>` : "",
+    tipo !== "avviso" && !a.chiuso ? `<button class="ghost sm" data-bact="sollecita" data-id="${a.id}" title="Notifica a chi non ha ancora risposto">Sollecita</button>` : "",
+    tipo !== "avviso" && a.tipo ? `<button class="ghost sm" data-bact="${a.chiuso ? "riapri" : "chiudi"}" data-id="${a.id}">${a.chiuso ? "Riapri" : "Chiudi ora"}</button>` : "",
+    a.tipo ? `<button class="ghost sm" data-bact="${a.fissato ? "sgancia" : "fissa"}" data-id="${a.id}">${a.fissato ? "Togli evidenza" : "Metti in evidenza"}</button>` : "",
+    `<button class="ghost sm danger" data-delav="${a.id}">Elimina</button>`].join("");
+  return `<div class="panel bpost${vis ? "" : " off"}"><div class="btop">${tag}<small>${esc(fDT.format(new Date(a.created_at)))}</small></div>
+    <b class="btit">${esc(a.titolo)}</b>${a.testo ? `<p class="btxt">${esc(a.testo)}</p>` : ""}${corpo}<div class="bacts">${azioni}</div></div>`;
+}
+async function mostraRisposte(id) {
+  const a = postBac.find((x) => x.id === id); if (!a) return;
+  $("rispT").textContent = a.titolo; $("rispBody").innerHTML = '<p class="mut">Caricamento…</p>'; $("dRisp").showModal();
+  const { data, error } = await sb.rpc("admin_bacheca_risposte", { p_id: id });
+  if (error) { $("rispBody").innerHTML = `<p class="msg ko">${esc(error.message)}</p>`; return; }
+  const opz = a.dati?.opzioni || [], ev = a.tipo === "evento";
+  const risp = (r) => (ev ? STATO_EV[r.stato] || "" : (r.scelte || []).map((i) => opz[i] ?? "?").join(", "));
+  const righe = data || [];
+  $("rispBody").innerHTML = righe.length ? `<div class="acts-row" style="margin-bottom:10px"><span class="mut">${righe.length} ${righe.length === 1 ? "risposta" : "risposte"}${ev ? ` · ${righe.filter((r) => r.stato === "si").reduce((t, r) => t + 1 + (r.ospiti || 0), 0)} persone in tutto tra partecipanti e ospiti` : ""}</span><button class="ghost sm" type="button" id="rispCsv">Esporta (CSV)</button></div>
+    <div style="overflow-x:auto"><table class="tbl"><thead><tr><th>Nome</th><th class="hm">Email</th><th>Risposta</th>${ev ? "<th class=\"num\">Ospiti</th><th>Nota</th>" : ""}<th class="hm">Quando</th></tr></thead><tbody>
+    ${righe.map((r) => `<tr style="cursor:default"><td>${esc(r.nome)}</td><td class="hm">${esc(r.email || "")}</td><td>${esc(risp(r))}</td>${ev ? `<td class="num">${r.ospiti || ""}</td><td>${esc(r.note || "")}</td>` : ""}<td class="hm">${esc(fDT.format(new Date(r.updated_at)))}</td></tr>`).join("")}
+    </tbody></table></div>` : '<p class="empty">Ancora nessuna risposta.</p>';
+  $("rispCsv")?.addEventListener("click", () => scaricaCsv(`${oggiYmd()}-WhyNot-Risposte-${a.titolo.replace(/[^\w]+/g, "-").slice(0, 40)}.csv`,
+    ev ? ["Nome", "Email", "Risposta", "Ospiti", "Nota", "Data"] : ["Nome", "Email", "Risposta", "Data"],
+    righe.map((r) => ev ? [r.nome, r.email, risp(r), r.ospiti || 0, r.note || "", fDT.format(new Date(r.updated_at))] : [r.nome, r.email, risp(r), fDT.format(new Date(r.updated_at))])));
 }
 $("avvisiList").addEventListener("click", async (e) => {
-  const b = e.target.closest("[data-delav]"); if (!b) return;
-  if (!(await ask("Eliminare l'avviso?", "Sparirà dalla bacheca dell'app. Le notifiche già inviate non si possono ritirare.", "Elimina"))) return;
-  const { error } = await sb.from("avvisi").delete().eq("id", b.dataset.delav);
+  const del = e.target.closest("[data-delav]");
+  if (del) {
+    if (!(await ask("Eliminare il post?", "Sparirà dalla bacheca dell'app insieme alle eventuali risposte. Le notifiche già inviate non si possono ritirare.", "Elimina"))) return;
+    const { error } = await sb.from("avvisi").delete().eq("id", del.dataset.delav);
+    if (error) return toast(error.message, false);
+    toast("Post eliminato."); return caricaBacheca();
+  }
+  const b = e.target.closest("[data-bact]"); if (!b) return;
+  const id = Number(b.dataset.id), az = b.dataset.bact;
+  if (az === "risposte") return mostraRisposte(id);
+  if (az === "sollecita") {
+    if (!(await ask("Inviare un sollecito?", "Arriva una notifica a chi ha le notifiche attive e non ha ancora risposto.", "Invia"))) return;
+    const { data, error } = await sb.rpc("admin_bacheca_sollecita", { p_id: id });
+    if (error) return toast(error.message, false);
+    return toast(data ? `Sollecito inviato a ${data} ${data === 1 ? "persona" : "persone"}.` : "Nessuno da sollecitare: hanno già risposto tutti o non hanno le notifiche attive.");
+  }
+  if (az === "chiudi" && !(await ask("Chiudere le risposte?", "Da adesso nessuno potrà più votare o cambiare la propria risposta. Puoi riaprire in seguito.", "Chiudi"))) return;
+  const { error } = await sb.rpc("admin_bacheca_azione", { p_id: id, p_azione: az });
   if (error) return toast(error.message, false);
-  toast("Avviso eliminato."); caricaBacheca();
+  toast({ fissa: "Messo in evidenza.", sgancia: "Tolto dall'evidenza.", chiudi: "Risposte chiuse.", riapri: "Risposte riaperte." }[az]);
+  caricaBacheca();
 });
 
 // ------------------------------------------------------------------ statistiche

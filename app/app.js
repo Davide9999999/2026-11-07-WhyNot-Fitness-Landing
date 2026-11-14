@@ -157,6 +157,9 @@ async function entra() {
   const iso = (new Date(new Date().toLocaleString("en-US", { timeZone: "Europe/Rome" })).getDay() + 6) % 7;
   $("hrs").querySelectorAll("tr").forEach((r, k) => r.classList.toggle("today", k === iso));
   $("hDate").textContent = cap(fmt.day.format(new Date()));
+  // aperta da una notifica della bacheca (…/app/?p=bacheca): si va lì e si pulisce l'indirizzo
+  const qp = new URLSearchParams(location.search);
+  if (qp.get("p") === "bacheca") { pagina = "pBacheca"; qp.delete("p"); history.replaceState(null, "", location.pathname + (qp.toString() ? "?" + qp : "")); }
   show("vApp"); vai(pagina);
   installa(); statoNotifiche();
   await ricarica();
@@ -946,10 +949,19 @@ async function schermoAcceso(on) {
 document.addEventListener("visibilitychange", () => { if (wo?.attivo && document.visibilityState === "visible") schermoAcceso(true); });
 
 
-// ------------------------------------------------------------------ bacheca
+// ------------------------------------------------------------------ bacheca: avvisi, sondaggi ed eventi
+// Prima del file SQL 2026-11-14 la funzione bacheca() restituisce solo gli avvisi di testo: tutto resta come prima.
 const LETTO = "whynot-bacheca-letto";
 const ultimoLetto = () => { try { return Number(localStorage.getItem(LETTO)) || 0; } catch { return 0; } };
-let avvisiApp = [];
+// bozzaBac: risposte in preparazione ({scelte:Set} per i sondaggi multipli, {ospiti, note} per gli eventi)
+// sogliaNuovo: ultimo post letto quando si è aperta la bacheca (quelli più recenti hanno l'etichetta «Nuovo»)
+let avvisiApp = [], bozzaBac = {}, sogliaNuovo = null;
+const fRoma = (o) => new Intl.DateTimeFormat("it-IT", { timeZone: "Europe/Rome", ...o });
+const fBacGiorno = fRoma({ weekday: "long", day: "numeric", month: "long" }), fBacOra = fRoma({ hour: "2-digit", minute: "2-digit" });
+const fBacGg = fRoma({ day: "numeric" }), fBacMese = fRoma({ month: "short" }), fBacScad = fRoma({ weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+const ICO_LUOGO = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg>';
+const ICO_CAL = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/></svg>';
+
 async function badgeBacheca() {
   const { data } = await sb.rpc("bacheca");
   avvisiApp = data || [];
@@ -957,12 +969,157 @@ async function badgeBacheca() {
   $("nBac").textContent = n || "";
   if (pagina === "pBacheca") disegnaBacheca();
 }
-async function caricaBacheca() { await badgeBacheca(); disegnaBacheca(); }
+async function caricaBacheca() {
+  sogliaNuovo = ultimoLetto();
+  const { data } = await sb.rpc("bacheca");
+  avvisiApp = data || [];
+  disegnaBacheca();
+}
 function disegnaBacheca() {
-  const letto = ultimoLetto();
-  $("bachecaList").innerHTML = avvisiApp.map((a) => `<article class="avv${a.id > letto ? " nuovo" : ""}"><small>${esc(fmt.date.format(new Date(a.created_at)))}${a.id > letto ? " · nuovo" : ""}</small><h3>${esc(a.titolo)}</h3><p>${esc(a.testo)}</p></article>`).join("")
-    || '<div class="empty"><b>Nessun avviso</b>Qui trovi le comunicazioni della palestra degli ultimi 60 giorni.</div>';
+  const letto = sogliaNuovo ?? ultimoLetto();
+  $("bachecaList").innerHTML = avvisiApp.map((a) => cardBac(a, a.id > letto)).join("")
+    || '<div class="empty"><b>Bacheca vuota</b>Qui trovi avvisi, sondaggi ed eventi della palestra.</div>';
   const max = Math.max(0, ...avvisiApp.map((a) => a.id));
   try { if (max) localStorage.setItem(LETTO, String(max)); } catch {}
   $("nBac").textContent = "";
 }
+function aggiornaCardBac(id) {
+  const a = avvisiApp.find((x) => x.id === id), el = document.querySelector(`[data-bac="${id}"]`);
+  if (a && el) el.outerHTML = cardBac(a, el.classList.contains("nuovo"));
+}
+
+function cardBac(a, nuovo) {
+  const tipo = a.tipo || "avviso";
+  const tag = [a.fissato ? '<span class="tag hot">In evidenza</span>' : "", a.destinatari === "staff" ? '<span class="tag">Solo staff</span>' : "",
+    tipo === "sondaggio" ? '<span class="tag poll">Sondaggio</span>' : tipo === "evento" ? '<span class="tag ev">Evento</span>' : "",
+    nuovo ? '<span class="tag new">Nuovo</span>' : ""].join("");
+  const testa = `<div class="avtop">${tag}<small>${esc(fmt.date.format(new Date(a.created_at)))}</small></div>`;
+  const corpo = tipo === "sondaggio" ? corpoSondaggio(a) : tipo === "evento" ? corpoEvento(a)
+    : `<h3>${esc(a.titolo)}</h3><p class="avtxt">${esc(a.testo)}</p>`;
+  return `<article class="avv t-${tipo}${nuovo ? " nuovo" : ""}${a.fissato ? " fix" : ""}" data-bac="${a.id}">${testa}${corpo}</article>`;
+}
+
+function corpoSondaggio(a) {
+  const d = a.dati || {}, opz = d.opzioni || [], multi = !!d.multipla, chiuso = !!a.chiuso, es = a.esiti;
+  const mie = new Set(a.mia?.scelte || []), b = bozzaBac[a.id], sel = b ? b.scelte : mie;
+  const votanti = es?.votanti || 0;
+  const righe = opz.map((o, i) => {
+    const c = es?.conteggi?.[i] || 0, pct = es && votanti ? Math.round((100 * c) / votanti) : 0;
+    return `<button type="button" class="opt${sel.has(i) ? " on" : ""}${es ? " res" : ""}" data-opt="${a.id}:${i}" aria-pressed="${sel.has(i)}" ${chiuso ? "disabled" : ""}>
+      ${es ? `<i style="width:${pct}%"></i>` : ""}<span class="ck${multi ? " sq" : ""}" aria-hidden="true"></span><b>${esc(o)}</b>${es ? `<em>${pct}%<small>${c}</small></em>` : ""}</button>`;
+  }).join("");
+  const info = [
+    chiuso ? "Votazione chiusa" : a.chiude_at ? `Chiude ${fBacScad.format(new Date(a.chiude_at))}` : "",
+    multi && !chiuso ? "Puoi scegliere più risposte" : "",
+    es ? `${votanti} ${votanti === 1 ? "voto" : "voti"}` : d.risultati === "staff" ? "I risultati li vede lo staff" : d.risultati === "fine" ? "Risultati alla chiusura" : !a.mia && !chiuso ? "Vota per vedere i risultati" : "",
+    d.anonimo ? "Anonimo" : "",
+  ].filter(Boolean).join(" · ");
+  const cambiato = b && (b.scelte.size !== mie.size || [...b.scelte].some((x) => !mie.has(x)));
+  const azioni = chiuso ? "" : [
+    multi && cambiato ? `<button type="button" class="btn sm" data-pollok="${a.id}" ${b.scelte.size ? "" : "disabled"}>${a.mia ? "Aggiorna il voto" : "Invia il voto"}</button>` : "",
+    a.mia && !cambiato ? `<button type="button" class="link" data-ritira="${a.id}">Ritira il voto</button>` : "",
+  ].join("");
+  return `<h3>${esc(a.titolo)}</h3>${a.testo ? `<p class="avtxt">${esc(a.testo)}</p>` : ""}<div class="opts">${righe}</div>
+    <p class="avinfo">${esc(info)}</p>${azioni ? `<div class="avact">${azioni}</div>` : ""}`;
+}
+
+function corpoEvento(a) {
+  const d = a.dati || {}, es = a.esiti || {}, mia = a.mia, chiuso = !!a.chiuso;
+  const ini = new Date(a.evento_at), fine = a.evento_fine ? new Date(a.evento_fine) : null, ora = new Date();
+  const finito = (fine || new Date(ini.getTime() + 3 * 3600e3)) < ora, iniziato = ini <= ora;
+  const posti = d.posti || null, occ = es.occupati || 0, rest = posti ? Math.max(0, posti - occ) : null;
+  const b = bozzaBac[a.id] || { ospiti: mia?.ospiti || 0, note: mia?.note || "" };
+  const conteggio = [`${es.si || 0} ${es.si === 1 ? "partecipa" : "partecipano"}${es.ospiti ? ` (+${es.ospiti} ospiti)` : ""}`, es.forse ? `${es.forse} forse` : "",
+    posti && !finito ? (rest ? `restano ${rest} ${rest === 1 ? "posto" : "posti"}` : "posti esauriti") : ""].filter(Boolean).join(" · ");
+  let risposta = "";
+  if (finito) risposta = `<p class="avinfo">Evento concluso${mia?.stato === "si" ? " · c'eri anche tu" : ""}</p>`;
+  else if (chiuso) risposta = `<p class="avinfo">${iniziato ? "Evento in corso" : "Adesioni chiuse"}${mia?.stato ? ` · la tua risposta: ${({ si: "partecipo", forse: "forse", no: "non posso" })[mia.stato]}` : ""}</p>`;
+  else {
+    const pieno = rest === 0 && mia?.stato !== "si";
+    risposta = `<div class="evseg" role="group" aria-label="La tua risposta">
+      <button type="button" data-ev="${a.id}:si" aria-pressed="${mia?.stato === "si"}" ${pieno ? "disabled" : ""}>Partecipo</button>
+      <button type="button" data-ev="${a.id}:forse" aria-pressed="${mia?.stato === "forse"}">Forse</button>
+      <button type="button" data-ev="${a.id}:no" aria-pressed="${mia?.stato === "no"}">Non posso</button></div>`;
+    if (mia?.stato === "si" || mia?.stato === "forse") {
+      const cambiato = (b.ospiti || 0) !== (mia.ospiti || 0) || (b.note || "") !== (mia.note || "");
+      risposta += `<div class="evmore">
+        ${mia.stato === "si" && d.ospiti_max ? `<div class="evosp"><span>Ospiti con te</span><div class="stepper"><button type="button" data-osp="${a.id}:-1" aria-label="Meno ospiti" ${b.ospiti ? "" : "disabled"}>−</button><b>${b.ospiti || 0}</b><button type="button" data-osp="${a.id}:1" aria-label="Più ospiti" ${b.ospiti >= d.ospiti_max ? "disabled" : ""}>+</button></div></div>` : ""}
+        <input class="evnote" data-evnote="${a.id}" maxlength="300" placeholder="Nota per gli organizzatori (facoltativa)" value="${esc(b.note || "")}">
+        <div class="avact"><button type="button" class="btn sm" data-evsave="${a.id}" ${cambiato ? "" : "hidden"}>Salva</button>
+        <button type="button" class="ghost-btn" data-ics="${a.id}">${ICO_CAL}Aggiungi al calendario</button></div></div>`;
+    }
+  }
+  return `<div class="evhead"><div class="evdate"><b>${fBacGg.format(ini)}</b><span>${esc(fBacMese.format(ini).replace(".", ""))}</span></div>
+    <div><h3>${esc(a.titolo)}</h3><p class="evwhen">${esc(cap(fBacGiorno.format(ini)))} · ${fBacOra.format(ini)}${fine ? `–${fBacOra.format(fine)}` : ""}</p>
+    ${d.luogo ? `<p class="evwhere">${ICO_LUOGO}${esc(d.luogo)}</p>` : ""}</div></div>
+    ${a.testo ? `<p class="avtxt">${esc(a.testo)}</p>` : ""}${d.prezzo ? `<p class="evprice">${esc(d.prezzo)}</p>` : ""}
+    <p class="evcount">${esc(conteggio)}${a.chiude_at && !chiuso ? ` · adesioni entro ${esc(fBacScad.format(new Date(a.chiude_at)))}` : ""}</p>${risposta}`;
+}
+
+// salva una risposta, poi rilegge la bacheca e ridisegna solo quel post
+async function rispondiBac(id, args, el) {
+  const card = document.querySelector(`[data-bac="${id}"]`); card?.classList.add("busy");
+  const { error } = args === null ? await sb.rpc("ritira_risposta_bacheca", { p_id: id }) : await sb.rpc("rispondi_bacheca", { p_id: id, ...args });
+  if (error) { card?.classList.remove("busy"); toast(error.message, false); return false; }
+  delete bozzaBac[id];
+  const { data } = await sb.rpc("bacheca");
+  if (data) avvisiApp = data;
+  aggiornaCardBac(id);
+  return true;
+}
+function icsEvento(a) {
+  const z = (d) => new Date(d).toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
+  const txt = (s) => String(s || "").replace(/[\\,;]/g, (c) => "\\" + c).replace(/\n/g, "\\n");
+  const ini = new Date(a.evento_at), fine = a.evento_fine ? new Date(a.evento_fine) : new Date(ini.getTime() + 2 * 3600e3);
+  const ics = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//WHY NOT Fitness Club//Bacheca//IT", "CALSCALE:GREGORIAN", "BEGIN:VEVENT",
+    `UID:whynot-evento-${a.id}@whynotfitnessclub`, `DTSTAMP:${z(new Date())}`, `DTSTART:${z(ini)}`, `DTEND:${z(fine)}`,
+    `SUMMARY:${txt(a.titolo)}`, `LOCATION:${txt(a.dati?.luogo || "WHY NOT Fitness Club, Via Emma e Cerino Zegna 7, Biella")}`, `DESCRIPTION:${txt(a.testo)}`,
+    "BEGIN:VALARM", "TRIGGER:-PT120M", "ACTION:DISPLAY", `DESCRIPTION:${txt(a.titolo)}`, "END:VALARM", "END:VEVENT", "END:VCALENDAR"].join("\r\n");
+  const l = document.createElement("a");
+  l.href = URL.createObjectURL(new Blob([ics], { type: "text/calendar;charset=utf-8" }));
+  l.download = `whynot-${String(a.titolo).toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 40)}.ics`;
+  document.body.appendChild(l); l.click(); l.remove(); setTimeout(() => URL.revokeObjectURL(l.href), 2000);
+}
+$("bachecaList").addEventListener("click", async (e) => {
+  const t = e.target.closest("button"); if (!t || t.disabled || t.closest(".busy")) return;
+  const [id, v] = (t.dataset.opt || t.dataset.ev || t.dataset.osp || "").split(":").map((x, k) => (k === 0 ? Number(x) : x));
+  const pid = Number(t.dataset.pollok || t.dataset.ritira || t.dataset.evsave || t.dataset.ics || id);
+  const a = avvisiApp.find((x) => x.id === pid); if (!a) return;
+  if (t.dataset.opt) {
+    const i = Number(v);
+    if (!a.dati?.multipla) { if (!(a.mia?.scelte || []).includes(i) || (a.mia?.scelte || []).length !== 1) { if (await rispondiBac(pid, { p_scelte: [i] })) toast("Voto registrato."); } return; }
+    const s = new Set((bozzaBac[pid] || { scelte: new Set(a.mia?.scelte || []) }).scelte);
+    s.has(i) ? s.delete(i) : s.add(i);
+    bozzaBac[pid] = { scelte: s }; aggiornaCardBac(pid); return;
+  }
+  if (t.dataset.pollok) { if (await rispondiBac(pid, { p_scelte: [...bozzaBac[pid].scelte].sort((x, y) => x - y) })) toast("Voto registrato."); return; }
+  if (t.dataset.ritira) { if (await rispondiBac(pid, null)) toast(a.tipo === "evento" ? "Risposta ritirata." : "Voto ritirato."); return; }
+  if (t.dataset.ev) {
+    if (a.mia?.stato === v) return;
+    const b = bozzaBac[pid] || {};
+    const ok = await rispondiBac(pid, { p_stato: v, p_ospiti: v === "si" ? (b.ospiti ?? a.mia?.ospiti ?? 0) : 0, p_note: b.note ?? a.mia?.note ?? null });
+    if (ok) toast(v === "si" ? "Ci sarai: segnato!" : v === "forse" ? "Segnato come forse." : "Grazie per averlo fatto sapere.");
+    return;
+  }
+  if (t.dataset.osp) {
+    const b = bozzaBac[pid] || { ospiti: a.mia?.ospiti || 0, note: a.mia?.note || "" };
+    b.ospiti = Math.max(0, Math.min(a.dati?.ospiti_max || 0, (b.ospiti || 0) + Number(v)));
+    bozzaBac[pid] = b; aggiornaCardBac(pid); return;
+  }
+  if (t.dataset.evsave) {
+    const b = bozzaBac[pid] || {};
+    if (await rispondiBac(pid, { p_stato: a.mia.stato, p_ospiti: b.ospiti ?? a.mia.ospiti ?? 0, p_note: b.note ?? a.mia.note ?? null })) toast("Salvato.");
+    return;
+  }
+  if (t.dataset.ics) icsEvento(a);
+});
+$("bachecaList").addEventListener("input", (e) => {
+  const n = e.target.dataset.evnote; if (!n) return;
+  const id = Number(n), a = avvisiApp.find((x) => x.id === id); if (!a) return;
+  const b = bozzaBac[id] || { ospiti: a.mia?.ospiti || 0, note: a.mia?.note || "" };
+  b.note = e.target.value; bozzaBac[id] = b;
+  const s = document.querySelector(`[data-evsave="${id}"]`);
+  if (s) s.hidden = (b.note || "") === (a.mia?.note || "") && (b.ospiti || 0) === (a.mia?.ospiti || 0);
+});
+// la notifica di un post apre la bacheca anche con l'app già aperta
+navigator.serviceWorker?.addEventListener("message", (e) => { if (String(e.data?.url || "").includes("p=bacheca") && session && !$("vApp").hidden) vai("pBacheca"); });

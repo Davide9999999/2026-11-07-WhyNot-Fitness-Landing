@@ -1,6 +1,6 @@
 // Service worker dell'app iscritti: rende l'app installabile e apribile anche con rete debole.
 // Solo i file dell'interfaccia vanno in cache; i dati (Supabase) arrivano sempre dalla rete.
-const VER = "whynot-app-v19";
+const VER = "whynot-app-v20";
 const SHELL = ["./", "app.css", "app.js", "installa.js", "manifest.webmanifest", "icons/icon-192.png", "icons/icon-512.png", "icons/badge-96.png",
   "../assets/whynot-app.js", "../assets/supabase-config.js", "../assets/fonts/fonts.css",
   "../assets/fonts/anton-latin.woff2", "../assets/fonts/inter-latin.woff2", "../assets/fonts/permanent-marker-latin.woff2"];
@@ -38,7 +38,8 @@ self.addEventListener("notificationclick", (e) => {
   e.notification.close();
   const url = new URL((e.notification.data && e.notification.data.url) || "./", self.registration.scope).href;
   e.waitUntil(clients.matchAll({ type: "window", includeUncontrolled: true }).then((cs) => {
-    for (const c of cs) if (c.url.startsWith(self.registration.scope)) return c.focus();
+    // app già aperta: la porta in primo piano e le dice dove andare (es. la bacheca)
+    for (const c of cs) if (c.url.startsWith(self.registration.scope)) { c.postMessage({ url }); return c.focus(); }
     return clients.openWindow(url);
   }));
 });

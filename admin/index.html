@@ -58,7 +58,7 @@
         <span data-for="schede" class="acts"><button class="btn sm" id="newScheda"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Nuova scheda</button></span>
         <span data-for="iscritti" class="acts"><button class="ghost sm" id="impIsc" title="Importa gli iscritti da un file Excel o CSV (es. esportato dal gestionale)"><svg viewBox="0 0 24 24"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>Importa</button><button class="ghost sm" id="invIsc" title="Invia per email il codice e il link per attivare l'app"><svg viewBox="0 0 24 24"><path d="M3 6h18v12H3z"/><path d="m3 7 9 6 9-6"/></svg>Invia inviti</button><button class="btn sm" id="newIsc"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Nuovo iscritto</button></span>
         <span data-for="palinsesto" class="acts"><button class="ghost sm" id="addCorso">+ Corso</button><button class="btn sm" id="newSlot">+ Fascia oraria</button></span>
-        <span data-for="bacheca" class="acts"><button class="btn sm" data-act="avviso">+ Nuovo avviso</button></span>
+        <span data-for="bacheca" class="acts"><button class="btn sm" data-act="avviso">+ Nuovo post</button></span>
         <span data-for="stat" class="acts"><button class="ghost sm" id="expPren">Esporta prenotazioni (CSV)</button></span>
         <span data-for="iscritti" class="acts"><button class="ghost sm" id="expIsc">Esporta (CSV)</button></span>
         <span data-for="ai" class="acts"><button class="ghost sm" id="aiReset">Nuova chat</button></span>
@@ -125,7 +125,7 @@
 
     <!-- BACHECA -->
     <section id="tab-bacheca" class="page" hidden>
-      <p class="mut" style="margin-bottom:12px">Gli avvisi restano visibili nell'app per 60 giorni, anche per chi non ha attivato le notifiche.</p>
+      <p class="mut" style="margin-bottom:12px">Avvisi, sondaggi ed eventi. Restano visibili nell'app per 60 giorni (gli eventi fino al giorno dopo, quelli in evidenza finché togli l'evidenza), anche per chi non ha attivato le notifiche.</p>
       <div id="avvisiList" class="feed"></div>
     </section>
 
@@ -216,10 +216,13 @@
           <p class="gn">Cosa vede l'iscritto: la scheda divisa per giorni con «Come si esegue»; con <b>Inizia</b> fa un esercizio alla volta, segna chili e ripetizioni di ogni serie (con «ultima volta» e suggerimento di aumento), ha il recupero automatico con pausa e ±15 secondi, e alla fine un riepilogo. I carichi registrati li vedi nella sua scheda in Iscritti (ultimi 90 giorni). Le indicazioni degli esercizi del catalogo sono generiche: falle rivedere a un istruttore.</p>
         </div></details>
 
-        <details class="gd staff-only"><summary>Avvisi e bacheca</summary><div>
-          <ol><li><b>Invia avviso</b> (da Panoramica) o <b>Bacheca</b> → <b>+ Nuovo avviso</b>: titolo e testo.</li>
-          <li>Con la spunta <b>Invia anche come notifica</b> arriva sul telefono di chi ha attivato le notifiche; senza, resta solo in bacheca.</li></ol>
-          <p class="gn">Gli avvisi restano visibili nell'app per 60 giorni, anche per chi non ha le notifiche. Per una lezione annullata non serve l'avviso: la notifica parte da sola.</p>
+        <details class="gd staff-only"><summary>Bacheca: avvisi, sondaggi ed eventi</summary><div>
+          <ol><li><b>Bacheca</b> → <b>+ Nuovo post</b> (oppure «Invia avviso» dalla Panoramica) e scegli il tipo: <b>Avviso</b>, <b>Sondaggio</b> o <b>Evento</b>. I <b>modelli pronti</b> (cena sociale, open day, sondaggio orari, nuovo corso) compilano tutto: tu correggi date e testi.</li>
+          <li><b>Sondaggio</b>: da 2 a 10 risposte, scelta singola o multipla. Decidi quando gli iscritti vedono i risultati (dopo il voto, sempre, alla chiusura o mai) e se è <b>anonimo</b> (vedi solo i totali). Si può cambiare il voto fino alla chiusura.</li>
+          <li><b>Evento</b> (cena, open day, gara, uscita): data e ora, luogo, costo, <b>posti massimi</b>, <b>ospiti</b> per persona e termine per le adesioni. Gli iscritti rispondono Partecipo / Forse / Non posso, con una nota, e lo aggiungono al calendario del telefono.</li>
+          <li><b>Destinatari</b>: tutti gli iscritti oppure <b>solo collaboratori</b> (es. cena aziendale). <b>In evidenza</b>: il post resta in cima.</li>
+          <li>Nell'elenco vedi i risultati in tempo reale. <b>Risposte</b> apre chi ha risposto (con <b>Esporta</b> per Excel); <b>Sollecita</b> manda una notifica a chi non ha ancora risposto; <b>Chiudi ora</b> / <b>Riapri</b> ferma o riapre le risposte.</li></ol>
+          <p class="gn">I post restano nell'app 60 giorni (gli eventi fino al giorno dopo, quelli in evidenza finché togli l'evidenza). Per una lezione annullata non serve un avviso: la notifica parte da sola. Nelle note degli eventi non chiedere informazioni sulla salute (allergie, patologie): per quelle serve il consenso esplicito, gestiscile di persona.</p>
         </div></details>
 
         <details class="gd staff-only"><summary>Corsi e orari</summary><div>
@@ -417,15 +420,45 @@
 <dialog id="dAvv" class="sheet">
   <form id="avvForm" class="sheet-body" novalidate>
     <button class="close" type="button" data-close aria-label="Chiudi">&times;</button>
-    <h2>Invia un avviso</h2>
-    <p class="mut" id="avvInfo">Notifica sul telefono a tutti gli iscritti attivi che hanno attivato le notifiche nell'app.</p>
+    <h2>Pubblica in bacheca</h2>
+    <div class="chips" id="avvTipo" role="group" aria-label="Tipo di post">
+      <button type="button" class="chip" data-tipo="avviso" aria-pressed="true">Avviso</button><button type="button" class="chip" data-tipo="sondaggio" aria-pressed="false">Sondaggio</button><button type="button" class="chip" data-tipo="evento" aria-pressed="false">Evento</button>
+    </div>
+    <p class="mut avvmod">Modelli pronti: <button type="button" class="link" data-mod="cena">Cena sociale</button> · <button type="button" class="link" data-mod="openday">Open day</button> · <button type="button" class="link" data-mod="orari">Sondaggio orari</button> · <button type="button" class="link" data-mod="corso">Nuovo corso</button></p>
     <label>Titolo<input name="titolo" required maxlength="120" placeholder="es. Palestra chiusa lunedì"></label>
-    <label class="chk"><input type="checkbox" name="notifica" checked> Invia anche come notifica a chi le ha attive (oltre alla bacheca)</label>
-    <label>Testo<textarea name="testo" rows="4" required maxlength="1000" placeholder="es. Lunedì 8 dicembre la palestra resta chiusa per la festività. Buone feste!"></textarea></label>
-    <div class="acts end"><button class="ghost" type="button" data-close>Annulla</button><button class="btn" type="submit">Invia</button></div>
+    <label><span id="avvTestoL">Testo</span><textarea name="testo" rows="4" maxlength="2000" placeholder="es. Lunedì 8 dicembre la palestra resta chiusa per la festività. Buone feste!"></textarea></label>
+    <div id="avvPoll" class="avvbox" hidden>
+      <span class="lbl">Risposte (da 2 a 10)</span>
+      <div id="avvOpz" class="avvopz"></div>
+      <button type="button" class="ghost sm" id="avvOpzAdd">+ Aggiungi risposta</button>
+      <label class="chk"><input type="checkbox" name="multipla"> Si possono scegliere più risposte</label>
+      <label class="chk"><input type="checkbox" name="anonimo"> Anonimo: lo staff vede solo i totali, non chi ha votato</label>
+      <label>Risultati visibili agli iscritti<select name="risultati"><option value="dopo_voto">Dopo aver votato</option><option value="sempre">Sempre, anche prima di votare</option><option value="fine">Solo alla chiusura</option><option value="staff">Mai: li vede solo lo staff</option></select></label>
+      <label>Chiusura del sondaggio (facoltativa)<input type="datetime-local" name="chiude"></label>
+    </div>
+    <div id="avvEv" class="avvbox" hidden>
+      <div class="row"><label>Inizio<input type="datetime-local" name="inizio"></label><label>Fine (facoltativa)<input type="datetime-local" name="fine"></label></div>
+      <label>Luogo<input name="luogo" maxlength="120" placeholder="es. WHY NOT Fitness Club, oppure il nome del ristorante"></label>
+      <label>Costo e informazioni (facoltativo)<input name="prezzo" maxlength="80" placeholder="es. 25 € a persona, da pagare in reception"></label>
+      <div class="row"><label>Posti massimi (vuoto = senza limite)<input type="number" name="posti" min="1" max="5000" inputmode="numeric"></label>
+        <label>Ospiti per persona<select name="ospiti_max"><option value="0">Nessuno</option><option value="1">1 (+1)</option><option value="2">Fino a 2</option><option value="3">Fino a 3</option><option value="5">Fino a 5</option></select></label></div>
+      <label>Adesioni entro (facoltativo, altrimenti fino all'inizio)<input type="datetime-local" name="chiude_ev"></label>
+    </div>
+    <label>Destinatari<select name="destinatari"><option value="tutti">Tutti gli iscritti</option><option value="staff">Solo collaboratori (staff e istruttori): es. cena aziendale</option></select></label>
+    <label class="chk"><input type="checkbox" name="fissato"> In evidenza: resta in cima alla bacheca</label>
+    <label class="chk"><input type="checkbox" name="notifica" checked> Invia anche come notifica a chi le ha attive</label>
+    <p class="mut" id="avvInfo">Notifica sul telefono agli iscritti attivi che hanno attivato le notifiche nell'app.</p>
+    <div class="acts end"><button class="ghost" type="button" data-close>Annulla</button><button class="btn" type="submit">Pubblica</button></div>
     <p class="msg" id="avvMsg" role="status"></p>
   </form>
 </dialog>
+
+<!-- RISPOSTE A SONDAGGI ED EVENTI -->
+<dialog id="dRisp" class="sheet wide"><div class="sheet-body">
+  <button class="close" type="button" data-close aria-label="Chiudi">&times;</button>
+  <h2 id="rispT">Risposte</h2><div id="rispBody"></div>
+</div></dialog>
+
 
 <!-- CORSO -->
 <dialog id="dCorso" class="sheet"><form id="corsoForm" class="sheet-body" novalidate>

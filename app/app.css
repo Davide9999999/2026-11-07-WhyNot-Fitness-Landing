@@ -319,3 +319,46 @@ dialog .toast{bottom:auto;top:calc(14px + var(--st))}
 .wtimer.pausa .wpa{background:var(--ok);color:#0b2a07}
 @media(max-width:360px){.wtimer{gap:5px;padding:8px}.wtimer button{min-width:38px;padding:0 7px}.wtt b{font-size:19px}}
 .sh button,.sh input{touch-action:manipulation}
+/* bacheca: avvisi, sondaggi ed eventi */
+.avv{display:flex;flex-direction:column;gap:8px;transition:opacity .2s}
+.avv.busy{opacity:.6;pointer-events:none}
+.avv.fix{border-color:rgba(240,179,60,.5)}
+.avtop{display:flex;flex-wrap:wrap;align-items:center;gap:6px}.avtop small{margin-left:auto}
+.avv h3{margin:0}.avtxt{font-size:14px;color:#d4d4d4;white-space:pre-wrap}
+.tag.hot{background:rgba(240,179,60,.18);color:#ffe2a6}.tag.poll{background:rgba(91,155,240,.16);color:#cfe0ff}
+.tag.ev{background:rgba(224,34,51,.18);color:#ffc2c6}.tag.new{background:var(--red-hi);color:#fff}
+.avinfo{font-size:12.5px;color:var(--mut)}
+.avact{display:flex;flex-wrap:wrap;align-items:center;gap:10px}.avact .link{margin:0}
+.opts{display:flex;flex-direction:column;gap:8px;margin-top:2px}
+.opt{position:relative;overflow:hidden;display:flex;align-items:center;gap:10px;min-height:48px;padding:10px 14px;border-radius:14px;border:1px solid var(--line2);background:#141414;text-align:left;font-size:14.5px;transition:border-color .15s,transform .1s}
+.opt:active{transform:scale(.99)}.opt:disabled{cursor:default}
+.opt i{position:absolute;inset:0 auto 0 0;background:rgba(255,255,255,.07);transition:width .5s ease}
+.opt.on i{background:rgba(224,34,51,.28)}
+.opt>*:not(i){position:relative}
+.opt b{flex:1;font-weight:600}
+.opt em{font-style:normal;font-weight:800;font-size:14px;display:flex;align-items:baseline;gap:5px}.opt em small{font-weight:600;color:var(--mut);font-size:11.5px}
+.opt .ck{flex:none;width:20px;height:20px;border-radius:50%;border:2px solid #666}
+.opt .ck.sq{border-radius:6px}
+.opt.on{border-color:var(--red-hi)}
+.opt.on .ck{border-color:var(--red-hi);background:var(--red-hi);box-shadow:inset 0 0 0 3px #141414}
+.opt.on .ck.sq{box-shadow:none;background:var(--red-hi) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3.5'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7.5'/%3E%3C/svg%3E") center/14px no-repeat}
+.evhead{display:flex;gap:14px;align-items:flex-start}
+.evdate{flex:none;width:58px;padding:8px 0 7px;border-radius:14px;background:var(--red);text-align:center;line-height:1}
+.evdate b{display:block;font-family:Anton,sans-serif;font-weight:400;font-size:26px}.evdate span{display:block;font-size:11.5px;font-weight:800;text-transform:uppercase;letter-spacing:1px;margin-top:3px}
+.evwhen{font-size:13.5px;color:#e6e6e6;margin-top:2px}
+.evwhere{display:flex;align-items:center;gap:5px;font-size:13px;color:var(--mut);margin-top:2px}
+.evwhere svg,.ghost-btn svg{width:15px;height:15px;flex:none;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.evprice{font-size:13.5px;font-weight:700;color:#ffe2a6}
+.evcount{font-size:13px;color:#cfcfcf;font-weight:600}
+.evseg{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.evseg button{min-height:44px;border-radius:12px;border:1px solid var(--line2);background:#141414;font-weight:700;font-size:13.5px}
+.evseg button[aria-pressed="true"]{background:var(--red);border-color:var(--red);color:#fff}
+.evseg button[data-ev$=":si"][aria-pressed="true"]{background:#2f7a24;border-color:#3d8a33}
+.evseg button:disabled{opacity:.4}
+.evmore{display:flex;flex-direction:column;gap:8px;padding-top:2px}
+.evosp{display:flex;align-items:center;justify-content:space-between;font-size:14px}
+.stepper{display:flex;align-items:center;gap:4px;border:1px solid var(--line2);border-radius:12px;background:#0d0d0d}
+.stepper button{width:40px;height:38px;font-size:19px;font-weight:700}.stepper button:disabled{opacity:.35}
+.stepper b{min-width:22px;text-align:center}
+.evnote{padding:10px 12px;font-size:16px;border-radius:12px}
+.ghost-btn{display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:6px 12px;border-radius:999px;border:1px solid var(--line2);font-size:13px;font-weight:700;color:#ddd}

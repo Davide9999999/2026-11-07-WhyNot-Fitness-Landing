@@ -230,3 +230,16 @@ Non si può rimuovere se stessi. Non è annullabile (resta solo il backup nottur
 - Voce **Guida** nel menu (su telefono anche in alto, accanto a «Esci»): argomenti apribili con ricerca (senza badare ad accenti e maiuscole).
 - Ogni ruolo vede la sua parte: staff tutto tranne la sezione solo admin; admin anche collaboratori, rimozione e regole prenotazioni; istruttore solo appello e accesso.
 - Il testo è in `admin/index.html` (sezione `tab-guida`): quando cambia una funzione del pannello va aggiornato anche lì.
+
+## 23. Bacheca con sondaggi ed eventi (2026-11-14) — `supabase/2026-11-14-WhyNot-bacheca-sondaggi-eventi.sql`
+- **Tipi di post** (Admin → Bacheca → «+ Nuovo post», anche da «Invia avviso» in Panoramica): Avviso, Sondaggio, Evento. Modelli pronti: cena sociale, open day, sondaggio orari, nuovo corso.
+- **Sondaggio**: 2–10 risposte, singola o multipla; risultati agli iscritti dopo il voto / sempre / alla chiusura / mai (solo staff); anonimo = lo staff vede solo i totali (`admin_bacheca_risposte` rifiuta i nomi); chiusura facoltativa. Il voto si cambia o ritira fino alla chiusura.
+- **Evento**: inizio (obbligatorio, futuro), fine, luogo, costo/info, posti massimi (contano anche gli ospiti), ospiti per persona (0–5), termine adesioni (default: l'inizio). Risposte Partecipo / Forse / Non posso con nota (max 300 caratteri); «Aggiungi al calendario» (.ics). Il controllo dei posti è nel database con blocco della riga (niente sforamenti con risposte simultanee).
+- **Destinatari**: tutti gli iscritti o solo collaboratori (tabella `staff`, istruttori compresi). **In evidenza**: in cima finché si toglie.
+- **Visibilità nell'app**: 60 giorni dalla pubblicazione; gli eventi fino al giorno dopo la fine; in evidenza e con scadenza futura restano visibili.
+- **Staff**: risultati in tempo reale nell'elenco; «Risposte» con esportazione CSV; «Sollecita» (notifica a chi ha le notifiche attive e non ha risposto); «Chiudi ora» / «Riapri»; «Metti/Togli evidenza»; «Elimina» (cancella anche le risposte).
+- **Notifiche**: aprono direttamente la Bacheca (`./?p=bacheca`; con l'app già aperta il service worker v20 invia un messaggio alla pagina). Rispettano la preferenza «avvisi» dell'iscritto.
+- **Dati**: colonne nuove su `avvisi` (tipo, dati jsonb, fissato, chiude_at, evento_at, evento_fine, destinatari); risposte in `avvisi_risposte` (RLS senza policy: solo tramite funzioni). Rimuovendo un iscritto le sue risposte si cancellano a cascata.
+- **Compatibilità**: prima del file SQL app e admin funzionano come prima (solo avvisi di testo); sondaggi ed eventi chiedono l'aggiornamento del database.
+- **Privacy**: nelle note degli eventi non raccogliere dati sulla salute (allergie, patologie): richiedono consenso esplicito (art. 9 GDPR).
+- Collaudo su copia locale con dati finti: app 32 controlli, admin 28 controlli, tutti superati (voto singolo/multiplo, ritiro, risultati per visibilità, posti esauriti, ospiti oltre il limite, note, calendario, errori, database non aggiornato, pubblicazione con validazioni, risposte e CSV, anonimato, azioni).

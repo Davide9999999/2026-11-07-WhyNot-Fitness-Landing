@@ -471,3 +471,22 @@ dialog.sheet.wide{width:min(860px,96vw)}
 .gd p{margin:0 0 8px}
 .gd .gn{margin-top:12px;padding:10px 12px;border-radius:10px;background:rgba(240,179,60,.08);border:1px solid rgba(240,179,60,.25);color:#ffe2a6;font-size:13.5px}
 .gt{font-size:11px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;padding:3px 8px;border-radius:999px;background:rgba(224,34,51,.18);color:#ffc2c6}
+/* bacheca: pubblicazione e risultati */
+#avvTipo{margin-bottom:6px}.avvmod{font-size:13px;margin-bottom:6px}.avvmod .link{font-size:13px;padding:0}
+.avvbox{display:flex;flex-direction:column;gap:12px;padding:14px;border:1px solid var(--line);border-radius:14px;background:rgba(255,255,255,.02)}
+.avvbox .lbl{font-size:12.5px;font-weight:700;color:#d0d0d0}
+.avvopz{display:flex;flex-direction:column;gap:8px}.avvo{display:flex;gap:6px;align-items:center}.avvo input{flex:1}
+.bpost{display:flex;flex-direction:column;gap:8px;margin-bottom:12px}.bpost.off{opacity:.55}
+.btop{display:flex;flex-wrap:wrap;gap:6px;align-items:center}.btop small{margin-left:auto;color:var(--mut);font-size:12px}
+.bt{font-size:11px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;padding:4px 9px;border-radius:999px;background:rgba(255,255,255,.08)}
+.bt-sondaggio{background:rgba(91,155,240,.16);color:#cfe0ff}.bt-evento{background:rgba(224,34,51,.18);color:#ffc2c6}
+.bt-fix{background:rgba(240,179,60,.18);color:#ffe2a6}.bt-on{background:rgba(111,211,90,.15);color:#c5f2b8}
+.btit{font-size:16px}.btxt{color:#cfcfcf;font-size:14px;white-space:pre-wrap;margin:0}
+.bpost>small{color:var(--mut);font-size:12.5px}
+.bres{display:flex;flex-direction:column;gap:6px}
+.br{display:grid;grid-template-columns:minmax(120px,1.2fr) 2fr auto;gap:10px;align-items:center;font-size:13.5px}
+.br i{height:10px;border-radius:6px;background:rgba(255,255,255,.07);overflow:hidden}.br i b{display:block;height:100%;background:#5b9bf0;border-radius:6px}
+.br em{font-style:normal;font-variant-numeric:tabular-nums;color:#ddd;font-size:13px;white-space:nowrap}
+.bev{display:flex;flex-wrap:wrap;gap:8px}.bev span{padding:6px 12px;border-radius:10px;background:rgba(255,255,255,.05);font-size:13.5px}.bev span.ok{background:rgba(111,211,90,.12);color:#c5f2b8}
+.bacts{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px}
+@media(max-width:600px){.br{grid-template-columns:1fr auto}.br i{grid-column:1/-1;order:3}}
