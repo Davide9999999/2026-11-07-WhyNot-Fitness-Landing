@@ -490,3 +490,5 @@ dialog.sheet.wide{width:min(860px,96vw)}
 .bev{display:flex;flex-wrap:wrap;gap:8px}.bev span{padding:6px 12px;border-radius:10px;background:rgba(255,255,255,.05);font-size:13.5px}.bev span.ok{background:rgba(111,211,90,.12);color:#c5f2b8}
 .bacts{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px}
 @media(max-width:600px){.br{grid-template-columns:1fr auto}.br i{grid-column:1/-1;order:3}}
+.bev span.pay{background:rgba(240,179,60,.12);color:#ffe2a6}.bev span.warn{background:rgba(224,34,51,.15);color:#ffb3b8}
+.pagbtn{min-width:104px;justify-content:center}.pagbtn.on{background:#1f4d1a;border-color:#3d8a33;color:#c5f2b8}.pagbtn.rimb{background:#4d1a1f;border-color:#8a333d;color:#ffb3b8}

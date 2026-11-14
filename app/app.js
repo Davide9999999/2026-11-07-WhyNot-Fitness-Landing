@@ -961,6 +961,8 @@ const fBacGiorno = fRoma({ weekday: "long", day: "numeric", month: "long" }), fB
 const fBacGg = fRoma({ day: "numeric" }), fBacMese = fRoma({ month: "short" }), fBacScad = fRoma({ weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 const ICO_LUOGO = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg>';
 const ICO_CAL = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/></svg>';
+const fEur = new Intl.NumberFormat("it-IT", { style: "currency", currency: "EUR" });
+const eur = (n) => fEur.format(Number(n)).replace(",00", "");
 
 async function badgeBacheca() {
   const { data } = await sb.rpc("bacheca");
@@ -1029,6 +1031,8 @@ function corpoEvento(a) {
   const finito = (fine || new Date(ini.getTime() + 3 * 3600e3)) < ora, iniziato = ini <= ora;
   const posti = d.posti || null, occ = es.occupati || 0, rest = posti ? Math.max(0, posti - occ) : null;
   const b = bozzaBac[a.id] || { ospiti: mia?.ospiti || 0, note: mia?.note || "" };
+  // quota: totale per sé e gli ospiti (in base alla risposta salvata) e stato del pagamento segnato dallo staff
+  const quota = d.prezzo_euro && mia?.stato === "si" ? `<p class="evpay">Il tuo totale: <b>${eur(d.prezzo_euro * (1 + (mia.ospiti || 0)))}</b>${mia.ospiti ? ` (tu + ${mia.ospiti} ${mia.ospiti === 1 ? "ospite" : "ospiti"})` : ""} · <span class="${mia.pagato ? "pay-ok" : "pay-no"}">${mia.pagato ? "pagato" : "da pagare"}</span></p>` : "";
   const conteggio = [`${es.si || 0} ${es.si === 1 ? "partecipa" : "partecipano"}${es.ospiti ? ` (+${es.ospiti} ospiti)` : ""}`, es.forse ? `${es.forse} forse` : "",
     posti && !finito ? (rest ? `restano ${rest} ${rest === 1 ? "posto" : "posti"}` : "posti esauriti") : ""].filter(Boolean).join(" · ");
   let risposta = "";
@@ -1044,15 +1048,18 @@ function corpoEvento(a) {
       const cambiato = (b.ospiti || 0) !== (mia.ospiti || 0) || (b.note || "") !== (mia.note || "");
       risposta += `<div class="evmore">
         ${mia.stato === "si" && d.ospiti_max ? `<div class="evosp"><span>Ospiti con te</span><div class="stepper"><button type="button" data-osp="${a.id}:-1" aria-label="Meno ospiti" ${b.ospiti ? "" : "disabled"}>−</button><b>${b.ospiti || 0}</b><button type="button" data-osp="${a.id}:1" aria-label="Più ospiti" ${b.ospiti >= d.ospiti_max ? "disabled" : ""}>+</button></div></div>` : ""}
-        <input class="evnote" data-evnote="${a.id}" maxlength="300" placeholder="Nota per gli organizzatori (facoltativa)" value="${esc(b.note || "")}">
+        ${quota}
+        <input class="evnote" data-evnote="${a.id}" maxlength="300" placeholder="Nota per gli organizzatori (es. arrivo alle 21)" value="${esc(b.note || "")}">
+        <p class="evhint">Allergie, intolleranze o altre esigenze personali: comunicale di persona allo staff, non qui.</p>
         <div class="avact"><button type="button" class="btn sm" data-evsave="${a.id}" ${cambiato ? "" : "hidden"}>Salva</button>
         <button type="button" class="ghost-btn" data-ics="${a.id}">${ICO_CAL}Aggiungi al calendario</button></div></div>`;
     }
   }
+  if ((finito || chiuso) && quota) risposta += quota;   // a risposte chiuse resta visibile quanto pagare e se è già pagato
   return `<div class="evhead"><div class="evdate"><b>${fBacGg.format(ini)}</b><span>${esc(fBacMese.format(ini).replace(".", ""))}</span></div>
     <div><h3>${esc(a.titolo)}</h3><p class="evwhen">${esc(cap(fBacGiorno.format(ini)))} · ${fBacOra.format(ini)}${fine ? `–${fBacOra.format(fine)}` : ""}</p>
     ${d.luogo ? `<p class="evwhere">${ICO_LUOGO}${esc(d.luogo)}</p>` : ""}</div></div>
-    ${a.testo ? `<p class="avtxt">${esc(a.testo)}</p>` : ""}${d.prezzo ? `<p class="evprice">${esc(d.prezzo)}</p>` : ""}
+    ${a.testo ? `<p class="avtxt">${esc(a.testo)}</p>` : ""}${d.prezzo_euro ? `<p class="evprice">${eur(d.prezzo_euro)} a persona${d.prezzo ? ` · ${esc(d.prezzo)}` : ""}</p>` : d.prezzo ? `<p class="evprice">${esc(d.prezzo)}</p>` : ""}
     <p class="evcount">${esc(conteggio)}${a.chiude_at && !chiuso ? ` · adesioni entro ${esc(fBacScad.format(new Date(a.chiude_at)))}` : ""}</p>${risposta}`;
 }
 

@@ -51,6 +51,10 @@ create table if not exists public.avvisi_risposte (
 );
 alter table public.avvisi_risposte enable row level security;
 revoke all on table public.avvisi_risposte from anon, authenticated;
+-- pagamento della quota (eventi con prezzo): lo segna lo staff; vale per la persona e i suoi ospiti
+alter table public.avvisi_risposte add column if not exists pagato    boolean not null default false;
+alter table public.avvisi_risposte add column if not exists pagato_at timestamptz;
+alter table public.avvisi_risposte add column if not exists pagato_da uuid references auth.users(id) on delete set null;
 
 -- ---------- 3. funzioni di supporto ----------
 -- coda notifica con indirizzo (la notifica apre direttamente la bacheca); stesse preferenze di _accoda
@@ -122,7 +126,7 @@ begin
                  or (a.dati->>'risultati' = 'fine' and public._bacheca_chiuso(a))) then public._bacheca_esiti(a.id)
            else null end
   from public.avvisi a
-  left join lateral (select jsonb_build_object('scelte', r.scelte, 'stato', r.stato, 'ospiti', r.ospiti, 'note', r.note) j
+  left join lateral (select jsonb_build_object('scelte', r.scelte, 'stato', r.stato, 'ospiti', r.ospiti, 'note', r.note, 'pagato', r.pagato) j
                      from public.avvisi_risposte r where r.avviso_id = a.id and r.user_id = auth.uid()) m on true
   where (a.destinatari = 'tutti' or v_coll)
     and (a.created_at > now() - interval '60 days' or a.fissato
@@ -230,9 +234,11 @@ begin
     if v_fine is not null and v_fine <= v_inizio then raise exception 'La fine deve essere dopo l''inizio'; end if;
     if v_chiude is not null and v_chiude > v_inizio then raise exception 'Le adesioni devono chiudere prima dell''inizio'; end if;
     if (p_dati->>'posti') is not null and ((p_dati->>'posti')::int < 1 or (p_dati->>'posti')::int > 5000) then raise exception 'Posti non validi'; end if;
+    if nullif(p_dati->>'prezzo_euro', '') is not null and ((p_dati->>'prezzo_euro')::numeric <= 0 or (p_dati->>'prezzo_euro')::numeric > 10000) then raise exception 'Prezzo non valido'; end if;
     v_dati := jsonb_strip_nulls(jsonb_build_object(
       'luogo', nullif(left(trim(coalesce(p_dati->>'luogo', '')), 120), ''),
       'prezzo', nullif(left(trim(coalesce(p_dati->>'prezzo', '')), 80), ''),
+      'prezzo_euro', round(nullif(p_dati->>'prezzo_euro', '')::numeric, 2),
       'posti', (p_dati->>'posti')::int,
       'ospiti_max', greatest(0, least(coalesce((p_dati->>'ospiti_max')::int, 0), 10))));
   else
@@ -264,9 +270,10 @@ revoke all on function public.admin_pubblica_bacheca(text, text, text, jsonb, bo
 grant execute on function public.admin_pubblica_bacheca(text, text, text, jsonb, boolean, text, text, text, text, boolean) to authenticated;
 
 -- ---------- 7. staff: elenco, risposte, azioni ----------
+drop function if exists public.admin_bacheca();
 create or replace function public.admin_bacheca()
 returns table (id bigint, titolo text, testo text, created_at timestamptz, tipo text, dati jsonb, fissato boolean,
-               chiude_at timestamptz, evento_at timestamptz, evento_fine timestamptz, destinatari text, chiuso boolean, risposte int, esiti jsonb)
+               chiude_at timestamptz, evento_at timestamptz, evento_fine timestamptz, destinatari text, chiuso boolean, risposte int, esiti jsonb, pagamenti jsonb)
 language plpgsql stable security definer set search_path = public as $$
 #variable_conflict use_column
 begin
@@ -274,14 +281,24 @@ begin
   return query
   select a.id, a.titolo, a.testo, a.created_at, a.tipo, a.dati, a.fissato, a.chiude_at, a.evento_at, a.evento_fine, a.destinatari,
          public._bacheca_chiuso(a), (select count(*)::int from public.avvisi_risposte r where r.avviso_id = a.id),
-         case when a.tipo in ('sondaggio','evento') then public._bacheca_esiti(a.id) end
+         case when a.tipo in ('sondaggio','evento') then public._bacheca_esiti(a.id) end,
+         -- quote: dovuto e incassato (persone confermate x prezzo); "da_rimborsare" = ha pagato ma ora non partecipa
+         case when a.tipo = 'evento' and (a.dati->>'prezzo_euro') is not null then (
+           select jsonb_build_object(
+             'persone',  coalesce(sum(1 + r.ospiti) filter (where r.stato = 'si'), 0),
+             'pagate',   coalesce(sum(1 + r.ospiti) filter (where r.stato = 'si' and r.pagato), 0),
+             'dovuto',   coalesce(sum(1 + r.ospiti) filter (where r.stato = 'si'), 0) * (a.dati->>'prezzo_euro')::numeric,
+             'incassato', coalesce(sum(1 + r.ospiti) filter (where r.stato = 'si' and r.pagato), 0) * (a.dati->>'prezzo_euro')::numeric,
+             'da_rimborsare', count(*) filter (where r.pagato and coalesce(r.stato, '') <> 'si'))
+           from public.avvisi_risposte r where r.avviso_id = a.id) end
   from public.avvisi a order by a.fissato desc, a.created_at desc limit 200;
 end $$;
 revoke all on function public.admin_bacheca() from public, anon;
 grant execute on function public.admin_bacheca() to authenticated;
 
+drop function if exists public.admin_bacheca_risposte(bigint);
 create or replace function public.admin_bacheca_risposte(p_id bigint)
-returns table (nome text, email text, scelte smallint[], stato text, ospiti smallint, note text, updated_at timestamptz)
+returns table (user_id uuid, nome text, email text, scelte smallint[], stato text, ospiti smallint, note text, pagato boolean, pagato_at timestamptz, updated_at timestamptz)
 language plpgsql stable security definer set search_path = public as $$
 #variable_conflict use_column
 declare a public.avvisi%rowtype;
@@ -293,13 +310,13 @@ begin
     raise exception 'Sondaggio anonimo: sono visibili solo i totali';
   end if;
   return query
-  select coalesce(i.nome, p.nome, 'Iscritto'), coalesce(i.email, u.email::text), r.scelte, r.stato, r.ospiti, r.note, r.updated_at
+  select r.user_id, coalesce(i.nome, p.nome, 'Iscritto'), coalesce(i.email, u.email::text), r.scelte, r.stato, r.ospiti, r.note, r.pagato, r.pagato_at, r.updated_at
   from public.avvisi_risposte r
   left join public.iscritti i on i.user_id = r.user_id
   left join public.profili p on p.user_id = r.user_id
   left join auth.users u on u.id = r.user_id
   where r.avviso_id = p_id
-  order by case r.stato when 'si' then 0 when 'forse' then 1 when 'no' then 2 else 3 end, 1;
+  order by case r.stato when 'si' then 0 when 'forse' then 1 when 'no' then 2 else 3 end, 2;
 end $$;
 revoke all on function public.admin_bacheca_risposte(bigint) from public, anon;
 grant execute on function public.admin_bacheca_risposte(bigint) to authenticated;
@@ -345,3 +362,18 @@ begin
 end $$;
 revoke all on function public.admin_bacheca_sollecita(bigint) from public, anon;
 grant execute on function public.admin_bacheca_sollecita(bigint) to authenticated;
+
+-- ---------- 8. staff: quota pagata o no (eventi con prezzo) ----------
+create or replace function public.admin_bacheca_pagato(p_id bigint, p_user uuid, p_pagato boolean)
+returns void language plpgsql security definer set search_path = public as $$
+begin
+  if not public.is_staff() then raise exception 'Accesso riservato allo staff'; end if;
+  update public.avvisi_risposte
+     set pagato = coalesce(p_pagato, false),
+         pagato_at = case when coalesce(p_pagato, false) then now() end,
+         pagato_da = case when coalesce(p_pagato, false) then auth.uid() end
+   where avviso_id = p_id and user_id = p_user;
+  if not found then raise exception 'Risposta non trovata'; end if;
+end $$;
+revoke all on function public.admin_bacheca_pagato(bigint, uuid, boolean) from public, anon;
+grant execute on function public.admin_bacheca_pagato(bigint, uuid, boolean) to authenticated;

@@ -219,10 +219,11 @@
         <details class="gd staff-only"><summary>Bacheca: avvisi, sondaggi ed eventi</summary><div>
           <ol><li><b>Bacheca</b> → <b>+ Nuovo post</b> (oppure «Invia avviso» dalla Panoramica) e scegli il tipo: <b>Avviso</b>, <b>Sondaggio</b> o <b>Evento</b>. I <b>modelli pronti</b> (cena sociale, open day, sondaggio orari, nuovo corso) compilano tutto: tu correggi date e testi.</li>
           <li><b>Sondaggio</b>: da 2 a 10 risposte, scelta singola o multipla. Decidi quando gli iscritti vedono i risultati (dopo il voto, sempre, alla chiusura o mai) e se è <b>anonimo</b> (vedi solo i totali). Si può cambiare il voto fino alla chiusura.</li>
-          <li><b>Evento</b> (cena, open day, gara, uscita): data e ora, luogo, costo, <b>posti massimi</b>, <b>ospiti</b> per persona e termine per le adesioni. Gli iscritti rispondono Partecipo / Forse / Non posso, con una nota, e lo aggiungono al calendario del telefono.</li>
+          <li><b>Evento</b> (cena, open day, gara, uscita): data e ora, luogo, <b>prezzo a persona</b>, <b>posti massimi</b>, <b>ospiti</b> per persona e termine per le adesioni. Gli iscritti rispondono Partecipo / Forse / Non posso, con una nota, e lo aggiungono al calendario del telefono.</li>
           <li><b>Destinatari</b>: tutti gli iscritti oppure <b>solo collaboratori</b> (es. cena aziendale). <b>In evidenza</b>: il post resta in cima.</li>
-          <li>Nell'elenco vedi i risultati in tempo reale. <b>Risposte</b> apre chi ha risposto (con <b>Esporta</b> per Excel); <b>Sollecita</b> manda una notifica a chi non ha ancora risposto; <b>Chiudi ora</b> / <b>Riapri</b> ferma o riapre le risposte.</li></ol>
-          <p class="gn">I post restano nell'app 60 giorni (gli eventi fino al giorno dopo, quelli in evidenza finché togli l'evidenza). Per una lezione annullata non serve un avviso: la notifica parte da sola. Nelle note degli eventi non chiedere informazioni sulla salute (allergie, patologie): per quelle serve il consenso esplicito, gestiscile di persona.</p>
+          <li>Nell'elenco vedi i risultati in tempo reale. <b>Risposte</b> apre chi ha risposto (con <b>Esporta</b> per Excel); <b>Sollecita</b> manda una notifica a chi non ha ancora risposto; <b>Chiudi ora</b> / <b>Riapri</b> ferma o riapre le risposte.</li>
+          <li><b>Pagamenti</b> (eventi con prezzo): in <b>Risposte</b> tocca «Da pagare» quando una persona salda la quota (vale anche per i suoi ospiti); in elenco vedi quanto è stato incassato e chi va rimborsato perché ha pagato e poi ha disdetto. L'iscritto vede nell'app il suo totale e se risulta pagato.</li></ol>
+          <p class="gn">I post restano nell'app 60 giorni (gli eventi fino al giorno dopo, quelli in evidenza finché togli l'evidenza). Per una lezione annullata non serve un avviso: la notifica parte da sola. Allergie, intolleranze ed esigenze personali si comunicano di persona allo staff, non nelle note dell'app (lo ricorda anche l'app agli iscritti).</p>
         </div></details>
 
         <details class="gd staff-only"><summary>Corsi e orari</summary><div>
@@ -439,7 +440,8 @@
     <div id="avvEv" class="avvbox" hidden>
       <div class="row"><label>Inizio<input type="datetime-local" name="inizio"></label><label>Fine (facoltativa)<input type="datetime-local" name="fine"></label></div>
       <label>Luogo<input name="luogo" maxlength="120" placeholder="es. WHY NOT Fitness Club, oppure il nome del ristorante"></label>
-      <label>Costo e informazioni (facoltativo)<input name="prezzo" maxlength="80" placeholder="es. 25 € a persona, da pagare in reception"></label>
+      <div class="row"><label>Prezzo a persona in € (facoltativo)<input type="number" name="prezzo_euro" min="0.5" max="10000" step="0.5" inputmode="decimal" placeholder="es. 25"></label>
+        <label>Informazioni sul pagamento (facoltative)<input name="prezzo" maxlength="80" placeholder="es. in reception entro il 18 dicembre"></label></div>
       <div class="row"><label>Posti massimi (vuoto = senza limite)<input type="number" name="posti" min="1" max="5000" inputmode="numeric"></label>
         <label>Ospiti per persona<select name="ospiti_max"><option value="0">Nessuno</option><option value="1">1 (+1)</option><option value="2">Fino a 2</option><option value="3">Fino a 3</option><option value="5">Fino a 5</option></select></label></div>
       <label>Adesioni entro (facoltativo, altrimenti fino all'inizio)<input type="datetime-local" name="chiude_ev"></label>

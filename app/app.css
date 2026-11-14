@@ -362,3 +362,5 @@ dialog .toast{bottom:auto;top:calc(14px + var(--st))}
 .stepper b{min-width:22px;text-align:center}
 .evnote{padding:10px 12px;font-size:16px;border-radius:12px}
 .ghost-btn{display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:6px 12px;border-radius:999px;border:1px solid var(--line2);font-size:13px;font-weight:700;color:#ddd}
+.evpay{font-size:13.5px;color:#e6e6e6}.evpay .pay-ok{color:#c5f2b8;font-weight:800}.evpay .pay-no{color:#ffe2a6;font-weight:800}
+.evhint{font-size:12px;color:var(--mut);line-height:1.4}

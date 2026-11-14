@@ -42,7 +42,12 @@ let tt;
 function toast(t, ok = true) { const el = $("toast"); el.textContent = t; el.className = "toast show " + (ok ? "ok" : "ko"); clearTimeout(tt); tt = setTimeout(() => (el.className = "toast"), 3200); }
 function ask(titolo, testo, ok = "Conferma") {
   $("askT").textContent = titolo; $("askP").textContent = testo; $("askOk").textContent = ok;
-  return new Promise((res) => { const d = $("dAsk"); d.returnValue = ""; d.showModal(); d.addEventListener("close", () => res(d.returnValue === "ok"), { once: true }); });
+  // una segnalazione di chiusura arrivata in ritardo da una conferma precedente non deve rispondere a questa: si ignora finché la finestra è aperta
+  return new Promise((res) => {
+    const d = $("dAsk"); d.returnValue = ""; d.showModal();
+    const fine = () => { if (d.open) return; d.removeEventListener("close", fine); res(d.returnValue === "ok"); };
+    d.addEventListener("close", fine);
+  });
 }
 
 if (!cfg.url || !cfg.anonKey) {
@@ -905,8 +910,8 @@ $("avvOpz").addEventListener("click", (e) => { const b = e.target.closest("butto
 const dtLocale = (giorniAvanti, hh, mm = 0) => { const d = new Date(Date.now() + giorniAvanti * 864e5); return `${ymdRome(d)}T${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}`; };
 const prossimo = (dow) => { const oggi = (new Date().getDay() + 6) % 7; let k = (dow - oggi + 7) % 7; return k === 0 ? 7 : k; };   // 0 = lunedì
 const MODELLI_BAC = {
-  cena: () => ({ tipo: "evento", titolo: "Cena sociale WHY NOT", testo: "Una serata tutti insieme fuori dalla palestra: iscritti, istruttori e staff. Conferma qui la tua presenza così prenotiamo il tavolo giusto.", inizio: dtLocale(prossimo(4) + 7, 20, 30), luogo: "", prezzo: "Quota da definire, da pagare in reception", ospiti_max: "1", chiude_ev: dtLocale(prossimo(4) + 4, 20, 0) }),
-  openday: () => ({ tipo: "evento", titolo: "Open day: porta un amico", testo: "Lezioni aperte a tutti e prova gratuita della sala attrezzi. Porta chi vuoi: segnati e indica quanti ospiti porti.", inizio: dtLocale(prossimo(5) + 7, 9, 0), fine: dtLocale(prossimo(5) + 7, 13, 0), luogo: "WHY NOT Fitness Club, Via Emma e Cerino Zegna 7", prezzo: "Gratuito", ospiti_max: "3" }),
+  cena: () => ({ tipo: "evento", titolo: "Cena sociale WHY NOT", testo: "Una serata tutti insieme fuori dalla palestra: iscritti, istruttori e staff. Conferma qui la tua presenza così prenotiamo il tavolo giusto.", inizio: dtLocale(prossimo(4) + 7, 20, 30), luogo: "", prezzo_euro: "30", prezzo: "da pagare in reception", ospiti_max: "1", chiude_ev: dtLocale(prossimo(4) + 4, 20, 0) }),
+  openday: () => ({ tipo: "evento", titolo: "Open day: porta un amico", testo: "Lezioni aperte a tutti e prova gratuita della sala attrezzi. Porta chi vuoi: segnati e indica quanti ospiti porti.", inizio: dtLocale(prossimo(5) + 7, 9, 0), fine: dtLocale(prossimo(5) + 7, 13, 0), luogo: "WHY NOT Fitness Club, Via Emma e Cerino Zegna 7", prezzo: "Ingresso gratuito", ospiti_max: "3" }),
   orari: () => ({ tipo: "sondaggio", titolo: "Quale fascia oraria preferisci per i corsi?", testo: "Ci aiuti a organizzare il prossimo palinsesto.", opzioni: ["Mattina presto (7:00–9:00)", "Pausa pranzo (12:30–14:00)", "Tardo pomeriggio (17:00–19:00)", "Sera (19:00–21:00)"], multipla: true, risultati: "dopo_voto", chiude: dtLocale(14, 21, 0) }),
   corso: () => ({ tipo: "sondaggio", titolo: "Quale nuovo corso ti piacerebbe?", testo: "Stiamo pensando di aggiungere un corso: diccelo tu.", opzioni: ["Yoga dinamico", "Functional training", "Pilates con attrezzi", "Boxe fitness"], multipla: false, risultati: "dopo_voto", chiude: dtLocale(14, 21, 0) }),
 };
@@ -914,7 +919,7 @@ $("avvForm").addEventListener("click", (e) => {
   const b = e.target.closest("[data-mod]"); if (!b) return;
   const m = MODELLI_BAC[b.dataset.mod](), f = avvF();
   avvSetTipo(m.tipo);
-  ["titolo", "testo", "inizio", "fine", "luogo", "prezzo", "ospiti_max", "chiude_ev", "chiude", "risultati"].forEach((k) => { if (m[k] != null && f.elements[k]) f.elements[k].value = m[k]; });
+  ["titolo", "testo", "inizio", "fine", "luogo", "prezzo", "prezzo_euro", "ospiti_max", "chiude_ev", "chiude", "risultati"].forEach((k) => { if (m[k] != null && f.elements[k]) f.elements[k].value = m[k]; });
   if (m.opzioni) { $("avvOpz").innerHTML = ""; m.opzioni.forEach(avvOpz); }
   if (m.multipla != null) f.multipla.checked = m.multipla;
   f.titolo.focus();
@@ -941,7 +946,7 @@ $("avvForm").addEventListener("submit", async (e) => {
   } else if (avvTipo === "evento") {
     inizio = f.inizio.value; fine = f.fine.value; chiude = f.chiude_ev.value;
     if (!inizio) return msg($("avvMsg"), "Indica data e ora di inizio dell'evento.");
-    dati.luogo = f.luogo.value.trim(); dati.prezzo = f.prezzo.value.trim(); dati.ospiti_max = Number(f.ospiti_max.value) || 0;
+    dati.luogo = f.luogo.value.trim(); dati.prezzo = f.prezzo.value.trim(); if (f.prezzo_euro.value) dati.prezzo_euro = Number(String(f.prezzo_euro.value).replace(",", ".")); dati.ospiti_max = Number(f.ospiti_max.value) || 0;
     if (f.posti.value) dati.posti = Number(f.posti.value);
   }
   const nomi = { avviso: "l'avviso", sondaggio: "il sondaggio", evento: "l'evento" };
@@ -1149,6 +1154,8 @@ $("slotDel").onclick = async () => {
 // ------------------------------------------------------------------ bacheca: elenco, risultati, risposte
 let postBac = [];
 const STATO_EV = { si: "Partecipa", forse: "Forse", no: "Non può" };
+const fEurA = new Intl.NumberFormat("it-IT", { style: "currency", currency: "EUR" });
+const eurA = (n) => fEurA.format(Number(n) || 0).replace(",00", "");
 function visibileApp(a) {
   const t = (x) => (x ? new Date(x).getTime() : 0), ora = Date.now();
   return t(a.created_at) > ora - 60 * 864e5 || a.fissato || (a.tipo === "evento" && t(a.evento_fine || a.evento_at) > ora - 864e5) || t(a.chiude_at) > ora;
@@ -1175,9 +1182,12 @@ function cardPost(a) {
       return `<div class="br"><span>${esc(o)}</span><i><b style="width:${(100 * c) / mx}%"></b></i><em>${c} · ${p}%</em></div>`; }).join("")}</div>
       <small>${v} ${v === 1 ? "voto" : "voti"}${d.multipla ? " · scelta multipla" : ""}${d.anonimo ? " · anonimo" : ""} · risultati agli iscritti: ${({ dopo_voto: "dopo il voto", sempre: "sempre", fine: "alla chiusura", staff: "mai" })[d.risultati || "dopo_voto"]}${a.chiude_at ? ` · chiude ${esc(fDT.format(new Date(a.chiude_at)))}` : ""}</small>`;
   } else if (tipo === "evento") {
-    corpo = `<small>${esc(cap1(fFull.format(new Date(a.evento_at))))} alle ${esc(fTime.format(new Date(a.evento_at)))}${a.evento_fine ? `–${esc(fTime.format(new Date(a.evento_fine)))}` : ""}${d.luogo ? ` · ${esc(d.luogo)}` : ""}${d.prezzo ? ` · ${esc(d.prezzo)}` : ""}</small>
+    const pg = a.pagamenti;
+    corpo = `<small>${esc(cap1(fFull.format(new Date(a.evento_at))))} alle ${esc(fTime.format(new Date(a.evento_at)))}${a.evento_fine ? `–${esc(fTime.format(new Date(a.evento_fine)))}` : ""}${d.luogo ? ` · ${esc(d.luogo)}` : ""}${d.prezzo_euro ? ` · ${eurA(d.prezzo_euro)} a persona` : ""}${d.prezzo ? ` · ${esc(d.prezzo)}` : ""}</small>
       <div class="bev"><span class="ok"><b>${es.si || 0}</b> partecipano${es.ospiti ? ` + ${es.ospiti} ospiti` : ""}</span><span><b>${es.forse || 0}</b> forse</span><span><b>${es.no || 0}</b> non possono</span>
-      ${d.posti ? `<span><b>${es.occupati || 0}/${d.posti}</b> posti</span>` : ""}</div>
+      ${d.posti ? `<span><b>${es.occupati || 0}/${d.posti}</b> posti</span>` : ""}
+      ${pg ? `<span class="${pg.pagate >= pg.persone ? "ok" : "pay"}">Incassati <b>${eurA(pg.incassato)}</b> di ${eurA(pg.dovuto)} · ${pg.pagate}/${pg.persone} persone</span>` : ""}
+      ${pg?.da_rimborsare ? `<span class="warn"><b>${pg.da_rimborsare}</b> da rimborsare</span>` : ""}</div>
       ${a.chiude_at ? `<small>Adesioni entro ${esc(fDT.format(new Date(a.chiude_at)))}</small>` : ""}`;
   }
   const azioni = [
@@ -1191,19 +1201,34 @@ function cardPost(a) {
 }
 async function mostraRisposte(id) {
   const a = postBac.find((x) => x.id === id); if (!a) return;
-  $("rispT").textContent = a.titolo; $("rispBody").innerHTML = '<p class="mut">Caricamento…</p>'; $("dRisp").showModal();
+  $("rispT").textContent = a.titolo; $("rispBody").innerHTML = '<p class="mut">Caricamento…</p>'; if (!$("dRisp").open) $("dRisp").showModal();
   const { data, error } = await sb.rpc("admin_bacheca_risposte", { p_id: id });
   if (error) { $("rispBody").innerHTML = `<p class="msg ko">${esc(error.message)}</p>`; return; }
-  const opz = a.dati?.opzioni || [], ev = a.tipo === "evento";
+  const opz = a.dati?.opzioni || [], ev = a.tipo === "evento", prezzo = ev ? Number(a.dati?.prezzo_euro) || 0 : 0;
   const risp = (r) => (ev ? STATO_EV[r.stato] || "" : (r.scelte || []).map((i) => opz[i] ?? "?").join(", "));
+  const importo = (r) => (r.stato === "si" ? prezzo * (1 + (r.ospiti || 0)) : 0);
   const righe = data || [];
-  $("rispBody").innerHTML = righe.length ? `<div class="acts-row" style="margin-bottom:10px"><span class="mut">${righe.length} ${righe.length === 1 ? "risposta" : "risposte"}${ev ? ` · ${righe.filter((r) => r.stato === "si").reduce((t, r) => t + 1 + (r.ospiti || 0), 0)} persone in tutto tra partecipanti e ospiti` : ""}</span><button class="ghost sm" type="button" id="rispCsv">Esporta (CSV)</button></div>
-    <div style="overflow-x:auto"><table class="tbl"><thead><tr><th>Nome</th><th class="hm">Email</th><th>Risposta</th>${ev ? "<th class=\"num\">Ospiti</th><th>Nota</th>" : ""}<th class="hm">Quando</th></tr></thead><tbody>
-    ${righe.map((r) => `<tr style="cursor:default"><td>${esc(r.nome)}</td><td class="hm">${esc(r.email || "")}</td><td>${esc(risp(r))}</td>${ev ? `<td class="num">${r.ospiti || ""}</td><td>${esc(r.note || "")}</td>` : ""}<td class="hm">${esc(fDT.format(new Date(r.updated_at)))}</td></tr>`).join("")}
+  const persone = righe.filter((r) => r.stato === "si").reduce((t, r) => t + 1 + (r.ospiti || 0), 0);
+  const dovuto = righe.reduce((t, r) => t + importo(r), 0), incassato = righe.filter((r) => r.pagato).reduce((t, r) => t + importo(r), 0);
+  const rimborsi = righe.filter((r) => r.pagato && r.stato !== "si");
+  // pagamento: si segna per chi partecipa; chi ha pagato e poi ha cambiato risposta resta evidenziato (da rimborsare)
+  const cellaPag = (r) => (r.stato === "si" || r.pagato)
+    ? `<button type="button" class="ghost sm pagbtn ${r.pagato ? "on" : ""}${r.pagato && r.stato !== "si" ? " rimb" : ""}" data-pag="${r.user_id}" data-val="${r.pagato ? "0" : "1"}" title="${r.pagato && r.pagato_at ? "Segnato il " + esc(fDT.format(new Date(r.pagato_at))) : "Segna come pagato"}">${r.pagato ? (r.stato === "si" ? "Pagato" : "Da rimborsare") : "Da pagare"}</button>` : "";
+  $("rispBody").innerHTML = righe.length ? `<div class="acts-row" style="margin-bottom:10px"><span class="mut">${righe.length} ${righe.length === 1 ? "risposta" : "risposte"}${ev ? ` · ${persone} persone in tutto tra partecipanti e ospiti` : ""}${prezzo ? ` · incassati <b>${eurA(incassato)}</b> di ${eurA(dovuto)}` : ""}${rimborsi.length ? ` · <b style="color:#ffb3b8">${rimborsi.length} da rimborsare</b>` : ""}</span><button class="ghost sm" type="button" id="rispCsv">Esporta (CSV)</button></div>
+    ${prezzo ? '<p class="mut" style="margin:-4px 0 10px;font-size:13px">Tocca «Da pagare» quando una persona salda la quota (vale anche per i suoi ospiti); toccalo di nuovo per annullare.</p>' : ""}
+    <div style="overflow-x:auto"><table class="tbl"><thead><tr><th>Nome</th><th class="hm">Email</th><th>Risposta</th>${ev ? "<th class=\"num\">Ospiti</th>" : ""}${prezzo ? "<th class=\"num\">Quota</th><th>Pagamento</th>" : ""}${ev ? "<th>Nota</th>" : ""}<th class="hm">Quando</th></tr></thead><tbody>
+    ${righe.map((r) => `<tr style="cursor:default"><td>${esc(r.nome)}</td><td class="hm">${esc(r.email || "")}</td><td>${esc(risp(r))}</td>${ev ? `<td class="num">${r.ospiti || ""}</td>` : ""}${prezzo ? `<td class="num">${importo(r) ? eurA(importo(r)) : ""}</td><td>${cellaPag(r)}</td>` : ""}${ev ? `<td>${esc(r.note || "")}</td>` : ""}<td class="hm">${esc(fDT.format(new Date(r.updated_at)))}</td></tr>`).join("")}
     </tbody></table></div>` : '<p class="empty">Ancora nessuna risposta.</p>';
+  $("rispBody").onclick = async (e) => {
+    const b = e.target.closest("[data-pag]"); if (!b) return;
+    b.disabled = true;
+    const { error } = await sb.rpc("admin_bacheca_pagato", { p_id: id, p_user: b.dataset.pag, p_pagato: b.dataset.val === "1" });
+    if (error) { b.disabled = false; return toast(error.message, false); }
+    await mostraRisposte(id); caricaBacheca();
+  };
   $("rispCsv")?.addEventListener("click", () => scaricaCsv(`${oggiYmd()}-WhyNot-Risposte-${a.titolo.replace(/[^\w]+/g, "-").slice(0, 40)}.csv`,
-    ev ? ["Nome", "Email", "Risposta", "Ospiti", "Nota", "Data"] : ["Nome", "Email", "Risposta", "Data"],
-    righe.map((r) => ev ? [r.nome, r.email, risp(r), r.ospiti || 0, r.note || "", fDT.format(new Date(r.updated_at))] : [r.nome, r.email, risp(r), fDT.format(new Date(r.updated_at))])));
+    ev ? ["Nome", "Email", "Risposta", "Ospiti", ...(prezzo ? ["Quota €", "Pagato"] : []), "Nota", "Data"] : ["Nome", "Email", "Risposta", "Data"],
+    righe.map((r) => ev ? [r.nome, r.email, risp(r), r.ospiti || 0, ...(prezzo ? [importo(r).toFixed(2).replace(".", ","), r.pagato ? "sì" : "no"] : []), r.note || "", fDT.format(new Date(r.updated_at))] : [r.nome, r.email, risp(r), fDT.format(new Date(r.updated_at))])));
 }
 $("avvisiList").addEventListener("click", async (e) => {
   const del = e.target.closest("[data-delav]");
