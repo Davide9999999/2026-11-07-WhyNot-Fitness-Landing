@@ -60,7 +60,9 @@ async function inviaUna(env, n) {
   const jwt = await firmaVapid(env, new URL(n.endpoint).origin);
   const r = await fetch(n.endpoint, {
     method: "POST",
-    headers: { "content-type": "application/octet-stream", "content-encoding": "aes128gcm", ttl: "21600", urgency: n.tipo === "promemoria" || n.tipo === "lista" ? "high" : "normal",
+    // priorità alta: su Android quella normale viene trattenuta finché il telefono è a riposo (consegna anche dopo minuti o ore).
+    // Normale solo per ciò che può aspettare: nuova settimana pubblicata e richiami a chi non viene da tempo.
+    headers: { "content-type": "application/octet-stream", "content-encoding": "aes128gcm", ttl: "21600", urgency: n.tipo === "settimana" || n.tipo === "richiamo" ? "normal" : "high",
       authorization: `vapid t=${jwt}, k=${env.VAPID_PUBLIC_KEY}` },
     body: corpo,
   });
