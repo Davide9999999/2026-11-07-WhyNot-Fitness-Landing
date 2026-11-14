@@ -353,17 +353,6 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     if (url.pathname.startsWith("/api/")) {
-      // COLLAUDO TEMPORANEO (test di carico 2026-11-14): finto "servizio push" che accetta la notifica come farebbe Google.
-      // Usato solo dagli iscritti di prova; non legge né salva nulla. Da togliere a fine collaudo.
-      // Accetta (201) solo notifiche costruite come per Google: firma VAPID, cifratura aes128gcm, contenuto cifrato; altrimenti 400.
-      // Con ?k=verifica risponde 410 (dispositivo non più valido): il Worker cancella quell'abbonamento = prova che la notifica era valida.
-      if (url.pathname === "/api/push-collaudo") {
-        if (request.method !== "POST") return new Response(null, { status: 405 });
-        const corpo = await request.arrayBuffer();
-        const valida = /^vapid t=[\w-]+\.[\w-]+\.[\w-]+, k=[\w-]+$/.test(request.headers.get("authorization") || "") && request.headers.get("content-encoding") === "aes128gcm" && corpo.byteLength >= 100;
-        if (!valida) return new Response("notifica non valida", { status: 400 });
-        return new Response(null, { status: url.searchParams.get("k") === "verifica" ? 410 : 201 });
-      }
       if (!env.SUPABASE_URL || !env.SUPABASE_ANON_KEY) return json({ error: "Supabase non configurato nel Worker" }, 500);
       if (request.method !== "POST") return json({ error: "Metodo non consentito" }, 405);
       // giro di invio notifiche a richiesta (diagnosi): serve lo stesso PUSH_SECRET del Worker
