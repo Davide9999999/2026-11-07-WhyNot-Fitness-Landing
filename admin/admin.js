@@ -886,7 +886,7 @@ function proposta(p) {
 avvia();
 
 // ------------------------------------------------------------------ bacheca: pubblicare avvisi, sondaggi ed eventi
-let avvTipo = "avviso";
+let avvTipo = "avviso", avvEdit = null;   // avvEdit: post in modifica (null = nuova pubblicazione)
 const avvF = () => $("avvForm");
 function avvSetTipo(t) {
   avvTipo = t;
@@ -896,16 +896,23 @@ function avvSetTipo(t) {
   avvF().titolo.placeholder = t === "avviso" ? "es. Palestra chiusa lunedì" : t === "sondaggio" ? "es. Che orario preferisci per il nuovo corso?" : "es. Cena di Natale WHY NOT";
   if (t === "sondaggio" && $("avvOpz").children.length < 2) { $("avvOpz").innerHTML = ""; avvOpz(""); avvOpz(""); }
 }
-function avvOpz(v) {
+// blocca = risposta già votata in un sondaggio che si sta modificando: si può riscrivere ma non togliere
+function avvOpz(v, blocca) {
   if ($("avvOpz").children.length >= 10) return;
   const d = document.createElement("div"); d.className = "avvo";
-  d.innerHTML = `<input maxlength="80" placeholder="Risposta ${$("avvOpz").children.length + 1}" aria-label="Risposta"><button type="button" class="icon" aria-label="Togli risposta">&times;</button>`;
+  d.innerHTML = `<input maxlength="80" placeholder="Risposta ${$("avvOpz").children.length + 1}" aria-label="Risposta"><button type="button" class="icon" aria-label="Togli risposta"${blocca ? ' disabled title="Ci sono già voti: questa risposta non si può togliere"' : ""}>&times;</button>`;
   d.querySelector("input").value = v || "";
   $("avvOpz").appendChild(d);
 }
-$("avvTipo").addEventListener("click", (e) => { const b = e.target.closest("[data-tipo]"); if (b) avvSetTipo(b.dataset.tipo); });
+$("avvTipo").addEventListener("click", (e) => { const b = e.target.closest("[data-tipo]"); if (b && !avvEdit) avvSetTipo(b.dataset.tipo); });
 $("avvOpzAdd").onclick = () => { avvOpz(""); $("avvOpz").lastElementChild.querySelector("input").focus(); };
-$("avvOpz").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b && $("avvOpz").children.length > 2) b.parentElement.remove(); });
+$("avvOpz").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b && !b.disabled && $("avvOpz").children.length > 2) b.parentElement.remove(); });
+// data dal database -> campo datetime-local in ora italiana ("2026-12-09T20:00")
+const dtRoma = (iso) => {
+  if (!iso) return "";
+  const p = Object.fromEntries(new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Rome", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(new Date(iso)).map((x) => [x.type, x.value]));
+  return `${p.year}-${p.month}-${p.day}T${p.hour}:${p.minute}`;
+};
 // data e ora per i campi datetime-local (ora italiana): prossimo giorno della settimana alle hh:mm
 const dtLocale = (giorniAvanti, hh, mm = 0) => { const d = new Date(Date.now() + giorniAvanti * 864e5); return `${ymdRome(d)}T${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}`; };
 const prossimo = (dow) => { const oggi = (new Date().getDay() + 6) % 7; let k = (dow - oggi + 7) % 7; return k === 0 ? 7 : k; };   // 0 = lunedì
@@ -924,9 +931,43 @@ $("avvForm").addEventListener("click", (e) => {
   if (m.multipla != null) f.multipla.checked = m.multipla;
   f.titolo.focus();
 });
-async function apriAvviso(tipo = "avviso") {
-  const f = avvF(); f.reset(); msg($("avvMsg"), ""); $("avvOpz").innerHTML = "";
-  avvSetTipo(tipo);
+// post = un post già pubblicato da modificare (modulo precompilato); senza = nuova pubblicazione
+async function apriAvviso(tipo = "avviso", post = null) {
+  const f = avvF(); f.reset(); msg($("avvMsg"), ""); $("avvOpz").innerHTML = ""; f.anonimo.disabled = false;
+  avvEdit = post && typeof post === "object" && post.id ? post : null;
+  const t = avvEdit ? avvEdit.tipo || "avviso" : (typeof tipo === "string" ? tipo : "avviso");
+  avvSetTipo(t);
+  $("avvH").textContent = avvEdit ? "Modifica il post" : "Pubblica in bacheca";
+  $("avvOk").textContent = avvEdit ? "Salva le modifiche" : "Pubblica";
+  document.querySelector("#avvForm .avvmod").hidden = !!avvEdit;
+  $("avvTipo").querySelectorAll("[data-tipo]").forEach((b) => { b.disabled = !!avvEdit && b.dataset.tipo !== t; });
+  $("avvLock").hidden = true; $("avvLock").textContent = "";
+  if (avvEdit) {
+    const p = avvEdit, d = p.dati || {}, voti = p.risposte || 0;
+    f.titolo.value = p.titolo || ""; f.testo.value = p.testo || "";
+    f.destinatari.value = p.destinatari || "tutti"; f.fissato.checked = !!p.fissato;
+    if (t === "sondaggio") {
+      $("avvOpz").innerHTML = ""; (d.opzioni || []).forEach((o) => avvOpz(o, voti > 0));
+      f.multipla.checked = !!d.multipla; f.anonimo.checked = !!d.anonimo; f.risultati.value = d.risultati || "dopo_voto"; f.chiude.value = dtRoma(p.chiude_at);
+      if (voti && d.anonimo) f.anonimo.disabled = true;
+    } else if (t === "evento") {
+      f.inizio.value = dtRoma(p.evento_at); f.fine.value = dtRoma(p.evento_fine); f.chiude_ev.value = dtRoma(p.chiude_at);
+      f.luogo.value = d.luogo || ""; f.prezzo.value = d.prezzo || ""; f.prezzo_euro.value = d.prezzo_euro ?? ""; f.posti.value = d.posti ?? "";
+      f.ospiti_max.value = String(d.ospiti_max || 0);
+      if (![...f.ospiti_max.options].some((o) => o.value === f.ospiti_max.value)) f.ospiti_max.add(new Option(`Fino a ${d.ospiti_max}`, String(d.ospiti_max)));
+    }
+    if (voti) {
+      $("avvLock").hidden = false;
+      $("avvLock").textContent = t === "sondaggio" ? `Ci sono già ${voti} ${voti === 1 ? "voto" : "voti"}: puoi correggere i testi delle risposte e aggiungerne di nuove, ma non toglierle.`
+        : t === "evento" ? `Hanno già risposto ${voti} ${voti === 1 ? "persona" : "persone"}: posti e ospiti non possono scendere sotto i confermati.` : "";
+    }
+    f.notifica.checked = false;
+    $("avvNotL").textContent = t === "avviso" ? "Invia di nuovo come notifica a tutti i destinatari" : "Avvisa della modifica chi ha già risposto (es. cambio di data o luogo)";
+    $("avvInfo").textContent = "Le modifiche compaiono subito nell'app, con l'indicazione «modificato».";
+    $("dAvv").showModal(); return;
+  }
+  f.anonimo.disabled = false;
+  $("avvNotL").textContent = "Invia anche come notifica a chi le ha attive";
   const { data } = await sb.rpc("admin_stato_notifiche");
   $("avvInfo").textContent = data
     ? `Notifica sul telefono a chi ha le notifiche attive nell'app: oggi ${data.iscritti_con_notifiche} iscritti.`
@@ -950,6 +991,15 @@ $("avvForm").addEventListener("submit", async (e) => {
     if (f.posti.value) dati.posti = Number(f.posti.value);
   }
   const nomi = { avviso: "l'avviso", sondaggio: "il sondaggio", evento: "l'evento" };
+  if (avvEdit) {
+    if (!(await ask(`Salvare le modifiche?`, `«${tit}» si aggiorna subito nella bacheca dell'app${f.notifica.checked ? (avvTipo === "avviso" ? " e arriva di nuovo come notifica" : " e chi ha già risposto riceve una notifica") : ""}.`, "Salva"))) return;
+    const { data, error } = await sb.rpc("admin_modifica_bacheca", { p_id: avvEdit.id, p_titolo: tit, p_testo: txt, p_dati: dati, p_fissato: f.fissato.checked,
+      p_chiude: chiude || null, p_inizio: inizio || null, p_fine: fine || null, p_destinatari: f.destinatari.value, p_notifica: f.notifica.checked });
+    if (error) return msg($("avvMsg"), error.message);
+    $("dAvv").close(); avvEdit = null;
+    toast(`Modifiche salvate${data?.notifiche ? ` e notifica inviata a ${data.notifiche} ${data.notifiche === 1 ? "persona" : "persone"}` : ""}.`);
+    return caricaBacheca();
+  }
   if (!(await ask(`Pubblicare ${nomi[avvTipo]}?`, `«${tit}» comparirà nella bacheca dell'app${f.destinatari.value === "staff" ? " solo per i collaboratori" : ""}${f.notifica.checked ? " e arriverà come notifica a chi le ha attive" : ""}.`, "Pubblica"))) return;
   let { data, error } = await sb.rpc("admin_pubblica_bacheca", { p_tipo: avvTipo, p_titolo: tit, p_testo: txt, p_dati: dati, p_fissato: f.fissato.checked,
     p_chiude: chiude || null, p_inizio: inizio || null, p_fine: fine || null, p_destinatari: f.destinatari.value, p_notifica: f.notifica.checked });
@@ -1191,12 +1241,13 @@ function cardPost(a) {
       ${a.chiude_at ? `<small>Adesioni entro ${esc(fDT.format(new Date(a.chiude_at)))}</small>` : ""}`;
   }
   const azioni = [
+    a.tipo ? `<button class="ghost sm" data-bact="modifica" data-id="${a.id}">Modifica</button>` : "",
     tipo !== "avviso" ? `<button class="ghost sm" data-bact="risposte" data-id="${a.id}">Risposte (${a.risposte || 0})</button>` : "",
     tipo !== "avviso" && !a.chiuso ? `<button class="ghost sm" data-bact="sollecita" data-id="${a.id}" title="Notifica a chi non ha ancora risposto">Sollecita</button>` : "",
     tipo !== "avviso" && a.tipo ? `<button class="ghost sm" data-bact="${a.chiuso ? "riapri" : "chiudi"}" data-id="${a.id}">${a.chiuso ? "Riapri" : "Chiudi ora"}</button>` : "",
     a.tipo ? `<button class="ghost sm" data-bact="${a.fissato ? "sgancia" : "fissa"}" data-id="${a.id}">${a.fissato ? "Togli evidenza" : "Metti in evidenza"}</button>` : "",
     `<button class="ghost sm danger" data-delav="${a.id}">Elimina</button>`].join("");
-  return `<div class="panel bpost${vis ? "" : " off"}"><div class="btop">${tag}<small>${esc(fDT.format(new Date(a.created_at)))}</small></div>
+  return `<div class="panel bpost${vis ? "" : " off"}"><div class="btop">${tag}<small>${esc(fDT.format(new Date(a.created_at)))}${a.modificato_at ? ` · modificato ${esc(fDT.format(new Date(a.modificato_at)))}` : ""}</small></div>
     <b class="btit">${esc(a.titolo)}</b>${a.testo ? `<p class="btxt">${esc(a.testo)}</p>` : ""}${corpo}<div class="bacts">${azioni}</div></div>`;
 }
 async function mostraRisposte(id) {
@@ -1241,6 +1292,7 @@ $("avvisiList").addEventListener("click", async (e) => {
   const b = e.target.closest("[data-bact]"); if (!b) return;
   const id = Number(b.dataset.id), az = b.dataset.bact;
   if (az === "risposte") return mostraRisposte(id);
+  if (az === "modifica") return apriAvviso(null, postBac.find((x) => x.id === id));
   if (az === "sollecita") {
     if (!(await ask("Inviare un sollecito?", "Arriva una notifica a chi ha le notifiche attive e non ha ancora risposto.", "Invia"))) return;
     const { data, error } = await sb.rpc("admin_bacheca_sollecita", { p_id: id });

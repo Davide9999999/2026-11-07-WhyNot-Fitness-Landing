@@ -421,7 +421,7 @@
 <dialog id="dAvv" class="sheet">
   <form id="avvForm" class="sheet-body" novalidate>
     <button class="close" type="button" data-close aria-label="Chiudi">&times;</button>
-    <h2>Pubblica in bacheca</h2>
+    <h2 id="avvH">Pubblica in bacheca</h2>
     <div class="chips" id="avvTipo" role="group" aria-label="Tipo di post">
       <button type="button" class="chip" data-tipo="avviso" aria-pressed="true">Avviso</button><button type="button" class="chip" data-tipo="sondaggio" aria-pressed="false">Sondaggio</button><button type="button" class="chip" data-tipo="evento" aria-pressed="false">Evento</button>
     </div>
@@ -448,9 +448,10 @@
     </div>
     <label>Destinatari<select name="destinatari"><option value="tutti">Tutti gli iscritti</option><option value="staff">Solo collaboratori (staff e istruttori): es. cena aziendale</option></select></label>
     <label class="chk"><input type="checkbox" name="fissato"> In evidenza: resta in cima alla bacheca</label>
-    <label class="chk"><input type="checkbox" name="notifica" checked> Invia anche come notifica a chi le ha attive</label>
+    <label class="chk"><input type="checkbox" name="notifica" checked> <span id="avvNotL">Invia anche come notifica a chi le ha attive</span></label>
     <p class="mut" id="avvInfo">Notifica sul telefono agli iscritti attivi che hanno attivato le notifiche nell'app.</p>
-    <div class="acts end"><button class="ghost" type="button" data-close>Annulla</button><button class="btn" type="submit">Pubblica</button></div>
+    <p class="mut" id="avvLock" hidden></p>
+    <div class="acts end"><button class="ghost" type="button" data-close>Annulla</button><button class="btn" type="submit" id="avvOk">Pubblica</button></div>
     <p class="msg" id="avvMsg" role="status"></p>
   </form>
 </dialog>

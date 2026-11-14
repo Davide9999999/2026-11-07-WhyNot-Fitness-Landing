@@ -1037,7 +1037,7 @@ function cardBac(a, nuovo) {
   const tag = [a.fissato ? '<span class="tag hot">In evidenza</span>' : "", a.destinatari === "staff" ? '<span class="tag">Solo staff</span>' : "",
     tipo === "sondaggio" ? '<span class="tag poll">Sondaggio</span>' : tipo === "evento" ? '<span class="tag ev">Evento</span>' : "",
     nuovo ? '<span class="tag new">Nuovo</span>' : ""].join("");
-  const testa = `<div class="avtop">${tag}<small>${esc(fmt.date.format(new Date(a.created_at)))}</small></div>`;
+  const testa = `<div class="avtop">${tag}<small>${esc(fmt.date.format(new Date(a.created_at)))}${a.modificato_at ? " · modificato" : ""}</small></div>`;
   const corpo = tipo === "sondaggio" ? corpoSondaggio(a) : tipo === "evento" ? corpoEvento(a)
     : `<h3>${esc(a.titolo)}</h3><p class="avtxt">${esc(a.testo)}</p>`;
   return `<article class="avv t-${tipo}${nuovo ? " nuovo" : ""}${a.fissato ? " fix" : ""}" data-bac="${a.id}">${testa}${corpo}</article>`;
